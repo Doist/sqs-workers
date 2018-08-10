@@ -1,5 +1,6 @@
 import logging
 import json
+
 import boto3
 from collections import defaultdict
 from itertools import groupby
@@ -7,6 +8,7 @@ from itertools import groupby
 import multiprocessing
 
 from sqs_workers import processors, codecs
+from sqs_workers.backoff_policies import DEFAULT_BACKOFF
 
 logger = logging.getLogger(__name__)
 
@@ -14,7 +16,7 @@ DEFAULT_CONTENT_TYPE = 'pickle'
 
 
 class SQSEnv(object):
-    def __init__(self, session=boto3, queue_prefix=''):
+    def __init__(self, session=boto3, queue_prefix='', backoff_policy=DEFAULT_BACKOFF):
         """
         Initialize SQS environment with boto3 session
         """
@@ -23,6 +25,7 @@ class SQSEnv(object):
         self.sqs_resource = session.resource('sqs')
         self.processors = defaultdict(lambda: {})
         self.queue_prefix = queue_prefix
+        self.backoff_policy = backoff_policy
 
         # internal mapping from queue names to queue objects
         self.queue_mapping_cache = {}
@@ -79,7 +82,7 @@ class SQSEnv(object):
         """
         self.get_queue(queue_name).delete()
 
-    def connect_processor(self, queue_name, job_name, processor):
+    def connect_processor(self, queue_name, job_name, processor, backoff_policy=None):
         """
         Assign processor (a function) to handle jobs with the name job_name
         from the queue queue_name
@@ -94,10 +97,10 @@ class SQSEnv(object):
             'processor {processor_name}'.format(**extra),
             extra=extra)
         self.processors[queue_name][job_name] = processors.Processor(
-            queue_name, job_name, processor)
+            queue_name, job_name, processor, backoff_policy or self.backoff_policy)
         return AsyncTask(self, queue_name, job_name, processor)
 
-    def processor(self, queue_name, job_name):
+    def processor(self, queue_name, job_name, backoff_policy=None):
         """
         Decorator to assign processor to handle jobs with the name job_name
         from the queue queue_name
@@ -123,11 +126,11 @@ class SQSEnv(object):
         """
 
         def fn(processor):
-            return self.connect_processor(queue_name, job_name, processor)
+            return self.connect_processor(queue_name, job_name, processor, backoff_policy)
 
         return fn
 
-    def connect_batch_processor(self, queue_name, job_name, processor):
+    def connect_batch_processor(self, queue_name, job_name, processor, backoff_policy=None):
         """
         Assign a batch processor (function) to handle jobs with the name
         job_name from the queue queue_name
@@ -142,10 +145,10 @@ class SQSEnv(object):
             'batch processor {processor_name}'.format(**extra),
             extra=extra)
         self.processors[queue_name][job_name] = processors.BatchProcessor(
-            queue_name, job_name, processor)
+            queue_name, job_name, processor, backoff_policy or self.backoff_policy)
         return AsyncBatchTask(self, queue_name, job_name, processor)
 
-    def batch_processor(self, queue_name, job_name):
+    def batch_processor(self, queue_name, job_name, backoff_policy=None):
         """
         Decorator to assign a batch processor to handle jobs with the name
         job_name from the queue queue_name. The batch processor has to be a
@@ -176,7 +179,7 @@ class SQSEnv(object):
 
         def fn(processor):
             return self.connect_batch_processor(queue_name, job_name,
-                                                processor)
+                                                processor, backoff_policy)
 
         return fn
 
@@ -263,7 +266,7 @@ class SQSEnv(object):
                 entries = [{
                     'Id': msg.message_id,
                     'ReceiptHandle': msg.receipt_handle,
-                    'VisibilityTimeout': 0,
+                    'VisibilityTimeout': processor.backoff_policy.get_visibility_timeout(msg),
                 } for msg in failed]
                 queue.change_message_visibility_batch(Entries=entries)
         return succeeded_count
@@ -276,6 +279,7 @@ class SQSEnv(object):
             'WaitTimeSeconds': wait_seconds,
             'MaxNumberOfMessages': 10,
             'MessageAttributeNames': ['All'],
+            'AttributeNames': ['All'],
         }
         queue = self.get_queue(queue_name)
         return queue.receive_messages(**kwargs)

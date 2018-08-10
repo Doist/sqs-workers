@@ -123,6 +123,33 @@ This means "move the message to the email_deadletters queue after four (3 + 1)
 failed attempts to send it to the recipient"
 
 
+Backoff policies
+----------------
+
+You can define the backoff policy for the entire environment or for specific
+processor. 
+
+
+```python
+@sqs.processor('emails', 'send_email', backoff_policy=DEFAULT_BACKOFF)
+def send_email(to, subject, body):
+    print(f"Sending email {subject} to {to}")
+```
+
+Default policy is the exponential backoff. It's recommended to always set
+both backoff policy and dead-letter queue to limit the maximum number
+of execution attempts.
+
+Alternatively you can set the backoff to IMMEDIATE_RETURN to re-execute
+failed task immediately.
+
+```python
+@sqs.processor('emails', 'send_email', backoff_policy=IMMEDIATE_RETURN)
+def send_email(to, subject, body):
+    print(f"Sending email {subject} to {to}")
+```
+
+
 Why it depends on werkzeug? 😱
 ------------------------------
 

@@ -1,4 +1,6 @@
 import pytest
+
+from sqs_workers import IMMEDIATE_RETURN
 from sqs_workers.codecs import PickleCodec, JSONCodec
 
 worker_results = {'say_hello': None, 'batch_say_hello': set()}
@@ -59,8 +61,8 @@ def test_process_messages_once(sqs, queue):
 
 
 def test_batch_processor(sqs, queue):
-    task = sqs.connect_batch_processor(
-        queue, 'batch_say_hello', batch_say_hello)
+    task = sqs.connect_batch_processor(queue, 'batch_say_hello',
+                                       batch_say_hello)
 
     usernames = {'u{}'.format(i) for i in range(20)}
 
@@ -92,7 +94,8 @@ def test_arguments_validator_adds_kwargs(sqs, queue):
 
 
 def test_exception_returns_task_to_the_queue(sqs, queue):
-    task = sqs.connect_processor(queue, 'say_hello', raise_exception)
+    task = sqs.connect_processor(
+        queue, 'say_hello', raise_exception, backoff_policy=IMMEDIATE_RETURN)
     task.delay(username='Homer')
     assert sqs.process_batch(queue, wait_seconds=0) == 0
 
@@ -105,7 +108,8 @@ def test_redrive(sqs, queue_with_redrive):
     queue, dead_queue = queue_with_redrive
 
     # add processor which fails to the standard queue
-    task = sqs.connect_processor(queue, 'say_hello', raise_exception)
+    task = sqs.connect_processor(
+        queue, 'say_hello', raise_exception, backoff_policy=IMMEDIATE_RETURN)
 
     # add message to the queue and process it twice
     # the message has to be moved to dead letter queue

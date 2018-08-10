@@ -1,6 +1,7 @@
 import logging
 import warnings
 
+from sqs_workers.backoff_policies import DEFAULT_BACKOFF
 from sqs_workers.utils import adv_validate_arguments
 from sqs_workers import codecs
 
@@ -27,10 +28,15 @@ class GenericProcessor(object):
       from the list of successfully processed messages
     """
 
-    def __init__(self, queue_name, job_name, fn=None):
+    def __init__(self,
+                 queue_name,
+                 job_name,
+                 fn=None,
+                 backoff_policy=DEFAULT_BACKOFF):
         self.queue_name = queue_name
         self.job_name = job_name
         self.fn = fn
+        self.backoff_policy = backoff_policy
 
     def process_batch(self, job_messages):
         raise NotImplementedError("Must be implemented in subclasses")
