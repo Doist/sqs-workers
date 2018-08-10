@@ -1,0 +1,14 @@
+## [Unreleased]
+
+### Added
+
+- Support for different backoff policies
+- Support for RedrivePolicy
+- CHANGELOG
+
+## [0.1.1] - 2018-08-10
+
+### Added
+
+- First version of sqs-workers
+- README.md with basic information about the project and its API
