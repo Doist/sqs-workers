@@ -1,5 +1,5 @@
 import logging
-
+import json
 import boto3
 from collections import defaultdict
 from itertools import groupby
@@ -27,19 +27,32 @@ class SQSEnv(object):
         # internal mapping from queue names to queue objects
         self.queue_mapping_cache = {}
 
-    def create_standard_queue(self, queue_name):
+    def create_standard_queue(self, queue_name, redrive_policy=None):
         """
         Create a new standard queue
         """
         kwargs = {
             'QueueName': self.get_sqs_queue_name(queue_name),
+            'Attributes': {},
         }
+        if redrive_policy is not None:
+            kwargs['Attributes']['RedrivePolicy'] = redrive_policy.__json__()
         ret = self.sqs_client.create_queue(**kwargs)
         return ret['QueueUrl']
 
-    def create_fifo_queue(self, queue_name):
+    def create_fifo_queue(self,
+                          queue_name,
+                          content_based_deduplication=False,
+                          redrive_policy=None):
         """
         Create a new FIFO queue. Note that queue name has to end with ".fifo"
+
+        - "content_based_deduplication" turns on automatic content-based
+          deduplication of messages in the queue
+
+        - redrive_policy can be None or an object, generated with
+          redrive_policy() method of SQS. In the latter case if defines the
+          way failed messages are processed.
         """
         kwargs = {
             'QueueName': self.get_sqs_queue_name(queue_name),
@@ -47,6 +60,10 @@ class SQSEnv(object):
                 'FifoQueue': 'true',
             }
         }
+        if content_based_deduplication:
+            kwargs['Attributes']['ContentBasedDeduplication'] = 'true'
+        if redrive_policy is not None:
+            kwargs['Attributes']['RedrivePolicy'] = redrive_policy.__json__()
         ret = self.sqs_client.create_queue(**kwargs)
         return ret['QueueUrl']
 
@@ -198,19 +215,10 @@ class SQSEnv(object):
         ret = queue.send_message(**kwargs)
         return ret['MessageId']
 
-    def process_queues(self,
-                       queue_names=None,
-                       visibility_timeout=None,
-                       exit_on_empty=False):
+    def process_queues(self, queue_names=None):
         """
         Use multiprocessing to process multiple queues at once. If queue names
         are not set, process all known queues
-
-        If visibility_timeout is set to a positive integer, the message will
-        be hidden from the queue for "visibility_timeout" seconds. It's supposed
-        that it has to be enough for a processor to process and delete it.
-        Otherwise the message will be returned back to the queue. If value
-        is not set, default timeout for the queue is used (30 seconds)
         """
         if not queue_names:
             queue_names = self.get_all_known_queues()
@@ -218,45 +226,49 @@ class SQSEnv(object):
         for queue_name in queue_names:
             p = multiprocessing.Process(
                 target=self.process_queue,
-                args=(queue_name, visibility_timeout, exit_on_empty))
+                args=(queue_name, ))
             p.start()
             processes.append(p)
         for p in processes:
             p.join()
 
-    def process_queue(self,
-                      queue_name,
-                      visibility_timeout=None,
-                      exit_on_empty=False):
+    def process_queue(self, queue_name):
         """
-        Run worker to process one queue and return the number of processed
-        messages (the return value makes sense only if exit_on_empty set
-        to True)
+        Run worker to process one queue in the infinite loop
+        """
+        wait_seconds = 10
+        while True:
+            self.process_batch(queue_name, wait_seconds)
+
+    def process_batch(self, queue_name, wait_seconds):
+        """
+        Process a batch of messages from the queue (10 messages at most), return
+        the number of successfully processed messages, and exit
+        :return:
         """
         queue = self.get_queue(queue_name)
-        if exit_on_empty:
-            wait_seconds = 0
-        else:
-            wait_seconds = 10
-        processed_message_count = 0
-        while True:
-            messages = self.get_raw_messages(queue_name, visibility_timeout,
-                                             wait_seconds)
-            if not messages and exit_on_empty:
-                break
-            for job_name, job_messages in self.group_messages(messages):
-                processor = self.get_processor(queue_name, job_name)
-                processed_messages = processor.process_batch(job_messages)
-                if processed_messages:
-                    entries = [{
-                        'Id': msg.message_id,
-                        'ReceiptHandle': msg.receipt_handle
-                    } for msg in processed_messages]
-                    processed_message_count += len(processed_messages)
-                    queue.delete_messages(Entries=entries)
-        return processed_message_count
+        messages = self.get_raw_messages(queue_name, wait_seconds)
+        succeeded_count = 0
+        for job_name, job_messages in self.group_messages(messages):
+            processor = self.get_processor(queue_name, job_name)
+            succeeded, failed = processor.process_batch(job_messages)
+            if succeeded:
+                entries = [{
+                    'Id': msg.message_id,
+                    'ReceiptHandle': msg.receipt_handle
+                } for msg in succeeded]
+                queue.delete_messages(Entries=entries)
+                succeeded_count += len(succeeded)
+            if failed:
+                entries = [{
+                    'Id': msg.message_id,
+                    'ReceiptHandle': msg.receipt_handle,
+                    'VisibilityTimeout': 0,
+                } for msg in failed]
+                queue.change_message_visibility_batch(Entries=entries)
+        return succeeded_count
 
-    def get_raw_messages(self, queue_name, visibility_timeout, wait_seconds):
+    def get_raw_messages(self, queue_name, wait_seconds):
         """
         Return raw messages from the queue, addressed by its name
         """
@@ -265,8 +277,6 @@ class SQSEnv(object):
             'MaxNumberOfMessages': 10,
             'MessageAttributeNames': ['All'],
         }
-        if visibility_timeout is not None:
-            kwargs['VisibilityTimeout'] = visibility_timeout
         queue = self.get_queue(queue_name)
         return queue.receive_messages(**kwargs)
 
@@ -317,6 +327,9 @@ class SQSEnv(object):
         """
         return '{}{}'.format(self.queue_prefix, queue_name)
 
+    def redrive_policy(self, dead_letter_queue_name, max_receive_count):
+        return RedrivePolicy(self, dead_letter_queue_name, max_receive_count)
+
 
 class AsyncTask(object):
     def __init__(self, sqs_env, queue_name, job_name, processor):
@@ -340,6 +353,31 @@ class AsyncTask(object):
 class AsyncBatchTask(AsyncTask):
     def __call__(self, **kwargs):
         return self.processor([kwargs])
+
+
+class RedrivePolicy(object):
+    """
+    Redrive Policy for SQS queues
+
+    See for more details:
+    https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/sqs-dead-letter-queues.html
+    """
+
+    def __init__(self, sqs_env, dead_letter_queue_name, max_receive_count):
+        self.sqs_env = sqs_env
+        self.dead_letter_queue_name = dead_letter_queue_name
+        self.max_receive_count = max_receive_count
+
+    def __json__(self):
+        queue = self.sqs_env.sqs_resource.get_queue_by_name(
+            QueueName=self.sqs_env.get_sqs_queue_name(
+                self.dead_letter_queue_name))
+        target_arn = queue.attributes['QueueArn']
+        # Yes, it's double-encoded JSON :-/
+        return json.dumps({
+            'deadLetterTargetArn': target_arn,
+            'maxReceiveCount': self.max_receive_count,
+        })
 
 
 def get_job_name(message):

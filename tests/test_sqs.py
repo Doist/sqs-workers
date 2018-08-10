@@ -1,7 +1,5 @@
 import pytest
-import time
 from sqs_workers.codecs import PickleCodec, JSONCodec
-
 
 worker_results = {'say_hello': None, 'batch_say_hello': set()}
 
@@ -27,7 +25,7 @@ def _reset_worker_results():
 
 def test_add_pickle_job(sqs, queue):
     sqs.add_job(queue, 'say_hello', username='Homer')
-    job_messages = sqs.get_raw_messages(queue, None, 0)
+    job_messages = sqs.get_raw_messages(queue, 0)
     msg = job_messages[0]
     assert msg.message_attributes['JobName']['StringValue'] == 'say_hello'
     assert msg.message_attributes['ContentType']['StringValue'] == 'pickle'
@@ -36,7 +34,7 @@ def test_add_pickle_job(sqs, queue):
 
 def test_add_json_job(sqs, queue):
     sqs.add_job(queue, 'say_hello', username='Homer', _content_type='json')
-    job_messages = sqs.get_raw_messages(queue, None, 0)
+    job_messages = sqs.get_raw_messages(queue, 0)
     msg = job_messages[0]
     assert msg.message_attributes['JobName']['StringValue'] == 'say_hello'
     assert msg.message_attributes['ContentType']['StringValue'] == 'json'
@@ -47,68 +45,74 @@ def test_processor(sqs, queue):
     say_hello_task = sqs.connect_processor(queue, 'say_hello', say_hello)
     say_hello_task.delay(username='Homer')
     assert worker_results['say_hello'] is None
-    sqs.process_queue(queue, exit_on_empty=True)
+    sqs.process_batch(queue, wait_seconds=0)
     assert worker_results['say_hello'] == 'Homer'
 
 
 def test_process_messages_once(sqs, queue):
     say_hello_task = sqs.connect_processor(queue, 'say_hello', say_hello)
     say_hello_task.delay(username='Homer')
-    processed = sqs.process_queue(queue, exit_on_empty=True)
+    processed = sqs.process_batch(queue, wait_seconds=0)
     assert processed == 1
-    processed = sqs.process_queue(queue, exit_on_empty=True)
+    processed = sqs.process_batch(queue, wait_seconds=0)
     assert processed == 0
 
 
 def test_batch_processor(sqs, queue):
     task = sqs.connect_batch_processor(
         queue, 'batch_say_hello', batch_say_hello)
-    task.delay(username='Homer')
-    task.delay(username='Marge')
-    task.delay(username='Bart')
-    task.delay(username='Lisa')
 
-    processed = sqs.process_queue(queue, exit_on_empty=True)
-    assert processed == 4
-    assert worker_results['batch_say_hello'] == {'Homer', 'Marge', 'Bart', 'Lisa'}
+    usernames = {'u{}'.format(i) for i in range(20)}
 
+    # enqueue messages
+    for username in usernames:
+        task.delay(username=username)
 
-def test_process_multiple_queues(sqs, queue):
-    say_hello_task = sqs.connect_processor(queue, 'say_hello', say_hello)
-    say_hello_task.delay(username='Homer')
-    sqs.process_queues([queue], exit_on_empty=True)
-    # ensure that there's nothing left by calling "process_queue"
-    assert sqs.process_queue(queue, exit_on_empty=True) == 0
+    # sometimes SQS doesn't return all messages at once, and we need to drain
+    # the queue with the infinite loop
+    while True:
+        processed = sqs.process_batch(queue, wait_seconds=0)
+        if processed == 0:
+            break
+
+    assert worker_results['batch_say_hello'] == usernames
 
 
 def test_arguments_validator_ignores_extra(sqs, queue):
     say_hello_task = sqs.connect_processor(queue, 'say_hello', say_hello)
     say_hello_task.delay(username='Homer', foo=1)
-    assert sqs.process_queue(queue, exit_on_empty=True) == 1
+    assert sqs.process_batch(queue, wait_seconds=0) == 1
 
 
 def test_arguments_validator_adds_kwargs(sqs, queue):
     say_hello_task = sqs.connect_processor(queue, 'say_hello', say_hello)
     say_hello_task.delay()
-    assert sqs.process_queue(queue, exit_on_empty=True) == 1
+    assert sqs.process_batch(queue, wait_seconds=0) == 1
     assert worker_results['say_hello'] == 'Anonymous'
 
 
-def test_exception_keeps_task_in_the_queue(sqs, queue):
+def test_exception_returns_task_to_the_queue(sqs, queue):
     task = sqs.connect_processor(queue, 'say_hello', raise_exception)
     task.delay(username='Homer')
-    assert sqs.process_queue(queue, visibility_timeout=2, exit_on_empty=True) == 0
+    assert sqs.process_batch(queue, wait_seconds=0) == 0
 
     # re-connect a non-broken processor for the queue
     sqs.connect_processor(queue, 'say_hello', say_hello)
+    assert sqs.process_batch(queue, wait_seconds=0) == 1
 
-    # failed task is not there yet
-    assert sqs.process_queue(queue, exit_on_empty=True) == 0
 
-    # wait more than 2 seconds (sometimes it can take a while)
-    for i in range(60):
-        time.sleep(1)
-        if sqs.process_queue(queue, exit_on_empty=True) == 1:
-            return
-    else:
-        assert False, "Task is not returned to the queue after 60 seconds"
+def test_redrive(sqs, queue_with_redrive):
+    queue, dead_queue = queue_with_redrive
+
+    # add processor which fails to the standard queue
+    task = sqs.connect_processor(queue, 'say_hello', raise_exception)
+
+    # add message to the queue and process it twice
+    # the message has to be moved to dead letter queue
+    task.delay(username='Homer')
+    assert sqs.process_batch(queue, wait_seconds=0) == 0
+    assert sqs.process_batch(queue, wait_seconds=0) == 0
+
+    # add processor which succeeds
+    sqs.connect_processor(dead_queue, 'say_hello', say_hello)
+    assert sqs.process_batch(dead_queue, wait_seconds=0) == 1

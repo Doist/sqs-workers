@@ -104,6 +104,25 @@ Instead of using `sqs.processor` decorator you can use `sqs.batch_processor`.
 In this case the function must accept parameter "messages" containing
 the list of dicts.
 
+Dead-letter queues and redrive
+------------------------------
+
+On creating the queue you can set the fallback dead-letter queue and redrive
+policy, which can look like this
+
+```python
+from sqs_workers import SQSEnv
+sqs = SQSEnv()
+sqs.create_standard_queue('emails_deadletters')
+sqs.create_standard_queue('emails', 
+    redrive_policy=sqs.redrive_policy('emails_deadletters', 3)
+)
+```
+
+This means "move the message to the email_deadletters queue after four (3 + 1)
+failed attempts to send it to the recipient"
+
+
 Why it depends on werkzeug? 😱
 ------------------------------
 

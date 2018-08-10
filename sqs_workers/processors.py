@@ -19,7 +19,9 @@ class GenericProcessor(object):
 
     - job_messages of process_batch() is a list of SQS message objects
     http://boto3.readthedocs.io/en/latest/reference/services/sqs.html#message
-    - The function must return a list of successfully processed messages.
+    - The function must return two lists:
+        - successfully processed messages
+        - failed messages
     - The function is not supposed to die with any exception, instead the
       error has to be caught and logged, and the message has to be excluded
       from the list of successfully processed messages
@@ -43,7 +45,7 @@ class Processor(GenericProcessor):
     """
 
     def process_batch(self, job_messages):
-        ret = []
+        succeeded, failed = [], []
         for message in job_messages:
             extra = {
                 'message_id': message.message_id,
@@ -64,10 +66,10 @@ class Processor(GenericProcessor):
                     'Error while processing {queue_name}.{job_name}'.format(
                         **extra),
                     extra=extra)
-                continue
-
-            ret.append(message)
-        return ret
+                failed.append(message)
+            else:
+                succeeded.append(message)
+        return succeeded, failed
 
 
 class BatchProcessor(GenericProcessor):
@@ -96,9 +98,9 @@ class BatchProcessor(GenericProcessor):
                     'Error while processing {job_count} messages '
                     'to {queue_name}.{job_name}'.format(**extra),
                     extra=extra)
-                return []
+                return [], job_messages  # all failed
             else:
-                return job_messages
+                return job_messages, []  # all succeeded
 
     def decode_messages(self, job_messages):
         jobs = []
@@ -119,7 +121,10 @@ class FallbackProcessor(GenericProcessor):
     def process_batch(self, job_messages):
         warnings.warn('Error while processing {}.{}'.format(
             self.queue_name, self.job_name))
-        return []
+        # return empty list for succeeded and failed messages
+        # - the queue will not delete messages
+        # - it will not put messages back to the queue eitehr
+        return [], []
 
 
 def get_job_content_type(job_message):
