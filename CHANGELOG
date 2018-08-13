@@ -1,3 +1,9 @@
+## [Unreleased]
+
+### Added
+
+- Add support for testing with localstack: http://github.com/localstack/localstack
+
 ## [0.2.0] - 2018-08-10
 
 ### Added

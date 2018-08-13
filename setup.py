@@ -26,7 +26,7 @@ REQUIRED = [
     'pytest-runner',
     'werkzeug',
 ]
-REQUIRED_TESTS = ['pytest', 'pdbpp']
+REQUIRED_TESTS = ['pytest', 'pdbpp', 'localstack-client']
 
 here = os.path.abspath(os.path.dirname(__file__))
 

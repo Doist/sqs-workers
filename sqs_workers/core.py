@@ -380,7 +380,7 @@ class RedrivePolicy(object):
         # Yes, it's double-encoded JSON :-/
         return json.dumps({
             'deadLetterTargetArn': target_arn,
-            'maxReceiveCount': self.max_receive_count,
+            'maxReceiveCount': str(self.max_receive_count),
         })
 
 

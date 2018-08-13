@@ -1,3 +1,5 @@
+import boto3
+import localstack_client.session
 import pytest
 import datetime
 import random
@@ -5,12 +7,20 @@ import string
 from sqs_workers import SQSEnv
 
 
+@pytest.fixture(scope='session', params=['aws', 'localstack'])
+def sqs_session(request):
+    if request.param == 'aws':
+        return boto3.Session()
+    else:
+        return localstack_client.session.Session()
+
+
 @pytest.fixture(scope='session')
-def sqs():
+def sqs(sqs_session):
     # type: () -> SQSEnv
     queue_prefix = 'sqs_workers_tests_{:%Y%m%d}_'.format(
         datetime.datetime.utcnow())
-    sqs = SQSEnv(queue_prefix=queue_prefix)
+    sqs = SQSEnv(session=sqs_session, queue_prefix=queue_prefix)
     yield sqs
 
 
@@ -39,8 +49,6 @@ def queue_with_redrive(sqs, random_queue_name):
     # delete all the queues
     sqs.delete_queue(queue)
     sqs.delete_queue(dead_queue)
-
-
 
 
 @pytest.fixture

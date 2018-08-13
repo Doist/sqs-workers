@@ -150,6 +150,45 @@ def send_email(to, subject, body):
 ```
 
 
+Testing with AWS
+----------------
+
+Make sure you have all dependencies installed, and boto3 client configured
+([ref](https://boto3.readthedocs.io/en/latest/guide/quickstart.html#configuration))
+and then run
+
+```bash
+pytest -k aws
+```
+
+Alternatively, to test all supported versions, run
+
+```bash
+tox -- -k aws
+```
+
+Testing with localstack
+-----------------------
+
+Localstack tests should perform faster than testing against AWS, and besides,
+they work well in offline.
+
+Run [localstack](https://github.com/localstack/localstack) and make sure
+that the SQS endpoint is available by its default address http://localhost:4576
+
+Then run
+
+```bash
+pytest -k localstack
+```
+
+or
+
+```bash
+tox -- -k localstack
+```
+
+
 Why it depends on werkzeug? 😱
 ------------------------------
 
