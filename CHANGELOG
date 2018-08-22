@@ -1,3 +1,9 @@
+## [0.2.2] - 2018-08-22
+
+### Fixed
+
+- Fix python2-specific issue of visibility timeout being a float number
+
 ## [0.2.1] - 2018-08-22
 
 ### Added

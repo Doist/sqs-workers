@@ -38,7 +38,7 @@ class ExponentialBackoff(object):
                                  visibility_timeout)
         visibility_timeout = min(self.max_visibility_timeout,
                                  visibility_timeout)
-        return round(visibility_timeout)
+        return int(round(visibility_timeout))
 
 
 DEFAULT_BACKOFF = ExponentialBackoff()

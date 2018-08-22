@@ -1,6 +1,6 @@
 import pytest
 
-from sqs_workers import IMMEDIATE_RETURN
+from sqs_workers import IMMEDIATE_RETURN, ExponentialBackoff
 from sqs_workers.codecs import PickleCodec, JSONCodec
 
 worker_results = {'say_hello': None, 'batch_say_hello': set()}
@@ -127,3 +127,13 @@ def test_redrive(sqs, queue_with_redrive):
     # add processor which succeeds
     sqs.connect_processor(dead_queue, 'say_hello', say_hello)
     assert sqs.process_batch(dead_queue, wait_seconds=0) == 1
+
+
+def test_exponential_backoff_works(sqs, queue):
+    task = sqs.connect_processor(
+        queue,
+        'say_hello',
+        raise_exception,
+        backoff_policy=ExponentialBackoff(0.1, max_visbility_timeout=0.1))
+    task.delay(username='Homer')
+    assert sqs.process_batch(queue, wait_seconds=0) == 0
