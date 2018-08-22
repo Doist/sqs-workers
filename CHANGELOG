@@ -1,8 +1,9 @@
-## [Unreleased]
+## [0.2.1] - 2018-08-22
 
 ### Added
 
 - Add support for testing with localstack: http://github.com/localstack/localstack
+- Add argument validation and and proper binding on .delay() calls
 
 ## [0.2.0] - 2018-08-10
 
