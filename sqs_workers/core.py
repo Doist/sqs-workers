@@ -250,7 +250,7 @@ class SQSEnv(object):
         for p in processes:
             p.join()
 
-    def drain_queue(self, queue_name, wait_seconds):
+    def drain_queue(self, queue_name, wait_seconds=0):
         """
         Delete all messages from the queue without calling purge()
         """
@@ -276,11 +276,10 @@ class SQSEnv(object):
         while True:
             self.process_batch(queue_name, wait_seconds)
 
-    def process_batch(self, queue_name, wait_seconds):
+    def process_batch(self, queue_name, wait_seconds=0):
         """
         Process a batch of messages from the queue (10 messages at most), return
         the number of successfully processed messages, and exit
-        :return:
         """
         queue = self.get_queue(queue_name)
         messages = self.get_raw_messages(queue_name, wait_seconds)
