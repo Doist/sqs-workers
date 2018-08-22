@@ -18,7 +18,10 @@ DEFAULT_CONTENT_TYPE = 'pickle'
 
 
 class SQSEnv(object):
-    def __init__(self, session=boto3, queue_prefix='', backoff_policy=DEFAULT_BACKOFF):
+    def __init__(self,
+                 session=boto3,
+                 queue_prefix='',
+                 backoff_policy=DEFAULT_BACKOFF):
         """
         Initialize SQS environment with boto3 session
         """
@@ -84,7 +87,11 @@ class SQSEnv(object):
         """
         self.get_queue(queue_name).delete()
 
-    def connect_processor(self, queue_name, job_name, processor, backoff_policy=None):
+    def connect_processor(self,
+                          queue_name,
+                          job_name,
+                          processor,
+                          backoff_policy=None):
         """
         Assign processor (a function) to handle jobs with the name job_name
         from the queue queue_name
@@ -99,7 +106,8 @@ class SQSEnv(object):
             'processor {processor_name}'.format(**extra),
             extra=extra)
         self.processors[queue_name][job_name] = processors.Processor(
-            queue_name, job_name, processor, backoff_policy or self.backoff_policy)
+            queue_name, job_name, processor, backoff_policy
+            or self.backoff_policy)
         return AsyncTask(self, queue_name, job_name, processor)
 
     def processor(self, queue_name, job_name, backoff_policy=None):
@@ -128,11 +136,16 @@ class SQSEnv(object):
         """
 
         def fn(processor):
-            return self.connect_processor(queue_name, job_name, processor, backoff_policy)
+            return self.connect_processor(queue_name, job_name, processor,
+                                          backoff_policy)
 
         return fn
 
-    def connect_batch_processor(self, queue_name, job_name, processor, backoff_policy=None):
+    def connect_batch_processor(self,
+                                queue_name,
+                                job_name,
+                                processor,
+                                backoff_policy=None):
         """
         Assign a batch processor (function) to handle jobs with the name
         job_name from the queue queue_name
@@ -147,7 +160,8 @@ class SQSEnv(object):
             'batch processor {processor_name}'.format(**extra),
             extra=extra)
         self.processors[queue_name][job_name] = processors.BatchProcessor(
-            queue_name, job_name, processor, backoff_policy or self.backoff_policy)
+            queue_name, job_name, processor, backoff_policy
+            or self.backoff_policy)
         return AsyncBatchTask(self, queue_name, job_name, processor)
 
     def batch_processor(self, queue_name, job_name, backoff_policy=None):
@@ -230,8 +244,7 @@ class SQSEnv(object):
         processes = []
         for queue_name in queue_names:
             p = multiprocessing.Process(
-                target=self.process_queue,
-                args=(queue_name, ))
+                target=self.process_queue, args=(queue_name, ))
             p.start()
             processes.append(p)
         for p in processes:
@@ -266,9 +279,12 @@ class SQSEnv(object):
                 succeeded_count += len(succeeded)
             if failed:
                 entries = [{
-                    'Id': msg.message_id,
-                    'ReceiptHandle': msg.receipt_handle,
-                    'VisibilityTimeout': processor.backoff_policy.get_visibility_timeout(msg),
+                    'Id':
+                    msg.message_id,
+                    'ReceiptHandle':
+                    msg.receipt_handle,
+                    'VisibilityTimeout':
+                    processor.backoff_policy.get_visibility_timeout(msg),
                 } for msg in failed]
                 queue.change_message_visibility_batch(Entries=entries)
         return succeeded_count
@@ -358,6 +374,7 @@ class AsyncTask(object):
 
 
 class AsyncBatchTask(AsyncTask):
+
     def __call__(self, **kwargs):
         return self.processor([kwargs])
 
