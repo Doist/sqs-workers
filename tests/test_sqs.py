@@ -137,3 +137,12 @@ def test_exponential_backoff_works(sqs, queue):
         backoff_policy=ExponentialBackoff(0.1, max_visbility_timeout=0.1))
     task.delay(username='Homer')
     assert sqs.process_batch(queue, wait_seconds=0) == 0
+
+
+def test_drain_queue(sqs, queue):
+    say_hello_task = sqs.connect_processor(queue, 'say_hello', say_hello)
+    say_hello_task.delay(username='One')
+    say_hello_task.delay(username='Two')
+    sqs.drain_queue(queue, wait_seconds=0)
+    assert sqs.process_batch(queue, wait_seconds=0) == 0
+    assert worker_results['say_hello'] is None

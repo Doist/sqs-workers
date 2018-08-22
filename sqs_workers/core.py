@@ -250,6 +250,24 @@ class SQSEnv(object):
         for p in processes:
             p.join()
 
+    def drain_queue(self, queue_name, wait_seconds):
+        """
+        Delete all messages from the queue without calling purge()
+        """
+        queue = self.get_queue(queue_name)
+        deleted_count = 0
+        while True:
+            messages = self.get_raw_messages(queue_name, wait_seconds)
+            if not messages:
+                break
+            entries = [{
+                'Id': msg.message_id,
+                'ReceiptHandle': msg.receipt_handle
+            } for msg in messages]
+            queue.delete_messages(Entries=entries)
+            deleted_count += len(messages)
+        return deleted_count
+
     def process_queue(self, queue_name):
         """
         Run worker to process one queue in the infinite loop

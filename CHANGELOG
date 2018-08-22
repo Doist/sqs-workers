@@ -1,8 +1,14 @@
+## [0.2.3] - 2018-08-22
+
+### Added
+
+- Added method drain_queue() to clean up the queue in tests
+
 ## [0.2.2] - 2018-08-22
 
 ### Fixed
 
-- Fix python2-specific issue of visibility timeout being a float number
+- Fixed python2-specific issue of visibility timeout being a float number
 
 ## [0.2.1] - 2018-08-22
 
