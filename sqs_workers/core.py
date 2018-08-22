@@ -7,6 +7,8 @@ from itertools import groupby
 
 import multiprocessing
 
+from sqs_workers.utils import adv_bind_arguments
+
 from sqs_workers import processors, codecs
 from sqs_workers.backoff_policies import DEFAULT_BACKOFF
 
@@ -343,20 +345,27 @@ class AsyncTask(object):
         self.processor = processor
         self.__doc__ = processor.__doc__
 
-    def __call__(self, **kwargs):
-        return self.processor(**kwargs)
+    def __call__(self, *args, **kwargs):
+        return self.processor(*args, **kwargs)
 
     def __repr__(self):
         return '<%s %s.%s>' % (self.__class__.__name__, self.queue_name,
                                self.job_name)
 
-    def delay(self, **kwargs):
-        self.sqs_env.add_job(self.queue_name, self.job_name, **kwargs)
+    def delay(self, *args, **kwargs):
+        kwargs = adv_bind_arguments(self.processor, args, kwargs)
+        return self.sqs_env.add_job(self.queue_name, self.job_name, **kwargs)
 
 
 class AsyncBatchTask(AsyncTask):
     def __call__(self, **kwargs):
         return self.processor([kwargs])
+
+    def delay(self, **kwargs):
+        # unlike AsyncTask, we cannot validate or bind arguments, because
+        # processor always accepts the list of dicts, so we just pass kwargs
+        # as is
+        return self.sqs_env.add_job(self.queue_name, self.job_name, **kwargs)
 
 
 class RedrivePolicy(object):

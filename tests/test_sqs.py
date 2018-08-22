@@ -80,10 +80,10 @@ def test_batch_processor(sqs, queue):
     assert worker_results['batch_say_hello'] == usernames
 
 
-def test_arguments_validator_ignores_extra(sqs, queue):
+def test_arguments_validator_raises_exception_on_extra(sqs, queue):
     say_hello_task = sqs.connect_processor(queue, 'say_hello', say_hello)
-    say_hello_task.delay(username='Homer', foo=1)
-    assert sqs.process_batch(queue, wait_seconds=0) == 1
+    with pytest.raises(TypeError):
+        say_hello_task.delay(username='Homer', foo=1)
 
 
 def test_arguments_validator_adds_kwargs(sqs, queue):
@@ -91,6 +91,13 @@ def test_arguments_validator_adds_kwargs(sqs, queue):
     say_hello_task.delay()
     assert sqs.process_batch(queue, wait_seconds=0) == 1
     assert worker_results['say_hello'] == 'Anonymous'
+
+
+def test_delay_accepts_converts_args_to_kwargs(sqs, queue):
+    say_hello_task = sqs.connect_processor(queue, 'say_hello', say_hello)
+    say_hello_task.delay('Homer')  # we don't use username="Homer"
+    assert sqs.process_batch(queue, wait_seconds=0) == 1
+    assert worker_results['say_hello'] == 'Homer'
 
 
 def test_exception_returns_task_to_the_queue(sqs, queue):
