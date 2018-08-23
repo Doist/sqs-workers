@@ -149,6 +149,34 @@ def send_email(to, subject, body):
     print(f"Sending email {subject} to {to}")
 ```
 
+Shutdown policies
+-----------------
+
+When launching the queue processor with process_queue(), it's possible
+to optionally set when it has to be stopped.
+
+Following shutdown policies are supported:
+
+- IdleShutdown(idle_seconds): return from function when no new tasks
+  are seend for specific period of time
+
+- MaxTasksShutdown(max_tasks): return from function after processing at
+  least max_task jobs. Can be helpful to prevent memory leaks
+
+Default policy is NeverShutdown. It's also possible to combine two previous 
+policies with OrShutdown or AndShutdown policies, or create
+custom classes for specific behavior.
+
+Example of stopping processing the queue after 5 minutes of inactivity:
+
+```python
+from sqs_workers import SQSEnv
+from sqs_workers.shutdown_policies import IdleShutdown
+
+sqs = SQSEnv()
+sqs.process_queue('foo', shutdown_policy=IdleShutdown(idle_seconds=300))
+```
+
 
 Testing with AWS
 ----------------

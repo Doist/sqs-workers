@@ -1,20 +1,41 @@
-import logging
 import json
-
-import boto3
+import logging
+import multiprocessing
 from collections import defaultdict
 from itertools import groupby
 
-import multiprocessing
+import boto3
 
-from sqs_workers.utils import adv_bind_arguments
-
-from sqs_workers import processors, codecs
+from sqs_workers import codecs, processors
 from sqs_workers.backoff_policies import DEFAULT_BACKOFF
+from sqs_workers.shutdown_policies import NEVER_SHUTDOWN, NeverShutdown
+from sqs_workers.utils import adv_bind_arguments
 
 logger = logging.getLogger(__name__)
 
 DEFAULT_CONTENT_TYPE = 'pickle'
+
+
+class BatchProcessingResult(object):
+    succeeded = None
+    failed = None
+
+    def __init__(self, succeeded=None, failed=None):
+        self.succeeded = succeeded or []
+        self.failed = failed or []
+
+    def update(self, succeeded, failed):
+        self.succeeded += succeeded
+        self.failed += failed
+
+    def succeeded_count(self):
+        return len(self.succeeded)
+
+    def failed_count(self):
+        return len(self.failed)
+
+    def total_count(self):
+        return self.succeeded_count() + self.failed_count()
 
 
 class SQSEnv(object):
@@ -234,17 +255,30 @@ class SQSEnv(object):
         ret = queue.send_message(**kwargs)
         return ret['MessageId']
 
-    def process_queues(self, queue_names=None):
+    def process_queues(self,
+                       queue_names=None,
+                       shutdown_policy_maker=NeverShutdown):
         """
         Use multiprocessing to process multiple queues at once. If queue names
         are not set, process all known queues
+
+        shutdown_policy_maker is an optional callable which doesn't accept any
+        arguments and create a new shutdown policy for each queue.
+
+        Can looks somewhat like this:
+
+            lambda: IdleShutdown(idle_seconds=10)
         """
         if not queue_names:
             queue_names = self.get_all_known_queues()
         processes = []
         for queue_name in queue_names:
             p = multiprocessing.Process(
-                target=self.process_queue, args=(queue_name, ))
+                target=self.process_queue,
+                kwargs={
+                    'queue_name': queue_name,
+                    'shutdown_policy': shutdown_policy_maker(),
+                })
             p.start()
             processes.append(p)
         for p in processes:
@@ -268,32 +302,52 @@ class SQSEnv(object):
             deleted_count += len(messages)
         return deleted_count
 
-    def process_queue(self, queue_name):
+    def process_queue(self,
+                      queue_name,
+                      shutdown_policy=NEVER_SHUTDOWN,
+                      wait_second=10):
         """
         Run worker to process one queue in the infinite loop
         """
-        wait_seconds = 10
+        logger.debug(
+            'Start processing queue {}'.format(queue_name),
+            extra={
+                'queue_name': queue_name,
+                'wait_seconds': wait_second,
+                'shutdown_policy': repr(shutdown_policy),
+            })
         while True:
-            self.process_batch(queue_name, wait_seconds)
+            result = self.process_batch(queue_name, wait_seconds=wait_second)
+            shutdown_policy.update_state(result)
+            if shutdown_policy.need_shutdown():
+                logger.debug(
+                    'Stop processing queue {}'.format(queue_name),
+                    extra={
+                        'queue_name': queue_name,
+                        'wait_seconds': wait_second,
+                        'shutdown_policy': repr(shutdown_policy),
+                    })
+                break
 
     def process_batch(self, queue_name, wait_seconds=0):
+        # type: (str, int) -> BatchProcessingResult
         """
         Process a batch of messages from the queue (10 messages at most), return
         the number of successfully processed messages, and exit
         """
         queue = self.get_queue(queue_name)
         messages = self.get_raw_messages(queue_name, wait_seconds)
-        succeeded_count = 0
+        result = BatchProcessingResult()
         for job_name, job_messages in self.group_messages(messages):
             processor = self.get_processor(queue_name, job_name)
             succeeded, failed = processor.process_batch(job_messages)
+            result.update(succeeded, failed)
             if succeeded:
                 entries = [{
                     'Id': msg.message_id,
                     'ReceiptHandle': msg.receipt_handle
                 } for msg in succeeded]
                 queue.delete_messages(Entries=entries)
-                succeeded_count += len(succeeded)
             if failed:
                 entries = [{
                     'Id':
@@ -304,7 +358,7 @@ class SQSEnv(object):
                     processor.backoff_policy.get_visibility_timeout(msg),
                 } for msg in failed]
                 queue.change_message_visibility_batch(Entries=entries)
-        return succeeded_count
+        return result
 
     def get_raw_messages(self, queue_name, wait_seconds):
         """
@@ -391,7 +445,6 @@ class AsyncTask(object):
 
 
 class AsyncBatchTask(AsyncTask):
-
     def __call__(self, **kwargs):
         return self.processor([kwargs])
 

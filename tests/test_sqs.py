@@ -54,9 +54,9 @@ def test_processor(sqs, queue):
 def test_process_messages_once(sqs, queue):
     say_hello_task = sqs.connect_processor(queue, 'say_hello', say_hello)
     say_hello_task.delay(username='Homer')
-    processed = sqs.process_batch(queue, wait_seconds=0)
+    processed = sqs.process_batch(queue, wait_seconds=0).succeeded_count()
     assert processed == 1
-    processed = sqs.process_batch(queue, wait_seconds=0)
+    processed = sqs.process_batch(queue, wait_seconds=0).succeeded_count()
     assert processed == 0
 
 
@@ -73,7 +73,7 @@ def test_batch_processor(sqs, queue):
     # sometimes SQS doesn't return all messages at once, and we need to drain
     # the queue with the infinite loop
     while True:
-        processed = sqs.process_batch(queue, wait_seconds=0)
+        processed = sqs.process_batch(queue, wait_seconds=0).succeeded_count()
         if processed == 0:
             break
 
@@ -89,14 +89,14 @@ def test_arguments_validator_raises_exception_on_extra(sqs, queue):
 def test_arguments_validator_adds_kwargs(sqs, queue):
     say_hello_task = sqs.connect_processor(queue, 'say_hello', say_hello)
     say_hello_task.delay()
-    assert sqs.process_batch(queue, wait_seconds=0) == 1
+    assert sqs.process_batch(queue, wait_seconds=0).succeeded_count() == 1
     assert worker_results['say_hello'] == 'Anonymous'
 
 
 def test_delay_accepts_converts_args_to_kwargs(sqs, queue):
     say_hello_task = sqs.connect_processor(queue, 'say_hello', say_hello)
     say_hello_task.delay('Homer')  # we don't use username="Homer"
-    assert sqs.process_batch(queue, wait_seconds=0) == 1
+    assert sqs.process_batch(queue, wait_seconds=0).succeeded_count() == 1
     assert worker_results['say_hello'] == 'Homer'
 
 
@@ -104,11 +104,11 @@ def test_exception_returns_task_to_the_queue(sqs, queue):
     task = sqs.connect_processor(
         queue, 'say_hello', raise_exception, backoff_policy=IMMEDIATE_RETURN)
     task.delay(username='Homer')
-    assert sqs.process_batch(queue, wait_seconds=0) == 0
+    assert sqs.process_batch(queue, wait_seconds=0).failed_count() == 1
 
     # re-connect a non-broken processor for the queue
     sqs.connect_processor(queue, 'say_hello', say_hello)
-    assert sqs.process_batch(queue, wait_seconds=0) == 1
+    assert sqs.process_batch(queue, wait_seconds=0).succeeded_count() == 1
 
 
 def test_redrive(sqs, queue_with_redrive):
@@ -121,12 +121,12 @@ def test_redrive(sqs, queue_with_redrive):
     # add message to the queue and process it twice
     # the message has to be moved to dead letter queue
     task.delay(username='Homer')
-    assert sqs.process_batch(queue, wait_seconds=0) == 0
-    assert sqs.process_batch(queue, wait_seconds=0) == 0
+    assert sqs.process_batch(queue, wait_seconds=0).succeeded_count() == 0
+    assert sqs.process_batch(queue, wait_seconds=0).succeeded_count() == 0
 
     # add processor which succeeds
     sqs.connect_processor(dead_queue, 'say_hello', say_hello)
-    assert sqs.process_batch(dead_queue, wait_seconds=0) == 1
+    assert sqs.process_batch(dead_queue, wait_seconds=0).succeeded_count() == 1
 
 
 def test_exponential_backoff_works(sqs, queue):
@@ -136,7 +136,7 @@ def test_exponential_backoff_works(sqs, queue):
         raise_exception,
         backoff_policy=ExponentialBackoff(0.1, max_visbility_timeout=0.1))
     task.delay(username='Homer')
-    assert sqs.process_batch(queue, wait_seconds=0) == 0
+    assert sqs.process_batch(queue, wait_seconds=0).failed_count() == 1
 
 
 def test_drain_queue(sqs, queue):
@@ -144,5 +144,5 @@ def test_drain_queue(sqs, queue):
     say_hello_task.delay(username='One')
     say_hello_task.delay(username='Two')
     sqs.drain_queue(queue, wait_seconds=0)
-    assert sqs.process_batch(queue, wait_seconds=0) == 0
+    assert sqs.process_batch(queue, wait_seconds=0).succeeded_count() == 0
     assert worker_results['say_hello'] is None
