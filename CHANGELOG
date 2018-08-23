@@ -3,6 +3,7 @@
 ### Added
 
 - Added support for shutdown policies
+- Added support for setting message_retention_period on queue creation
 
 
 ## [0.2.3] - 2018-08-22

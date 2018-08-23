@@ -56,22 +56,29 @@ class SQSEnv(object):
         # internal mapping from queue names to queue objects
         self.queue_mapping_cache = {}
 
-    def create_standard_queue(self, queue_name, redrive_policy=None):
+    def create_standard_queue(self,
+                              queue_name,
+                              message_retention_period=None,
+                              redrive_policy=None):
         """
         Create a new standard queue
         """
+        attrs = {}
         kwargs = {
             'QueueName': self.get_sqs_queue_name(queue_name),
-            'Attributes': {},
+            'Attributes': attrs,
         }
+        if message_retention_period is not None:
+            attrs['MessageRetentionPeriod'] = str(message_retention_period)
         if redrive_policy is not None:
-            kwargs['Attributes']['RedrivePolicy'] = redrive_policy.__json__()
+            attrs['RedrivePolicy'] = redrive_policy.__json__()
         ret = self.sqs_client.create_queue(**kwargs)
         return ret['QueueUrl']
 
     def create_fifo_queue(self,
                           queue_name,
                           content_based_deduplication=False,
+                          message_retention_period=None,
                           redrive_policy=None):
         """
         Create a new FIFO queue. Note that queue name has to end with ".fifo"
@@ -83,16 +90,19 @@ class SQSEnv(object):
           redrive_policy() method of SQS. In the latter case if defines the
           way failed messages are processed.
         """
+        attrs = {
+            'FifoQueue': 'true',
+        }
         kwargs = {
             'QueueName': self.get_sqs_queue_name(queue_name),
-            'Attributes': {
-                'FifoQueue': 'true',
-            }
+            'Attributes': attrs,
         }
         if content_based_deduplication:
-            kwargs['Attributes']['ContentBasedDeduplication'] = 'true'
+            attrs['ContentBasedDeduplication'] = 'true'
+        if message_retention_period is not None:
+            attrs['MessageRetentionPeriod'] = str(message_retention_period)
         if redrive_policy is not None:
-            kwargs['Attributes']['RedrivePolicy'] = redrive_policy.__json__()
+            attrs['RedrivePolicy'] = redrive_policy.__json__()
         ret = self.sqs_client.create_queue(**kwargs)
         return ret['QueueUrl']
 

@@ -146,3 +146,18 @@ def test_drain_queue(sqs, queue):
     sqs.drain_queue(queue, wait_seconds=0)
     assert sqs.process_batch(queue, wait_seconds=0).succeeded_count() == 0
     assert worker_results['say_hello'] is None
+
+
+def test_message_retention_period(sqs, random_queue_name):
+    try:
+        sqs.create_standard_queue(random_queue_name, message_retention_period=600)
+        sqs.create_fifo_queue(random_queue_name + '.fifo', message_retention_period=600)
+    finally:
+        try:
+            sqs.delete_queue(random_queue_name)
+        except Exception:
+            pass
+        try:
+            sqs.delete_queue(random_queue_name + '.fifo')
+        except Exception:
+            pass
