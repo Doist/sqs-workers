@@ -1,3 +1,10 @@
+## [UNRELEASED]
+
+### Added
+
+- Issue warning if async tasks are called synchronously. This is usually
+  not what you had in mind
+
 ## [0.3.0] - 2018-08-23
 
 ### Added

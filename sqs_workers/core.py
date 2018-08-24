@@ -1,6 +1,7 @@
 import json
 import logging
 import multiprocessing
+import warnings
 from collections import defaultdict
 from itertools import groupby
 
@@ -443,6 +444,9 @@ class AsyncTask(object):
         self.__doc__ = processor.__doc__
 
     def __call__(self, *args, **kwargs):
+        warnings.warn(
+            'Async task {0.queue_name}.{0.job_name} called synchronously'.
+            format(self))
         return self.processor(*args, **kwargs)
 
     def __repr__(self):
@@ -456,6 +460,9 @@ class AsyncTask(object):
 
 class AsyncBatchTask(AsyncTask):
     def __call__(self, **kwargs):
+        warnings.warn(
+            'Async task {0.queue_name}.{0.job_name} called synchronously'.
+            format(self))
         return self.processor([kwargs])
 
     def delay(self, **kwargs):
