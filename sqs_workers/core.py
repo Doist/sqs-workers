@@ -38,6 +38,10 @@ class BatchProcessingResult(object):
     def total_count(self):
         return self.succeeded_count() + self.failed_count()
 
+    def __repr__(self):
+        return '<BatchProcessingResult/%s/%s>' % (self.succeeded_count(),
+                                                  self.failed_count())
+
 
 class SQSEnv(object):
     def __init__(self,
