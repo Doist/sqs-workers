@@ -239,6 +239,7 @@ class SQSEnv(object):
                 queue_name,
                 job_name,
                 _content_type=DEFAULT_CONTENT_TYPE,
+                _delay_seconds=None,
                 **job_kwargs):
         """
         Add job to the queue. The body of the job will be converted to the text
@@ -247,9 +248,10 @@ class SQSEnv(object):
         codec = codecs.get_codec(_content_type)
         message_body = codec.serialize(job_kwargs)
         return self.add_raw_job(queue_name, job_name, message_body,
-                                _content_type)
+                                _content_type, _delay_seconds)
 
-    def add_raw_job(self, queue_name, job_name, message_body, content_type):
+    def add_raw_job(self, queue_name, job_name, message_body, content_type,
+                    delay_seconds):
         """
         Low-level function to put message to the queue
         """
@@ -267,6 +269,8 @@ class SQSEnv(object):
                 },
             },
         }
+        if delay_seconds is not None:
+            kwargs['DelaySeconds'] = int(delay_seconds)
         ret = queue.send_message(**kwargs)
         return ret['MessageId']
 
@@ -458,8 +462,15 @@ class AsyncTask(object):
                                self.job_name)
 
     def delay(self, *args, **kwargs):
+        _content_type = kwargs.pop('_content_type', DEFAULT_CONTENT_TYPE)
+        _delay_seconds = kwargs.pop('_delay_seconds', None)
         kwargs = adv_bind_arguments(self.processor, args, kwargs)
-        return self.sqs_env.add_job(self.queue_name, self.job_name, **kwargs)
+        return self.sqs_env.add_job(
+            self.queue_name,
+            self.job_name,
+            _content_type=_content_type,
+            _delay_seconds=_delay_seconds,
+            **kwargs)
 
 
 class AsyncBatchTask(AsyncTask):

@@ -1,4 +1,5 @@
 import pytest
+import time
 
 from sqs_workers import IMMEDIATE_RETURN, ExponentialBackoff
 from sqs_workers.codecs import PickleCodec, JSONCodec
@@ -161,3 +162,11 @@ def test_message_retention_period(sqs, random_queue_name):
             sqs.delete_queue(random_queue_name + '.fifo')
         except Exception:
             pass
+
+
+def test_delay_seconds(sqs, queue):
+    say_hello_task = sqs.connect_processor(queue, 'say_hello', say_hello)
+    say_hello_task.delay(username='Homer', _delay_seconds=2)
+    assert sqs.process_batch(queue, wait_seconds=1).succeeded_count() == 0
+    time.sleep(3)
+    assert sqs.process_batch(queue, wait_seconds=1).succeeded_count() == 1
