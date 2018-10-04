@@ -3,6 +3,7 @@
 ### Changed
 
 - Tests for py3.6 replaced with tests for py3.7
+- Added support for custom visibility_timeout on queue creation
 
 ### Added
 

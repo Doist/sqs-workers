@@ -170,3 +170,18 @@ def test_delay_seconds(sqs, queue):
     assert sqs.process_batch(queue, wait_seconds=1).succeeded_count() == 0
     time.sleep(3)
     assert sqs.process_batch(queue, wait_seconds=1).succeeded_count() == 1
+
+
+def test_visibility_timeout(sqs, random_queue_name):
+    try:
+        sqs.create_standard_queue(random_queue_name, visibility_timeout=1)
+        sqs.create_fifo_queue(random_queue_name + '.fifo', visibility_timeout=1)
+    finally:
+        try:
+            sqs.delete_queue(random_queue_name)
+        except Exception:
+            pass
+        try:
+            sqs.delete_queue(random_queue_name + '.fifo')
+        except Exception:
+            pass

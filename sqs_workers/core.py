@@ -64,6 +64,7 @@ class SQSEnv(object):
     def create_standard_queue(self,
                               queue_name,
                               message_retention_period=None,
+                              visibility_timeout=None,
                               redrive_policy=None):
         """
         Create a new standard queue
@@ -75,6 +76,8 @@ class SQSEnv(object):
         }
         if message_retention_period is not None:
             attrs['MessageRetentionPeriod'] = str(message_retention_period)
+        if visibility_timeout is not None:
+            attrs['VisibilityTimeout'] = str(visibility_timeout)
         if redrive_policy is not None:
             attrs['RedrivePolicy'] = redrive_policy.__json__()
         ret = self.sqs_client.create_queue(**kwargs)
@@ -84,6 +87,7 @@ class SQSEnv(object):
                           queue_name,
                           content_based_deduplication=False,
                           message_retention_period=None,
+                          visibility_timeout=None,
                           redrive_policy=None):
         """
         Create a new FIFO queue. Note that queue name has to end with ".fifo"
@@ -106,6 +110,8 @@ class SQSEnv(object):
             attrs['ContentBasedDeduplication'] = 'true'
         if message_retention_period is not None:
             attrs['MessageRetentionPeriod'] = str(message_retention_period)
+        if visibility_timeout is not None:
+            attrs['VisibilityTimeout'] = str(visibility_timeout)
         if redrive_policy is not None:
             attrs['RedrivePolicy'] = redrive_policy.__json__()
         ret = self.sqs_client.create_queue(**kwargs)
