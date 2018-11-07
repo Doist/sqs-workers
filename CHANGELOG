@@ -1,3 +1,9 @@
+## [0.3.3] - 2018-11-07
+
+### Fixed
+
+- Fixed the encoding problem with the PickleCodec, MemoryEnv and python27
+
 ## [0.3.2] - 2018-11-07
 
 ### Added
