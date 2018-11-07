@@ -3,6 +3,7 @@ import time
 
 from sqs_workers import IMMEDIATE_RETURN, ExponentialBackoff
 from sqs_workers.codecs import PickleCodec, JSONCodec
+from sqs_workers.memory_env import MemoryEnv
 
 worker_results = {'say_hello': None, 'batch_say_hello': set()}
 
@@ -113,6 +114,9 @@ def test_exception_returns_task_to_the_queue(sqs, queue):
 
 
 def test_redrive(sqs, queue_with_redrive):
+    if isinstance(sqs, MemoryEnv):
+        pytest.skip('Redrive not implemented with MemoryEnv')
+
     queue, dead_queue = queue_with_redrive
 
     # add processor which fails to the standard queue
@@ -151,8 +155,10 @@ def test_drain_queue(sqs, queue):
 
 def test_message_retention_period(sqs, random_queue_name):
     try:
-        sqs.create_standard_queue(random_queue_name, message_retention_period=600)
-        sqs.create_fifo_queue(random_queue_name + '.fifo', message_retention_period=600)
+        sqs.create_standard_queue(
+            random_queue_name, message_retention_period=600)
+        sqs.create_fifo_queue(
+            random_queue_name + '.fifo', message_retention_period=600)
     finally:
         try:
             sqs.delete_queue(random_queue_name)
@@ -175,7 +181,8 @@ def test_delay_seconds(sqs, queue):
 def test_visibility_timeout(sqs, random_queue_name):
     try:
         sqs.create_standard_queue(random_queue_name, visibility_timeout=1)
-        sqs.create_fifo_queue(random_queue_name + '.fifo', visibility_timeout=1)
+        sqs.create_fifo_queue(
+            random_queue_name + '.fifo', visibility_timeout=1)
     finally:
         try:
             sqs.delete_queue(random_queue_name)

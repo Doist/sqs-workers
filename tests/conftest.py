@@ -1,27 +1,31 @@
-import boto3
-import localstack_client.session
-import pytest
 import datetime
 import random
 import string
+
+import boto3
+import localstack_client.session
+import pytest
 from sqs_workers import SQSEnv
+from sqs_workers.memory_env import MemoryEnv
 
 
-@pytest.fixture(scope='session', params=['aws', 'localstack'])
+@pytest.fixture(scope='session', params=['aws', 'localstack', 'memory'])
 def sqs_session(request):
     if request.param == 'aws':
         return boto3.Session()
-    else:
+    elif request.param == 'localstack':
         return localstack_client.session.Session()
-
+    else:
+        return None
 
 @pytest.fixture(scope='session')
 def sqs(sqs_session):
-    # type: () -> SQSEnv
+    if sqs_session is None:
+        return MemoryEnv()
     queue_prefix = 'sqs_workers_tests_{:%Y%m%d}_'.format(
         datetime.datetime.utcnow())
     sqs = SQSEnv(session=sqs_session, queue_prefix=queue_prefix)
-    yield sqs
+    return sqs
 
 
 @pytest.fixture

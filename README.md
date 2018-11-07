@@ -178,6 +178,44 @@ sqs.process_queue('foo', shutdown_policy=IdleShutdown(idle_seconds=300))
 ```
 
 
+Using in unit tests with MemoryEnv
+----------------------------------
+
+There is a special MemoryEnv which can be used as a quick'n'dirty replacement
+for real queues in unit tests. If you have a function `create_task` which adds
+some tasks to the queue and you want to test how it works, you can technically 
+write your tests like this:
+
+```python
+from sqs_workers import SQSEnv
+env = SQSEnv()
+
+def test_task_creation_side_effects():
+    create_task()
+    env.process_batch('foo')
+    ...
+```
+
+The problem is that your test starts depending on AWS (or localstack)
+infrastructure, which you don't always need. What you can do instead is you
+can replace SQSEnv with a MemoryEnv() and rewrite your tests like this.
+
+```python
+from sqs_workers.memory_env import MemoryEnv
+env = MemoryEnv()
+```
+
+Please note that MemoryEnv has some serious limitations, and may not fit well
+your use-case. Namely, when you work with MemoryEnv:
+
+- Redrive policy doesn't work
+- There is no differences between standard and FIFO queues
+- FIFO queues don't support content-based deduplication
+- Delayed tasks executed ineffectively: the task is gotten from the queue,
+  and if the time hasn't come yet, the task is put back.
+- API can return slightly different results
+
+
 Testing with AWS
 ----------------
 

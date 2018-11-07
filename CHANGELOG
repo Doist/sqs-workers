@@ -1,3 +1,10 @@
+## [0.3.2] - 2018-11-07
+
+### Added
+
+- Added MemoryEnv, a stub queue environment to use mostly in unit tests
+
+
 ## [0.3.1] - 2018-10-12
 
 ### Changed
