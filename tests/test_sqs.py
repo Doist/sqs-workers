@@ -84,6 +84,19 @@ def test_batch_processor(sqs, queue):
     assert worker_results['batch_say_hello'] == usernames
 
 
+def test_copy_processors(sqs, queue, queue2):
+    # indirectly set the processor for queue2
+    sqs.connect_processor(queue, 'say_hello', say_hello)
+    sqs.copy_processors(queue, queue2)
+
+    # add job to that queue
+    sqs.add_job(queue2, 'say_hello')
+
+    # and see that it's succeeded
+    processed = sqs.process_batch(queue2, wait_seconds=0).succeeded_count()
+    assert processed == 1
+
+
 def test_arguments_validator_raises_exception_on_extra(sqs, queue):
     say_hello_task = sqs.connect_processor(queue, 'say_hello', say_hello)
     with pytest.raises(TypeError):

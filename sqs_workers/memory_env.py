@@ -189,6 +189,26 @@ class MemoryEnv(object):
 
         return fn
 
+    def copy_processors(self, src_queue, dst_queue):
+        """
+        Copy processors from src_queue to dst_queue (both queues identified
+        by their names). Can be helpful to process dead-letter queue with
+        processors from the main queue.
+
+        Usage example.
+
+        sqs = SQSEnv()
+        ...
+        sqs.copy_processors('foo', 'foo_dead')
+        sqs.process_queue("foo_dead", shutdown_policy=IdleShutdown(10))
+
+        Here the queue "foo_dead" will be processed with processors from the
+        queue "foo".
+        """
+        for job_name, processor in self.processors[src_queue].items():
+            self.processors[dst_queue][job_name] = processor.copy(
+                queue_name=dst_queue)
+
     def add_job(self,
                 queue_name,
                 job_name,

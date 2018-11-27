@@ -177,8 +177,8 @@ sqs = SQSEnv()
 sqs.process_queue('foo', shutdown_policy=IdleShutdown(idle_seconds=300))
 ```
 
-Processing dead-letter queue
-----------------------------
+Processing dead-letter queue by pushing back failed messages
+------------------------------------------------------------
 
 The most common way to process a dead-letter queue is to fix the main bug
 causing messages to appear there in the first place, and then to re-process
@@ -209,13 +209,32 @@ from sqs_workers import SQSEnv
 from sqs_workers.processors import DeadLetterProcessor
 from sqs_workers.shutdown_policies import IdleShutdown
 
-env = SQSEnv(fallback_processor_maker=DeadLetterProcessor)
-env.process_queue("foo_dead", shutdown_policy=IdleShutdown(10))
+sqs = SQSEnv(fallback_processor_maker=DeadLetterProcessor)
+sqs.process_queue("foo_dead", shutdown_policy=IdleShutdown(10))
 ```
 
 This code takes all the messages in foo_dead queue and push them back to
 the foo queue. Then it waits 10 seconds to ensure no new messages appear,
 and quit.
+
+
+Processing dead-letter with processors from the main queue
+----------------------------------------------------------
+
+Instead of pushing back tasks to the main queue you can copy processors
+from the main queue to dead-letter and process all tasks in place.
+
+Usage example:
+
+```python
+from sqs_workers import SQSEnv
+from sqs_workers.shutdown_policies import IdleShutdown
+
+sqs = SQSEnv()
+...
+sqs.copy_processors('foo', 'foo_dead')
+sqs.process_queue('foo_dead', shutdown_policy=IdleShutdown(10))
+```
 
 
 Using in unit tests with MemoryEnv

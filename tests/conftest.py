@@ -38,6 +38,14 @@ def queue(sqs, random_queue_name):
 
 
 @pytest.fixture
+def queue2(sqs, random_queue_name):
+    # type: (SQSEnv) -> string
+    sqs.create_standard_queue(random_queue_name + '_2')
+    yield random_queue_name + '_2'
+    sqs.delete_queue(random_queue_name + '_2')
+
+
+@pytest.fixture
 def queue_with_redrive(sqs, random_queue_name):
     # dead letter queue
     queue = random_queue_name

@@ -1,3 +1,9 @@
+## [0.3.5] - 2018-11-27
+
+### Added
+
+- Added and documented sqs.copy_processors to process dead-letter queues
+
 ## [0.3.4] - 2018-11-27
 
 ### Added

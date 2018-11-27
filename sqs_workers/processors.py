@@ -51,6 +51,20 @@ class GenericProcessor(object):
     def process_batch(self, job_messages):
         raise NotImplementedError("Must be implemented in subclasses")
 
+    def copy(self, **kwargs):
+        """
+        Create a new instance of the processor, optionally updating
+        arguments of the constructor from update_kwargs
+        """
+        init_kwargs = {
+            'sqs_env': kwargs.get('sqq_env', self.sqs_env),
+            'queue_name': kwargs.get('queue_name', self.queue_name),
+            'job_name': kwargs.get('job_name', self.job_name),
+            'fn': kwargs.get('fn', self.fn),
+            'backoff_policy': kwargs.get('backoff_policy', self.backoff_policy),
+        }
+        return self.__class__(**init_kwargs)
+
 
 class Processor(GenericProcessor):
     """
