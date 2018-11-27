@@ -61,7 +61,8 @@ class GenericProcessor(object):
             'queue_name': kwargs.get('queue_name', self.queue_name),
             'job_name': kwargs.get('job_name', self.job_name),
             'fn': kwargs.get('fn', self.fn),
-            'backoff_policy': kwargs.get('backoff_policy', self.backoff_policy),
+            'backoff_policy': kwargs.get('backoff_policy',
+                                         self.backoff_policy),
         }
         return self.__class__(**init_kwargs)
 
@@ -198,7 +199,7 @@ class DeadLetterProcessor(GenericProcessor):
     def push_back_message(self, message):
         queue_name = self.queue_name[:-len('_dead')]
         content_type = message.message_attributes['ContentType']['StringValue']
-        logger.info(
+        logger.debug(
             'Push back dead letter job {}.{}'.format(self.queue_name,
                                                      self.job_name),
             extra={
