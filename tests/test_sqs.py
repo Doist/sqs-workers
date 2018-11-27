@@ -1,9 +1,11 @@
-import pytest
 import time
 
+import pytest
+
 from sqs_workers import IMMEDIATE_RETURN, ExponentialBackoff
-from sqs_workers.codecs import PickleCodec, JSONCodec
+from sqs_workers.codecs import JSONCodec, PickleCodec
 from sqs_workers.memory_env import MemoryEnv
+from sqs_workers.processors import DeadLetterProcessor
 
 worker_results = {'say_hello': None, 'batch_say_hello': set()}
 
@@ -132,6 +134,21 @@ def test_redrive(sqs, queue_with_redrive):
     # add processor which succeeds
     sqs.connect_processor(dead_queue, 'say_hello', say_hello)
     assert sqs.process_batch(dead_queue, wait_seconds=0).succeeded_count() == 1
+
+
+def test_dead_letter_processor(sqs, queue_with_redrive):
+    sqs.fallback_processor_maker = DeadLetterProcessor
+    queue, dead_queue = queue_with_redrive
+
+    # dead queue doesn't have a processor, so a dead letter processor
+    # will be fired, and it will mark the task as successful
+    sqs.add_job(dead_queue, 'say_hello')
+    assert sqs.process_batch(dead_queue, wait_seconds=0).succeeded_count() == 1
+
+    # queue has processor which succeeds (but we need to wait at least
+    # 1 second for this task to appear here)
+    sqs.connect_processor(queue, 'say_hello', say_hello)
+    assert sqs.process_batch(queue, wait_seconds=2).succeeded_count() == 1
 
 
 def test_exponential_backoff_works(sqs, queue):

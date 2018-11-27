@@ -47,7 +47,8 @@ class SQSEnv(object):
     def __init__(self,
                  session=boto3,
                  queue_prefix='',
-                 backoff_policy=DEFAULT_BACKOFF):
+                 backoff_policy=DEFAULT_BACKOFF,
+                 fallback_processor_maker=processors.FallbackProcessor):
         """
         Initialize SQS environment with boto3 session
         """
@@ -57,6 +58,7 @@ class SQSEnv(object):
         self.processors = defaultdict(lambda: {})
         self.queue_prefix = queue_prefix
         self.backoff_policy = backoff_policy
+        self.fallback_processor_maker = fallback_processor_maker
 
         # internal mapping from queue names to queue objects
         self.queue_mapping_cache = {}
@@ -148,7 +150,7 @@ class SQSEnv(object):
             'processor {processor_name}'.format(**extra),
             extra=extra)
         self.processors[queue_name][job_name] = processors.Processor(
-            queue_name, job_name, processor, backoff_policy
+            self, queue_name, job_name, processor, backoff_policy
             or self.backoff_policy)
         return AsyncTask(self, queue_name, job_name, processor)
 
@@ -202,7 +204,7 @@ class SQSEnv(object):
             'batch processor {processor_name}'.format(**extra),
             extra=extra)
         self.processors[queue_name][job_name] = processors.BatchProcessor(
-            queue_name, job_name, processor, backoff_policy
+            self, queue_name, job_name, processor, backoff_policy
             or self.backoff_policy)
         return AsyncBatchTask(self, queue_name, job_name, processor)
 
@@ -428,7 +430,8 @@ class SQSEnv(object):
         """
         processor = self.processors[queue_name].get(job_name)
         if processor is None:
-            processor = processors.FallbackProcessor(queue_name, job_name)
+            processor = self.fallback_processor_maker(self, queue_name,
+                                                      job_name)
             self.processors[queue_name][job_name] = processor
         return processor
 

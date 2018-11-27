@@ -34,12 +34,15 @@ class MemoryEnv(object):
 
     # TODO: maybe it can be implemented more effectively with sched
 
-    def __init__(self, backoff_policy=DEFAULT_BACKOFF):
+    def __init__(self,
+                 backoff_policy=DEFAULT_BACKOFF,
+                 fallback_processor_maker=processors.FallbackProcessor):
         """
         Initialize pseudo SQS environment
         """
         self.backoff_policy = backoff_policy
         self.processors = defaultdict(lambda: {})
+        self.fallback_processor_maker = fallback_processor_maker
         self.queues = {}  # type: dict[str, Queue]
 
     def create_standard_queue(self, queue_name, **kwargs):
@@ -92,7 +95,7 @@ class MemoryEnv(object):
             'Connect {queue_name}.{job_name} to '
             'processor {processor_name}'.format(**extra),
             extra=extra)
-        self.processors[queue_name][job_name] = processors.Processor(
+        self.processors[queue_name][job_name] = processors.Processor(self,
             queue_name, job_name, processor, backoff_policy
             or self.backoff_policy)
         return AsyncTask(self, queue_name, job_name, processor)
@@ -146,7 +149,7 @@ class MemoryEnv(object):
             'Connect {queue_name}.{job_name} to '
             'batch processor {processor_name}'.format(**extra),
             extra=extra)
-        self.processors[queue_name][job_name] = processors.BatchProcessor(
+        self.processors[queue_name][job_name] = processors.BatchProcessor(self,
             queue_name, job_name, processor, backoff_policy
             or self.backoff_policy)
         return AsyncBatchTask(self, queue_name, job_name, processor)
@@ -344,7 +347,7 @@ class MemoryEnv(object):
         """
         processor = self.processors[queue_name].get(job_name)
         if processor is None:
-            processor = processors.FallbackProcessor(queue_name, job_name)
+            processor = self.fallback_processor_maker(self, queue_name, job_name)
             self.processors[queue_name][job_name] = processor
         return processor
 

@@ -18,7 +18,8 @@ def sqs_session(request):
     else:
         return None
 
-@pytest.fixture(scope='session')
+
+@pytest.fixture
 def sqs(sqs_session):
     if sqs_session is None:
         return MemoryEnv()

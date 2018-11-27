@@ -1,3 +1,11 @@
+## [0.3.4] - 2018-11-27
+
+### Added
+
+- Added ability to configure SQS environment with custom fallback processors
+- Implemented DeadLetterProcessor to push back messages from dead-letter
+  queue to the main one.
+
 ## [0.3.3] - 2018-11-07
 
 ### Fixed

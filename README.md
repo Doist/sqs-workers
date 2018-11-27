@@ -177,6 +177,46 @@ sqs = SQSEnv()
 sqs.process_queue('foo', shutdown_policy=IdleShutdown(idle_seconds=300))
 ```
 
+Processing dead-letter queue
+----------------------------
+
+The most common way to process a dead-letter queue is to fix the main bug
+causing messages to appear there in the first place, and then to re-process
+these messages again.
+
+With sqs-workers in can be done by putting back all the messages from a
+dead-letter queue back to the main one. It can be performed with a special
+fallback processor called DeadLetterProcessor.
+
+The dead-letter processor has opinion on how queues are organized and uses some
+hard-coded options.
+
+It is supposed to process queues "something_dead" which is supposed to be
+a configured dead-letter queue for "something". While processing the queue,
+the processor takes every message and push it back to the queue "something"
+with a hard-coded delay of 1 second.
+
+If the queue name does't end with "_dead", the DeadLetterProcessor behaves
+like generic FallbackProcessor: shows the error message and keep message in
+the queue. It's made to prevent from creating infinite loops when the
+message from the dead letter queue is pushed back to the same queue, then
+immediately processed by the same processor again, etc.
+
+Usage example:
+
+```python
+from sqs_workers import SQSEnv
+from sqs_workers.processors import DeadLetterProcessor
+from sqs_workers.shutdown_policies import IdleShutdown
+
+env = SQSEnv(fallback_processor_maker=DeadLetterProcessor)
+env.process_queue("foo_dead", shutdown_policy=IdleShutdown(10))
+```
+
+This code takes all the messages in foo_dead queue and push them back to
+the foo queue. Then it waits 10 seconds to ensure no new messages appear,
+and quit.
+
 
 Using in unit tests with MemoryEnv
 ----------------------------------
