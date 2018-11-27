@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 class GenericProcessor(object):
     """
     Base superclass for all types of processors. Accepts queue name and job
-    name to take care of, and optinally the processing function fn(...)
+    name to take care of, and optionally the processing function fn(...)
 
     The way job messages are actually processed, is defined in the
     process_batch() function which has to be re-defined in a subclass.
@@ -121,7 +121,7 @@ class BatchProcessor(GenericProcessor):
 class FallbackProcessor(GenericProcessor):
     """
     Processor which is used by default when none of the processors is attached
-    explicity
+    explicitly
     """
 
     def process_batch(self, job_messages):
@@ -129,7 +129,8 @@ class FallbackProcessor(GenericProcessor):
             self.queue_name, self.job_name))
         # return empty list for succeeded and failed messages
         # - the queue will not delete messages
-        # - it will not put messages back to the queue eitehr
+        # - it will not put messages back to the queue either, so they
+        #   automatically appear there on reaching the visibility timeout
         return [], []
 
 

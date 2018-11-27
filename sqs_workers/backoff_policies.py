@@ -4,7 +4,7 @@ import random
 class ConstantBackoff(object):
     """
     Backoff policy which always returns the message back to the queue
-    immeduately on failure
+    immediately on failure
     """
 
     def __init__(self, backoff_value=0):
