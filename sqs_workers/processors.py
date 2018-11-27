@@ -38,6 +38,11 @@ class GenericProcessor(object):
         self.fn = fn
         self.backoff_policy = backoff_policy
 
+    def __repr__(self):
+        fn_name = self.fn.__module__ + '.' + self.fn.__name__
+        return '{}({!r}, {!r}, {})'.format(
+            self.__class__.__name__, self.queue_name, self.job_name, fn_name)
+
     def process_batch(self, job_messages):
         raise NotImplementedError("Must be implemented in subclasses")
 
