@@ -15,6 +15,7 @@ from sqs_workers.utils import adv_bind_arguments
 logger = logging.getLogger(__name__)
 
 DEFAULT_CONTENT_TYPE = 'pickle'
+DEFAULT_MESSAGE_GROUP_ID = 'default'
 
 
 class BatchProcessingResult(object):
@@ -268,6 +269,8 @@ class SQSEnv(object):
                 job_name,
                 _content_type=DEFAULT_CONTENT_TYPE,
                 _delay_seconds=None,
+                _deduplication_id=None,
+                _group_id=None,
                 **job_kwargs):
         """
         Add job to the queue. The body of the job will be converted to the text
@@ -276,13 +279,20 @@ class SQSEnv(object):
         codec = codecs.get_codec(_content_type)
         message_body = codec.serialize(job_kwargs)
         return self.add_raw_job(queue_name, job_name, message_body,
-                                _content_type, _delay_seconds)
+                                _content_type, _delay_seconds,
+                                _deduplication_id, _group_id)
 
     def add_raw_job(self, queue_name, job_name, message_body, content_type,
-                    delay_seconds):
+                    delay_seconds, deduplication_id, group_id):
         """
         Low-level function to put message to the queue
         """
+        # if queue name ends with .fifo, then according to the AWS specs,
+        # it's a FIFO queue, and requires group_id.
+        # Otherwise group_id can be set to None
+        if group_id is None and queue_name.endswith('.fifo'):
+            group_id = DEFAULT_MESSAGE_GROUP_ID
+
         queue = self.get_queue(queue_name)
         kwargs = {
             'MessageBody': message_body,
@@ -299,6 +309,10 @@ class SQSEnv(object):
         }
         if delay_seconds is not None:
             kwargs['DelaySeconds'] = int(delay_seconds)
+        if deduplication_id is not None:
+            kwargs['MessageDeduplicationId'] = str(deduplication_id)
+        if group_id is not None:
+            kwargs['MessageGroupId'] = str(group_id)
         ret = queue.send_message(**kwargs)
         return ret['MessageId']
 
@@ -493,12 +507,16 @@ class AsyncTask(object):
     def delay(self, *args, **kwargs):
         _content_type = kwargs.pop('_content_type', DEFAULT_CONTENT_TYPE)
         _delay_seconds = kwargs.pop('_delay_seconds', None)
+        _deduplication_id = kwargs.pop('_deduplication_id', None)
+        _group_id = kwargs.pop('_group_id', None)
         kwargs = adv_bind_arguments(self.processor, args, kwargs)
         return self.sqs_env.add_job(
             self.queue_name,
             self.job_name,
             _content_type=_content_type,
             _delay_seconds=_delay_seconds,
+            _deduplication_id=_deduplication_id,
+            _group_id=_group_id,
             **kwargs)
 
 

@@ -90,6 +90,35 @@ Serialization
 
 There are two serializers: json and pickle.
 
+
+FIFO queues
+-----------
+
+Fifo queues can be created with `create_fifo_queue` and has to have the name
+which ends with ".fifo". The dead-letter queue has to have a name
+`something_dead.fifo`.
+
+```python
+from sqs_workers import SQSEnv
+sqs = SQSEnv()
+sqs.create_fifo_queue('emails_dead.fifo')
+sqs.create_fifo_queue('emails.fifo', 
+    redrive_policy=sqs.redrive_policy('emails_dead.fifo', 3)
+)
+```
+
+Unless the flag `content_based_deduplication` is set, every message has to be
+sent with an attribute `_deduplication_id`. By default all messages have the
+same message group `default`, but you can change it with `_group_id`.
+
+```python
+sqs.add_job(
+    'emails.fifo', 'send_email', _deduplication_id=subject, _group_id=email, **kwargs)
+```
+
+[More about FIFO queues on AWS](https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/FIFO-queues.html)
+
+
 Exception processing
 --------------------
 
@@ -113,9 +142,9 @@ policy, which can look like this
 ```python
 from sqs_workers import SQSEnv
 sqs = SQSEnv()
-sqs.create_standard_queue('emails_deadletters')
+sqs.create_standard_queue('emails_dead')
 sqs.create_standard_queue('emails', 
-    redrive_policy=sqs.redrive_policy('emails_deadletters', 3)
+    redrive_policy=sqs.redrive_policy('emails_dead', 3)
 )
 ```
 

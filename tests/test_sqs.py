@@ -200,6 +200,30 @@ def test_message_retention_period(sqs, random_queue_name):
             pass
 
 
+def test_deduplication_id(sqs, fifo_queue):
+    if isinstance(sqs, MemoryEnv):
+        pytest.skip('Deduplication id not implemented with MemoryEnv')
+
+    say_hello_task = sqs.connect_processor(fifo_queue, 'say_hello', say_hello)
+    say_hello_task.delay(username='One', _deduplication_id='x')
+    say_hello_task.delay(username='Two', _deduplication_id='x')
+    assert sqs.process_batch(fifo_queue, wait_seconds=0).succeeded_count() == 1
+    assert worker_results['say_hello'] == 'One'
+
+
+def test_group_id(sqs, fifo_queue):
+    # not much we can test here, but at least test that it doesn't blow up
+    # and that group_id and deduplication_id are orthogonal
+    if isinstance(sqs, MemoryEnv):
+        pytest.skip('Deduplication id not implemented with MemoryEnv')
+
+    say_hello_task = sqs.connect_processor(fifo_queue, 'say_hello', say_hello)
+    say_hello_task.delay(username='One', _deduplication_id='x', _group_id='g1')
+    say_hello_task.delay(username='Two', _deduplication_id='x', _group_id='g2')
+    assert sqs.process_batch(fifo_queue, wait_seconds=0).succeeded_count() == 1
+    assert worker_results['say_hello'] == 'One'
+
+
 def test_delay_seconds(sqs, queue):
     say_hello_task = sqs.connect_processor(queue, 'say_hello', say_hello)
     say_hello_task.delay(username='Homer', _delay_seconds=2)

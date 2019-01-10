@@ -166,15 +166,19 @@ class DeadLetterProcessor(GenericProcessor):
     and uses some hard-coded options.
 
     It is supposed to process queues "something_dead" which is supposed to be
-    a configured dead-letter queue for "something". While processing the queue,
-    the processor takes every message and push it back to the queue "something"
-    with a hard-coded delay of 1 second.
+    a configured dead-letter queue for "something". In case of FIFO queues
+    names would be "something_dead.fifo" for "something.fifo".
 
-    If the queue name does't end with "_dead", the DeadLetterProcessor behaves
-    like generic FallbackProcessor: shows the error message and keep message in
-    the queue. It's made to prevent from creating infinite loops when the
-    message from the dead letter queue is pushed back to the same queue, then
-    immediately processed by the same processor again, etc.
+    While processing the queue, the processor takes every message and push it
+    back to the queue "something" (or something.fifo) with a hard-coded delay
+    of 1 second.
+
+    If the queue name does't end with "_dead" or "_dead.fifo", the
+    DeadLetterProcessor behaves like generic FallbackProcessor: shows the error
+    message and keep message in the queue. It's made to prevent from creating
+    infinite loops when the message from the dead letter queue is pushed back
+    to the same queue, then immediately processed by the same processor again,
+    etc.
 
     Usage example:
 
@@ -187,7 +191,7 @@ class DeadLetterProcessor(GenericProcessor):
     """
 
     def process_batch(self, job_messages):
-        if not self.queue_name.endswith('_dead'):
+        if not self.is_dead():
             warnings.warn('Error while processing {}.{}'.format(
                 self.queue_name, self.job_name))
             return [], []
@@ -197,8 +201,14 @@ class DeadLetterProcessor(GenericProcessor):
         return job_messages, []  # all succeeded
 
     def push_back_message(self, message):
-        queue_name = self.queue_name[:-len('_dead')]
+        queue_name = self.get_upstream_name()
         content_type = message.message_attributes['ContentType']['StringValue']
+        if queue_name.endswith('.fifo'):
+            deduplication_id = message.message_attributes['MessageDeduplicationId']['StringValue']
+            group_id = message.message_attributes['MessageGroupId']['StringValue']
+        else:
+            deduplication_id = None
+            group_id = None
         logger.debug(
             'Push back dead letter job {}.{}'.format(self.queue_name,
                                                      self.job_name),
@@ -208,7 +218,18 @@ class DeadLetterProcessor(GenericProcessor):
                 'job_name': self.job_name,
             })
         self.sqs_env.add_raw_job(queue_name, self.job_name, message.body,
-                                 content_type, 1)
+                                 content_type, 1, deduplication_id, group_id)
+
+    def is_dead(self):
+        return (self.queue_name.endswith('_dead')
+                or self.queue_name.endswith('_dead.fifo'))
+
+    def get_upstream_name(self):
+        if self.queue_name.endswith('_dead'):
+            return self.queue_name[:-len('_dead')]
+        if self.queue_name.endswith('_dead.fifo'):
+            return self.queue_name[:-len('_dead.fifo')] + '.fifo'
+        raise RuntimeError("Not a deadletter queue")
 
 
 def get_job_content_type(job_message):

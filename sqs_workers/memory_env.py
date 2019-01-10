@@ -8,9 +8,9 @@ from itertools import groupby
 from queue import Empty, Queue
 
 from sqs_workers import DEFAULT_BACKOFF, codecs, processors
-from sqs_workers.core import (DEFAULT_CONTENT_TYPE, AsyncBatchTask, AsyncTask,
-                              BatchProcessingResult, RedrivePolicy,
-                              get_job_name)
+from sqs_workers.core import (
+    DEFAULT_CONTENT_TYPE, AsyncBatchTask, AsyncTask, BatchProcessingResult,
+    RedrivePolicy, get_job_name)
 from sqs_workers.shutdown_policies import NEVER_SHUTDOWN, NeverShutdown
 
 logger = logging.getLogger(__name__)
@@ -95,8 +95,8 @@ class MemoryEnv(object):
             'Connect {queue_name}.{job_name} to '
             'processor {processor_name}'.format(**extra),
             extra=extra)
-        self.processors[queue_name][job_name] = processors.Processor(self,
-            queue_name, job_name, processor, backoff_policy
+        self.processors[queue_name][job_name] = processors.Processor(
+            self, queue_name, job_name, processor, backoff_policy
             or self.backoff_policy)
         return AsyncTask(self, queue_name, job_name, processor)
 
@@ -149,8 +149,8 @@ class MemoryEnv(object):
             'Connect {queue_name}.{job_name} to '
             'batch processor {processor_name}'.format(**extra),
             extra=extra)
-        self.processors[queue_name][job_name] = processors.BatchProcessor(self,
-            queue_name, job_name, processor, backoff_policy
+        self.processors[queue_name][job_name] = processors.BatchProcessor(
+            self, queue_name, job_name, processor, backoff_policy
             or self.backoff_policy)
         return AsyncBatchTask(self, queue_name, job_name, processor)
 
@@ -214,6 +214,8 @@ class MemoryEnv(object):
                 job_name,
                 _content_type=DEFAULT_CONTENT_TYPE,
                 _delay_seconds=None,
+                _deduplication_id=None,
+                _group_id=None,
                 **job_kwargs):
         """
         Add job to the queue. The body of the job will be converted to the text
@@ -222,10 +224,11 @@ class MemoryEnv(object):
         codec = codecs.get_codec(_content_type)
         message_body = codec.serialize(job_kwargs)
         return self.add_raw_job(queue_name, job_name, message_body,
-                                _content_type, _delay_seconds)
+                                _content_type, _delay_seconds,
+                                _deduplication_id, _group_id)
 
     def add_raw_job(self, queue_name, job_name, message_body, content_type,
-                    delay_seconds):
+                    delay_seconds, deduplication_id, group_id):
         """
         Low-level function to put message to the queue
         """
@@ -367,7 +370,8 @@ class MemoryEnv(object):
         """
         processor = self.processors[queue_name].get(job_name)
         if processor is None:
-            processor = self.fallback_processor_maker(self, queue_name, job_name)
+            processor = self.fallback_processor_maker(self, queue_name,
+                                                      job_name)
             self.processors[queue_name][job_name] = processor
         return processor
 
