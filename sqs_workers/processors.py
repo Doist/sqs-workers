@@ -91,7 +91,7 @@ class Processor(GenericProcessor):
                 extra['job_content_type'] = content_type
                 codec = codecs.get_codec(content_type)
                 job_kwargs = codec.deserialize(message.body)
-                call_handler(self.fn, job_kwargs)
+                self.process(job_kwargs)
             except Exception:
                 logger.exception(
                     'Error while processing {queue_name}.{job_name}'.format(
@@ -101,6 +101,9 @@ class Processor(GenericProcessor):
             else:
                 succeeded.append(message)
         return succeeded, failed
+
+    def process(self, job_kwargs):
+        return call_handler(self.fn, job_kwargs)
 
 
 class BatchProcessor(GenericProcessor):
@@ -123,7 +126,7 @@ class BatchProcessor(GenericProcessor):
                 extra=extra)
             try:
                 jobs = self.decode_messages(job_messages)
-                self.fn(jobs)
+                self.process(jobs)
             except Exception:
                 logger.exception(
                     'Error while processing {job_count} messages '
@@ -141,6 +144,9 @@ class BatchProcessor(GenericProcessor):
             job = codec.deserialize(message.body)
             jobs.append(job)
         return jobs
+
+    def process(self, jobs):
+        return self.fn(jobs)
 
 
 class FallbackProcessor(GenericProcessor):

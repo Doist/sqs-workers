@@ -5,7 +5,8 @@ import pytest
 from sqs_workers import IMMEDIATE_RETURN, ExponentialBackoff
 from sqs_workers.codecs import JSONCodec, PickleCodec
 from sqs_workers.memory_env import MemoryEnv
-from sqs_workers.processors import DeadLetterProcessor
+from sqs_workers.processors import (
+    BatchProcessor, DeadLetterProcessor, Processor)
 
 worker_results = {'say_hello': None, 'batch_say_hello': set()}
 
@@ -246,3 +247,31 @@ def test_visibility_timeout(sqs, random_queue_name):
             sqs.delete_queue(random_queue_name + '.fifo')
         except Exception:
             pass
+
+
+def test_custom_processor(sqs, queue):
+    class CustomProcessor(Processor):
+        def process(self, job_kwargs):
+            job_kwargs['username'] = 'Foo'
+            super(CustomProcessor, self).process(job_kwargs)
+
+    sqs.processor_maker = CustomProcessor
+    say_hello_task = sqs.connect_processor(queue, 'say_hello', say_hello)
+    say_hello_task.delay()
+    assert sqs.process_batch(queue).succeeded_count() == 1
+    assert worker_results['say_hello'] == 'Foo'
+
+
+def test_custom_batch_processor(sqs, queue):
+    class CustomBatchProcessor(BatchProcessor):
+        def process(self, jobs):
+            jobs[0]['username'] = 'Two'
+            super(CustomBatchProcessor, self).process(jobs)
+
+    sqs.batch_processor_maker = CustomBatchProcessor
+    task = sqs.connect_batch_processor(queue, 'batch_say_hello',
+                                       batch_say_hello)
+
+    task.delay(username='One')
+    assert sqs.process_batch(queue).succeeded_count() == 1
+    assert worker_results['batch_say_hello'] == {'Two'}

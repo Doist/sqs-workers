@@ -133,6 +133,27 @@ Instead of using `sqs.processor` decorator you can use `sqs.batch_processor`.
 In this case the function must accept parameter "messages" containing
 the list of dicts.
 
+Custom processors
+-----------------
+
+You can define your own processor or batch processor if you need to perform
+some specific actions before of after executing a specific task.
+
+Example for the custom processor
+
+```python
+from sqs_workers import SQSEnv
+from sqs_workers.processors import Processor
+
+class CustomProcessor(Processor):
+    def process(self, job_kwargs):
+        print(f'Processing {self.queue_name}.{self.job_name} with {job_kwargs}')
+        super(CustomProcessor, self).process(job_kwargs)
+
+sqs = SQSEnv(processor_maker=CustomProcessor)
+```
+
+
 Dead-letter queues and redrive
 ------------------------------
 

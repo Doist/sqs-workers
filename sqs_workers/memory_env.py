@@ -36,12 +36,16 @@ class MemoryEnv(object):
 
     def __init__(self,
                  backoff_policy=DEFAULT_BACKOFF,
+                 processor_maker=processors.Processor,
+                 batch_processor_maker=processors.BatchProcessor,
                  fallback_processor_maker=processors.FallbackProcessor):
         """
         Initialize pseudo SQS environment
         """
         self.backoff_policy = backoff_policy
         self.processors = defaultdict(lambda: {})
+        self.processor_maker = processor_maker
+        self.batch_processor_maker = batch_processor_maker
         self.fallback_processor_maker = fallback_processor_maker
         self.queues = {}  # type: dict[str, Queue]
 
@@ -95,7 +99,7 @@ class MemoryEnv(object):
             'Connect {queue_name}.{job_name} to '
             'processor {processor_name}'.format(**extra),
             extra=extra)
-        self.processors[queue_name][job_name] = processors.Processor(
+        self.processors[queue_name][job_name] = self.processor_maker(
             self, queue_name, job_name, processor, backoff_policy
             or self.backoff_policy)
         return AsyncTask(self, queue_name, job_name, processor)
@@ -149,7 +153,7 @@ class MemoryEnv(object):
             'Connect {queue_name}.{job_name} to '
             'batch processor {processor_name}'.format(**extra),
             extra=extra)
-        self.processors[queue_name][job_name] = processors.BatchProcessor(
+        self.processors[queue_name][job_name] = self.batch_processor_maker(
             self, queue_name, job_name, processor, backoff_policy
             or self.backoff_policy)
         return AsyncBatchTask(self, queue_name, job_name, processor)

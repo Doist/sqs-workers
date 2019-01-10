@@ -49,6 +49,8 @@ class SQSEnv(object):
                  session=boto3,
                  queue_prefix='',
                  backoff_policy=DEFAULT_BACKOFF,
+                 processor_maker=processors.Processor,
+                 batch_processor_maker=processors.BatchProcessor,
                  fallback_processor_maker=processors.FallbackProcessor):
         """
         Initialize SQS environment with boto3 session
@@ -59,6 +61,8 @@ class SQSEnv(object):
         self.processors = defaultdict(lambda: {})
         self.queue_prefix = queue_prefix
         self.backoff_policy = backoff_policy
+        self.processor_maker = processor_maker
+        self.batch_processor_maker = batch_processor_maker
         self.fallback_processor_maker = fallback_processor_maker
 
         # internal mapping from queue names to queue objects
@@ -150,7 +154,7 @@ class SQSEnv(object):
             'Connect {queue_name}.{job_name} to '
             'processor {processor_name}'.format(**extra),
             extra=extra)
-        self.processors[queue_name][job_name] = processors.Processor(
+        self.processors[queue_name][job_name] = self.processor_maker(
             self, queue_name, job_name, processor, backoff_policy
             or self.backoff_policy)
         return AsyncTask(self, queue_name, job_name, processor)
@@ -204,7 +208,7 @@ class SQSEnv(object):
             'Connect {queue_name}.{job_name} to '
             'batch processor {processor_name}'.format(**extra),
             extra=extra)
-        self.processors[queue_name][job_name] = processors.BatchProcessor(
+        self.processors[queue_name][job_name] = self.batch_processor_maker(
             self, queue_name, job_name, processor, backoff_policy
             or self.backoff_policy)
         return AsyncBatchTask(self, queue_name, job_name, processor)
