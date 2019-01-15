@@ -49,7 +49,7 @@ def test_add_json_job(sqs, queue):
 
 
 def test_processor(sqs, queue):
-    say_hello_task = sqs.connect_processor(queue, 'say_hello', say_hello)
+    say_hello_task = sqs.processors.connect(queue, 'say_hello', say_hello)
     say_hello_task.delay(username='Homer')
     assert worker_results['say_hello'] is None
     sqs.process_batch(queue, wait_seconds=0)
@@ -57,7 +57,7 @@ def test_processor(sqs, queue):
 
 
 def test_process_messages_once(sqs, queue):
-    say_hello_task = sqs.connect_processor(queue, 'say_hello', say_hello)
+    say_hello_task = sqs.processors.connect(queue, 'say_hello', say_hello)
     say_hello_task.delay(username='Homer')
     processed = sqs.process_batch(queue, wait_seconds=0).succeeded_count()
     assert processed == 1
@@ -66,7 +66,7 @@ def test_process_messages_once(sqs, queue):
 
 
 def test_batch_processor(sqs, queue):
-    task = sqs.connect_batch_processor(queue, 'batch_say_hello',
+    task = sqs.processors.connect_batch(queue, 'batch_say_hello',
                                        batch_say_hello)
 
     usernames = {'u{}'.format(i) for i in range(20)}
@@ -87,8 +87,8 @@ def test_batch_processor(sqs, queue):
 
 def test_copy_processors(sqs, queue, queue2):
     # indirectly set the processor for queue2
-    sqs.connect_processor(queue, 'say_hello', say_hello)
-    sqs.copy_processors(queue, queue2)
+    sqs.processors.connect(queue, 'say_hello', say_hello)
+    sqs.processors.copy(queue, queue2)
 
     # add job to that queue
     sqs.add_job(queue2, 'say_hello')
@@ -99,33 +99,33 @@ def test_copy_processors(sqs, queue, queue2):
 
 
 def test_arguments_validator_raises_exception_on_extra(sqs, queue):
-    say_hello_task = sqs.connect_processor(queue, 'say_hello', say_hello)
+    say_hello_task = sqs.processors.connect(queue, 'say_hello', say_hello)
     with pytest.raises(TypeError):
         say_hello_task.delay(username='Homer', foo=1)
 
 
 def test_arguments_validator_adds_kwargs(sqs, queue):
-    say_hello_task = sqs.connect_processor(queue, 'say_hello', say_hello)
+    say_hello_task = sqs.processors.connect(queue, 'say_hello', say_hello)
     say_hello_task.delay()
     assert sqs.process_batch(queue, wait_seconds=0).succeeded_count() == 1
     assert worker_results['say_hello'] == 'Anonymous'
 
 
 def test_delay_accepts_converts_args_to_kwargs(sqs, queue):
-    say_hello_task = sqs.connect_processor(queue, 'say_hello', say_hello)
+    say_hello_task = sqs.processors.connect(queue, 'say_hello', say_hello)
     say_hello_task.delay('Homer')  # we don't use username="Homer"
     assert sqs.process_batch(queue, wait_seconds=0).succeeded_count() == 1
     assert worker_results['say_hello'] == 'Homer'
 
 
 def test_exception_returns_task_to_the_queue(sqs, queue):
-    task = sqs.connect_processor(
+    task = sqs.processors.connect(
         queue, 'say_hello', raise_exception, backoff_policy=IMMEDIATE_RETURN)
     task.delay(username='Homer')
     assert sqs.process_batch(queue, wait_seconds=0).failed_count() == 1
 
     # re-connect a non-broken processor for the queue
-    sqs.connect_processor(queue, 'say_hello', say_hello)
+    sqs.processors.connect(queue, 'say_hello', say_hello)
     assert sqs.process_batch(queue, wait_seconds=0).succeeded_count() == 1
 
 
@@ -136,7 +136,7 @@ def test_redrive(sqs, queue_with_redrive):
     queue, dead_queue = queue_with_redrive
 
     # add processor which fails to the standard queue
-    task = sqs.connect_processor(
+    task = sqs.processors.connect(
         queue, 'say_hello', raise_exception, backoff_policy=IMMEDIATE_RETURN)
 
     # add message to the queue and process it twice
@@ -146,12 +146,12 @@ def test_redrive(sqs, queue_with_redrive):
     assert sqs.process_batch(queue, wait_seconds=0).succeeded_count() == 0
 
     # add processor which succeeds
-    sqs.connect_processor(dead_queue, 'say_hello', say_hello)
+    sqs.processors.connect(dead_queue, 'say_hello', say_hello)
     assert sqs.process_batch(dead_queue, wait_seconds=0).succeeded_count() == 1
 
 
 def test_dead_letter_processor(sqs, queue_with_redrive):
-    sqs.fallback_processor_maker = DeadLetterProcessor
+    sqs.processors.fallback_processor_maker = DeadLetterProcessor
     queue, dead_queue = queue_with_redrive
 
     # dead queue doesn't have a processor, so a dead letter processor
@@ -161,12 +161,12 @@ def test_dead_letter_processor(sqs, queue_with_redrive):
 
     # queue has processor which succeeds (but we need to wait at least
     # 1 second for this task to appear here)
-    sqs.connect_processor(queue, 'say_hello', say_hello)
+    sqs.processors.connect(queue, 'say_hello', say_hello)
     assert sqs.process_batch(queue, wait_seconds=2).succeeded_count() == 1
 
 
 def test_exponential_backoff_works(sqs, queue):
-    task = sqs.connect_processor(
+    task = sqs.processors.connect(
         queue,
         'say_hello',
         raise_exception,
@@ -176,7 +176,7 @@ def test_exponential_backoff_works(sqs, queue):
 
 
 def test_drain_queue(sqs, queue):
-    say_hello_task = sqs.connect_processor(queue, 'say_hello', say_hello)
+    say_hello_task = sqs.processors.connect(queue, 'say_hello', say_hello)
     say_hello_task.delay(username='One')
     say_hello_task.delay(username='Two')
     sqs.drain_queue(queue, wait_seconds=0)
@@ -205,7 +205,7 @@ def test_deduplication_id(sqs, fifo_queue):
     if isinstance(sqs, MemoryEnv):
         pytest.skip('Deduplication id not implemented with MemoryEnv')
 
-    say_hello_task = sqs.connect_processor(fifo_queue, 'say_hello', say_hello)
+    say_hello_task = sqs.processors.connect(fifo_queue, 'say_hello', say_hello)
     say_hello_task.delay(username='One', _deduplication_id='x')
     say_hello_task.delay(username='Two', _deduplication_id='x')
     assert sqs.process_batch(fifo_queue, wait_seconds=0).succeeded_count() == 1
@@ -218,7 +218,7 @@ def test_group_id(sqs, fifo_queue):
     if isinstance(sqs, MemoryEnv):
         pytest.skip('Deduplication id not implemented with MemoryEnv')
 
-    say_hello_task = sqs.connect_processor(fifo_queue, 'say_hello', say_hello)
+    say_hello_task = sqs.processors.connect(fifo_queue, 'say_hello', say_hello)
     say_hello_task.delay(username='One', _deduplication_id='x', _group_id='g1')
     say_hello_task.delay(username='Two', _deduplication_id='x', _group_id='g2')
     assert sqs.process_batch(fifo_queue, wait_seconds=0).succeeded_count() == 1
@@ -226,7 +226,7 @@ def test_group_id(sqs, fifo_queue):
 
 
 def test_delay_seconds(sqs, queue):
-    say_hello_task = sqs.connect_processor(queue, 'say_hello', say_hello)
+    say_hello_task = sqs.processors.connect(queue, 'say_hello', say_hello)
     say_hello_task.delay(username='Homer', _delay_seconds=2)
     assert sqs.process_batch(queue, wait_seconds=1).succeeded_count() == 0
     time.sleep(3)
@@ -251,12 +251,12 @@ def test_visibility_timeout(sqs, random_queue_name):
 
 def test_custom_processor(sqs, queue):
     class CustomProcessor(Processor):
-        def process(self, job_kwargs):
+        def process(self, job_kwargs, job_context):
             job_kwargs['username'] = 'Foo'
-            super(CustomProcessor, self).process(job_kwargs)
+            super(CustomProcessor, self).process(job_kwargs, job_context)
 
-    sqs.processor_maker = CustomProcessor
-    say_hello_task = sqs.connect_processor(queue, 'say_hello', say_hello)
+    sqs.processors.processor_maker = CustomProcessor
+    say_hello_task = sqs.processors.connect(queue, 'say_hello', say_hello)
     say_hello_task.delay()
     assert sqs.process_batch(queue).succeeded_count() == 1
     assert worker_results['say_hello'] == 'Foo'
@@ -264,12 +264,12 @@ def test_custom_processor(sqs, queue):
 
 def test_custom_batch_processor(sqs, queue):
     class CustomBatchProcessor(BatchProcessor):
-        def process(self, jobs):
+        def process(self, jobs, context):
             jobs[0]['username'] = 'Two'
-            super(CustomBatchProcessor, self).process(jobs)
+            super(CustomBatchProcessor, self).process(jobs, context)
 
-    sqs.batch_processor_maker = CustomBatchProcessor
-    task = sqs.connect_batch_processor(queue, 'batch_say_hello',
+    sqs.processors.batch_processor_maker = CustomBatchProcessor
+    task = sqs.processors.connect_batch(queue, 'batch_say_hello',
                                        batch_say_hello)
 
     task.delay(username='One')

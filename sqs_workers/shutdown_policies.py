@@ -41,7 +41,7 @@ class IdleShutdown(object):
     def need_shutdown(self):
         if not self._is_idle:
             return False
-        return now() - self._last_seen > self._idle_delta
+        return now() - self._last_seen >= self._idle_delta
 
     def __repr__(self):
         return 'IdleShutdown({})'.format(self.idle_seconds)
@@ -114,3 +114,4 @@ class AndShutdown(object):
 
 
 NEVER_SHUTDOWN = NeverShutdown()
+ASAP_SHUTDOWN = IdleShutdown(0)

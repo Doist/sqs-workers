@@ -2,10 +2,13 @@ import logging
 import warnings
 
 from sqs_workers.backoff_policies import DEFAULT_BACKOFF
+from sqs_workers.context import SQSContext
 from sqs_workers.utils import adv_validate_arguments
 from sqs_workers import codecs
 
 logger = logging.getLogger(__name__)
+
+DEFAULT_CONTEXT_VAR = 'context'
 
 
 class GenericProcessor(object):
@@ -33,11 +36,15 @@ class GenericProcessor(object):
                  queue_name,
                  job_name,
                  fn=None,
+                 pass_context=False,
+                 context_var=DEFAULT_CONTEXT_VAR,
                  backoff_policy=DEFAULT_BACKOFF):
         self.sqs_env = sqs_env
         self.queue_name = queue_name
         self.job_name = job_name
         self.fn = fn
+        self.pass_context = pass_context
+        self.context_var = context_var
         self.backoff_policy = backoff_policy
 
     def __repr__(self):
@@ -61,6 +68,8 @@ class GenericProcessor(object):
             'queue_name': kwargs.get('queue_name', self.queue_name),
             'job_name': kwargs.get('job_name', self.job_name),
             'fn': kwargs.get('fn', self.fn),
+            'pass_context': kwargs.get('pass_context', self.pass_context),
+            'context_var': kwargs.get('context_var', self.context_var),
             'backoff_policy': kwargs.get('backoff_policy',
                                          self.backoff_policy),
         }
@@ -91,7 +100,8 @@ class Processor(GenericProcessor):
                 extra['job_content_type'] = content_type
                 codec = codecs.get_codec(content_type)
                 job_kwargs = codec.deserialize(message.body)
-                self.process(job_kwargs)
+                job_context = get_job_context(message, codec)
+                self.process(job_kwargs, job_context)
             except Exception:
                 logger.exception(
                     'Error while processing {queue_name}.{job_name}'.format(
@@ -102,8 +112,11 @@ class Processor(GenericProcessor):
                 succeeded.append(message)
         return succeeded, failed
 
-    def process(self, job_kwargs):
-        return call_handler(self.fn, job_kwargs)
+    def process(self, job_kwargs, job_context):
+        effective_kwargs = job_kwargs.copy()
+        if self.pass_context:
+            effective_kwargs[self.context_var] = job_context
+        return call_handler(self.fn, effective_kwargs)
 
 
 class BatchProcessor(GenericProcessor):
@@ -125,8 +138,8 @@ class BatchProcessor(GenericProcessor):
                 'to {queue_name}.{job_name}'.format(**extra),
                 extra=extra)
             try:
-                jobs = self.decode_messages(job_messages)
-                self.process(jobs)
+                jobs, context = self.decode_messages(job_messages)
+                self.process(jobs, context)
             except Exception:
                 logger.exception(
                     'Error while processing {job_count} messages '
@@ -138,14 +151,18 @@ class BatchProcessor(GenericProcessor):
 
     def decode_messages(self, job_messages):
         jobs = []
+        context = []
         for message in job_messages:
             content_type = get_job_content_type(message)
             codec = codecs.get_codec(content_type)
             job = codec.deserialize(message.body)
             jobs.append(job)
-        return jobs
+            context.append(get_job_context(message, codec))
+        return jobs, context
 
-    def process(self, jobs):
+    def process(self, jobs, context):
+        if self.pass_context:
+            return self.fn(jobs, **{self.context_var: context})
         return self.fn(jobs)
 
 
@@ -209,9 +226,12 @@ class DeadLetterProcessor(GenericProcessor):
     def push_back_message(self, message):
         queue_name = self.get_upstream_name()
         content_type = message.message_attributes['ContentType']['StringValue']
+        job_context = message.message_attributes['JobContext']['StringValue']
         if queue_name.endswith('.fifo'):
-            deduplication_id = message.message_attributes['MessageDeduplicationId']['StringValue']
-            group_id = message.message_attributes['MessageGroupId']['StringValue']
+            deduplication_id = message.message_attributes[
+                'MessageDeduplicationId']['StringValue']
+            group_id = message.message_attributes['MessageGroupId'][
+                'StringValue']
         else:
             deduplication_id = None
             group_id = None
@@ -224,7 +244,8 @@ class DeadLetterProcessor(GenericProcessor):
                 'job_name': self.job_name,
             })
         self.sqs_env.add_raw_job(queue_name, self.job_name, message.body,
-                                 content_type, 1, deduplication_id, group_id)
+                                 job_context, content_type, 1,
+                                 deduplication_id, group_id)
 
     def is_dead(self):
         return (self.queue_name.endswith('_dead')
@@ -241,6 +262,15 @@ class DeadLetterProcessor(GenericProcessor):
 def get_job_content_type(job_message):
     attrs = job_message.message_attributes or {}
     return (attrs.get('ContentType') or {}).get('StringValue')
+
+
+def get_job_context(job_message, codec):
+    attrs = job_message.message_attributes or {}
+    serialized = (attrs.get('JobContext') or {}).get('StringValue')
+    if not serialized:
+        return SQSContext()
+    deserialized = codec.deserialize(serialized)
+    return SQSContext.from_dict(deserialized)
 
 
 def call_handler(fn, kwargs):

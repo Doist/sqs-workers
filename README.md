@@ -153,6 +153,76 @@ class CustomProcessor(Processor):
 sqs = SQSEnv(processor_maker=CustomProcessor)
 ```
 
+Working with contexts
+---------------------
+
+Context which is implicitly passed to the worker via the job message. Can
+be used there for logging or profiling purposes, for example.
+
+Usage example.
+
+
+```python
+@sqs.processor('q1', 'hello_world', pass_context=True)
+def hello_world(username=None, context=None):
+    print(f'Hello {username} from {context["remote_addr"]}')
+
+with sqs.context(remote_addr='127.0.0.1'):
+    hello_world.delay(username='Foo')
+
+sqs.process_batch('q1')
+```
+
+Alternatively, you can set the context like this.
+
+```python
+sqs.context['remote_addr'] = '127.0.0.1'
+hello_world.delay(username='Foo')
+```
+
+And then, when the context needs to be cleared:
+
+```python
+sqs.context.clear()
+```
+
+In a web application you usually call it at the end of the processing
+of the web request.
+
+
+Automatic applying of the context for all tasks
+------------------------------------------------
+
+Instead of dealing with the context inside every processing function, you
+can perform this in processors by subclassing them.
+
+```python
+import os
+from sqs_workers import SQSEnv
+from sqs_workers.processors import BatchProcessor, Processor
+
+class CustomProcessor(Processor):
+    def process(self, job_kwargs, job_context):
+        os.environ['REMOTE_ADDR'] = job_context['remote_addr']
+        super(CustomProcessor, self).process(job_kwargs, job_context)
+        os.unsetenv('REMOTE_ADDR')
+
+
+class CustomBatchProcessor(BatchProcessor):
+    def process(self, jobs, context):
+        # in this case context variable contains the list of
+        # context objects, and it may or may not make sense to
+        # process them before starting the main function.
+        print("Jobs context", context)
+        super(CustomBatchProcessor, self).process(jobs, context)
+
+
+sqs = SQSEnv(
+    processor_maker=CustomProcessor,
+    batch_processor_maker=CustomBatchProcessor,
+)
+```
+ 
 
 Dead-letter queues and redrive
 ------------------------------

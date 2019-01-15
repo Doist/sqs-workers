@@ -1,3 +1,30 @@
+## [0.4.0] - 2019-01-15
+
+### Added
+
+- Added support for implicit context for tasks
+- Added ASAP_SHUTDOWN shutdown policy to stop processing of the queue
+  as soon it's found empty
+
+### Fixed
+
+- Fixed batch processor which used to reorder messages from FIFO queues
+
+### Changed
+
+Made a refactoring of SQS environments and extracted in two separate classes
+ProcessorManager and ProcessorManagerProxy.
+
+It's changed the API of SQSEnv, so that instead of
+`sqs.connect_processor(queue, 'say_hello', say_hello)` the API of
+`sqs.processors.connect(queue, 'say_hello', say_hello)` has to be used.
+
+Also overwriting "makers" after the initialization of SQSEnv needs to be done
+in a different way. Instead of `sqs.fallback_processor_maker = DeadLetterProcessor`
+the syntax of `sqs.processors.fallback_processor_maker = DeadLetterProcessor`
+should be used instead.
+
+
 ## [0.3.7] - 2019-01-10
 
 ### Added

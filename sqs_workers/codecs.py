@@ -3,27 +3,29 @@ import json
 import pickle
 import zlib
 
+DEFAULT_CONTENT_TYPE = 'pickle'
+
 
 class JSONCodec(object):
     @staticmethod
-    def serialize(job):
-        return json.dumps(job)
+    def serialize(message):
+        return json.dumps(message)
 
     @staticmethod
-    def deserialize(message_body):
-        return json.loads(message_body)
+    def deserialize(serialized):
+        return json.loads(serialized)
 
 
 class PickleCodec(object):
     @staticmethod
-    def serialize(job):
-        binary_data = pickle.dumps(job, protocol=pickle.HIGHEST_PROTOCOL)
+    def serialize(message):
+        binary_data = pickle.dumps(message, protocol=pickle.HIGHEST_PROTOCOL)
         compressed_data = zlib.compress(binary_data)
         return base64.urlsafe_b64encode(compressed_data).decode('latin1')
 
     @staticmethod
-    def deserialize(message_body):
-        compressed_data = base64.urlsafe_b64decode(message_body.encode('latin1'))
+    def deserialize(serialized):
+        compressed_data = base64.urlsafe_b64decode(serialized.encode('latin1'))
         binary_data = zlib.decompress(compressed_data)
         return pickle.loads(binary_data)
 

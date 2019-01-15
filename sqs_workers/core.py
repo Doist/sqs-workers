@@ -1,20 +1,18 @@
 import json
 import logging
 import multiprocessing
-import warnings
-from collections import defaultdict
 from itertools import groupby
 
 import boto3
 
-from sqs_workers import codecs, processors
+from sqs_workers import codecs, processors, context
 from sqs_workers.backoff_policies import DEFAULT_BACKOFF
+from sqs_workers.codecs import DEFAULT_CONTENT_TYPE
+from sqs_workers.processor_mgr import ProcessorManager, ProcessorManagerProxy
 from sqs_workers.shutdown_policies import NEVER_SHUTDOWN, NeverShutdown
-from sqs_workers.utils import adv_bind_arguments
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_CONTENT_TYPE = 'pickle'
 DEFAULT_MESSAGE_GROUP_ID = 'default'
 
 
@@ -22,7 +20,8 @@ class BatchProcessingResult(object):
     succeeded = None
     failed = None
 
-    def __init__(self, succeeded=None, failed=None):
+    def __init__(self, queue_name, succeeded=None, failed=None):
+        self.queue_name = queue_name
         self.succeeded = succeeded or []
         self.failed = failed or []
 
@@ -40,30 +39,30 @@ class BatchProcessingResult(object):
         return self.succeeded_count() + self.failed_count()
 
     def __repr__(self):
-        return '<BatchProcessingResult/%s/%s>' % (self.succeeded_count(),
-                                                  self.failed_count())
+        return '<BatchProcessingResult/%s/%s/%s>' % (
+            self.queue_name, self.succeeded_count(), self.failed_count())
 
 
-class SQSEnv(object):
+class SQSEnv(ProcessorManagerProxy):
     def __init__(self,
                  session=boto3,
                  queue_prefix='',
                  backoff_policy=DEFAULT_BACKOFF,
                  processor_maker=processors.Processor,
                  batch_processor_maker=processors.BatchProcessor,
-                 fallback_processor_maker=processors.FallbackProcessor):
+                 fallback_processor_maker=processors.FallbackProcessor,
+                 context_maker=context.SQSContext):
         """
         Initialize SQS environment with boto3 session
         """
         self.session = session
         self.sqs_client = session.client('sqs')
         self.sqs_resource = session.resource('sqs')
-        self.processors = defaultdict(lambda: {})
         self.queue_prefix = queue_prefix
-        self.backoff_policy = backoff_policy
-        self.processor_maker = processor_maker
-        self.batch_processor_maker = batch_processor_maker
-        self.fallback_processor_maker = fallback_processor_maker
+        self.context = context_maker()
+        self.processors = ProcessorManager(
+            self, backoff_policy, processor_maker, batch_processor_maker,
+            fallback_processor_maker)
 
         # internal mapping from queue names to queue objects
         self.queue_mapping_cache = {}
@@ -136,138 +135,6 @@ class SQSEnv(object):
         """
         self.get_queue(queue_name).delete()
 
-    def connect_processor(self,
-                          queue_name,
-                          job_name,
-                          processor,
-                          backoff_policy=None):
-        """
-        Assign processor (a function) to handle jobs with the name job_name
-        from the queue queue_name
-        """
-        extra = {
-            'queue_name': queue_name,
-            'job_name': job_name,
-            'processor_name': processor.__module__ + '.' + processor.__name__,
-        }
-        logger.debug(
-            'Connect {queue_name}.{job_name} to '
-            'processor {processor_name}'.format(**extra),
-            extra=extra)
-        self.processors[queue_name][job_name] = self.processor_maker(
-            self, queue_name, job_name, processor, backoff_policy
-            or self.backoff_policy)
-        return AsyncTask(self, queue_name, job_name, processor)
-
-    def processor(self, queue_name, job_name, backoff_policy=None):
-        """
-        Decorator to assign processor to handle jobs with the name job_name
-        from the queue queue_name
-
-        Usage example:
-
-
-        @sqs.processor('q1', 'say_hello')
-        def say_hello(name):
-            print("Hello, " + name)
-
-        Then you can add messages to the queue by calling ".delay" attribute
-        of a newly created object:
-
-        >>> say_hello.delay(name='John')
-
-        Here, instead of calling function locally, it will be pushed to the
-        queue (essentially, mimics the non-blocking call of the function).
-
-        If you still want to call function locally, you can call
-
-        >>> say_hello(name='John')
-        """
-
-        def fn(processor):
-            return self.connect_processor(queue_name, job_name, processor,
-                                          backoff_policy)
-
-        return fn
-
-    def connect_batch_processor(self,
-                                queue_name,
-                                job_name,
-                                processor,
-                                backoff_policy=None):
-        """
-        Assign a batch processor (function) to handle jobs with the name
-        job_name from the queue queue_name
-        """
-        extra = {
-            'queue_name': queue_name,
-            'job_name': job_name,
-            'processor_name': processor.__module__ + '.' + processor.__name__,
-        }
-        logger.debug(
-            'Connect {queue_name}.{job_name} to '
-            'batch processor {processor_name}'.format(**extra),
-            extra=extra)
-        self.processors[queue_name][job_name] = self.batch_processor_maker(
-            self, queue_name, job_name, processor, backoff_policy
-            or self.backoff_policy)
-        return AsyncBatchTask(self, queue_name, job_name, processor)
-
-    def batch_processor(self, queue_name, job_name, backoff_policy=None):
-        """
-        Decorator to assign a batch processor to handle jobs with the name
-        job_name from the queue queue_name. The batch processor has to be a
-        function which accepts the only argument "jobs".
-
-        "jobs" is a list of properly decoded dicts
-
-        Usage example:
-
-
-        @sqs.batch_processor('q1', 'batch_say_hello')
-        def batch_say_hello(jobs):
-            names = ', '.join([job['name'] for job in jobs])
-            print("Hello, " + names)
-
-        Then you can add messages to the queue by calling ".delay" attribute
-        of a newly created object:
-
-        >>> batch_say_hello.delay(name='John')
-
-        Here, instead of calling function locally, it will be pushed to the
-        queue (essentially, mimics the non-blocking call of the function).
-
-        If you still want to call function locally, you can call
-
-        >>> batch_say_hello(name='John')
-        """
-
-        def fn(processor):
-            return self.connect_batch_processor(queue_name, job_name,
-                                                processor, backoff_policy)
-
-        return fn
-
-    def copy_processors(self, src_queue, dst_queue):
-        """
-        Copy processors from src_queue to dst_queue (both queues identified
-        by their names). Can be helpful to process dead-letter queue with
-        processors from the main queue.
-
-        Usage example.
-
-        sqs = SQSEnv()
-        ...
-        sqs.copy_processors('foo', 'foo_dead')
-        sqs.process_queue("foo_dead", shutdown_policy=IdleShutdown(10))
-
-        Here the queue "foo_dead" will be processed with processors from the
-        queue "foo".
-        """
-        for job_name, processor in self.processors[src_queue].items():
-            self.processors[dst_queue][job_name] = processor.copy(
-                queue_name=dst_queue)
-
     def add_job(self,
                 queue_name,
                 job_name,
@@ -282,12 +149,13 @@ class SQSEnv(object):
         """
         codec = codecs.get_codec(_content_type)
         message_body = codec.serialize(job_kwargs)
+        job_context = codec.serialize(self.context.to_dict())
         return self.add_raw_job(queue_name, job_name, message_body,
-                                _content_type, _delay_seconds,
+                                job_context, _content_type, _delay_seconds,
                                 _deduplication_id, _group_id)
 
-    def add_raw_job(self, queue_name, job_name, message_body, content_type,
-                    delay_seconds, deduplication_id, group_id):
+    def add_raw_job(self, queue_name, job_name, message_body, job_context,
+                    content_type, delay_seconds, deduplication_id, group_id):
         """
         Low-level function to put message to the queue
         """
@@ -303,6 +171,10 @@ class SQSEnv(object):
             'MessageAttributes': {
                 'ContentType': {
                     'StringValue': content_type,
+                    'DataType': 'String',
+                },
+                'JobContext': {
+                    'StringValue': job_context,
                     'DataType': 'String',
                 },
                 'JobName': {
@@ -402,9 +274,10 @@ class SQSEnv(object):
         """
         queue = self.get_queue(queue_name)
         messages = self.get_raw_messages(queue_name, wait_seconds)
-        result = BatchProcessingResult()
-        for job_name, job_messages in self.group_messages(messages):
-            processor = self.get_processor(queue_name, job_name)
+        result = BatchProcessingResult(queue_name)
+
+        for job_name, job_messages in group_messages(queue_name, messages):
+            processor = self.processors.get(queue_name, job_name)
             succeeded, failed = processor.process_batch(job_messages)
             result.update(succeeded, failed)
             if succeeded:
@@ -462,22 +335,6 @@ class SQSEnv(object):
             ret.append(sqs_name[len(self.queue_prefix):])
         return ret
 
-    def get_processor(self, queue_name, job_name):
-        """
-        Helper function to return a processor for the queue
-        """
-        processor = self.processors[queue_name].get(job_name)
-        if processor is None:
-            processor = self.fallback_processor_maker(self, queue_name,
-                                                      job_name)
-            self.processors[queue_name][job_name] = processor
-        return processor
-
-    def group_messages(self, messages):
-        messages = sorted(messages, key=get_job_name)
-        for job_name, job_messages in groupby(messages, key=get_job_name):
-            yield job_name, list(job_messages)
-
     def get_sqs_queue_name(self, queue_name):
         """
         Take "high-level" (user-visible) queue name and return SQS
@@ -488,54 +345,6 @@ class SQSEnv(object):
 
     def redrive_policy(self, dead_letter_queue_name, max_receive_count):
         return RedrivePolicy(self, dead_letter_queue_name, max_receive_count)
-
-
-class AsyncTask(object):
-    def __init__(self, sqs_env, queue_name, job_name, processor):
-        self.sqs_env = sqs_env
-        self.queue_name = queue_name
-        self.job_name = job_name
-        self.processor = processor
-        self.__doc__ = processor.__doc__
-
-    def __call__(self, *args, **kwargs):
-        warnings.warn(
-            'Async task {0.queue_name}.{0.job_name} called synchronously'.
-            format(self))
-        return self.processor(*args, **kwargs)
-
-    def __repr__(self):
-        return '<%s %s.%s>' % (self.__class__.__name__, self.queue_name,
-                               self.job_name)
-
-    def delay(self, *args, **kwargs):
-        _content_type = kwargs.pop('_content_type', DEFAULT_CONTENT_TYPE)
-        _delay_seconds = kwargs.pop('_delay_seconds', None)
-        _deduplication_id = kwargs.pop('_deduplication_id', None)
-        _group_id = kwargs.pop('_group_id', None)
-        kwargs = adv_bind_arguments(self.processor, args, kwargs)
-        return self.sqs_env.add_job(
-            self.queue_name,
-            self.job_name,
-            _content_type=_content_type,
-            _delay_seconds=_delay_seconds,
-            _deduplication_id=_deduplication_id,
-            _group_id=_group_id,
-            **kwargs)
-
-
-class AsyncBatchTask(AsyncTask):
-    def __call__(self, **kwargs):
-        warnings.warn(
-            'Async task {0.queue_name}.{0.job_name} called synchronously'.
-            format(self))
-        return self.processor([kwargs])
-
-    def delay(self, **kwargs):
-        # unlike AsyncTask, we cannot validate or bind arguments, because
-        # processor always accepts the list of dicts, so we just pass kwargs
-        # as is
-        return self.sqs_env.add_job(self.queue_name, self.job_name, **kwargs)
 
 
 class RedrivePolicy(object):
@@ -561,6 +370,18 @@ class RedrivePolicy(object):
             'deadLetterTargetArn': target_arn,
             'maxReceiveCount': str(self.max_receive_count),
         })
+
+
+def group_messages(queue_name, messages):
+    """
+    Group SQSMessage instances by JobName attribute. If queue name ends with
+    .fifo (it's a FIFO queue), we don't reorder messages while grouping,
+    otherwise messages can get out of the grouper reorderd
+    """
+    if not queue_name.endswith('.fifo'):
+        messages = sorted(messages, key=get_job_name)
+    for job_name, job_messages in groupby(messages, key=get_job_name):
+        yield job_name, list(job_messages)
 
 
 def get_job_name(message):

@@ -3,20 +3,19 @@ import logging
 import multiprocessing
 import time
 import uuid
-from collections import defaultdict
-from itertools import groupby
 from queue import Empty, Queue
 
-from sqs_workers import DEFAULT_BACKOFF, codecs, processors
+from sqs_workers import codecs, context, processors
+from sqs_workers.backoff_policies import DEFAULT_BACKOFF
 from sqs_workers.core import (
-    DEFAULT_CONTENT_TYPE, AsyncBatchTask, AsyncTask, BatchProcessingResult,
-    RedrivePolicy, get_job_name)
+    DEFAULT_CONTENT_TYPE, BatchProcessingResult, RedrivePolicy, group_messages)
+from sqs_workers.processor_mgr import ProcessorManager, ProcessorManagerProxy
 from sqs_workers.shutdown_policies import NEVER_SHUTDOWN, NeverShutdown
 
 logger = logging.getLogger(__name__)
 
 
-class MemoryEnv(object):
+class MemoryEnv(ProcessorManagerProxy):
     """
     In-memory pseudo SQS implementation, for faster and more predictable
     processing in tests.
@@ -38,15 +37,16 @@ class MemoryEnv(object):
                  backoff_policy=DEFAULT_BACKOFF,
                  processor_maker=processors.Processor,
                  batch_processor_maker=processors.BatchProcessor,
-                 fallback_processor_maker=processors.FallbackProcessor):
+                 fallback_processor_maker=processors.FallbackProcessor,
+                 context_maker=context.SQSContext):
         """
         Initialize pseudo SQS environment
         """
         self.backoff_policy = backoff_policy
-        self.processors = defaultdict(lambda: {})
-        self.processor_maker = processor_maker
-        self.batch_processor_maker = batch_processor_maker
-        self.fallback_processor_maker = fallback_processor_maker
+        self.context = context_maker()
+        self.processors = ProcessorManager(
+            self, backoff_policy, processor_maker, batch_processor_maker,
+            fallback_processor_maker)
         self.queues = {}  # type: dict[str, Queue]
 
     def create_standard_queue(self, queue_name, **kwargs):
@@ -81,138 +81,6 @@ class MemoryEnv(object):
         """
         self.queues.pop(queue_name)
 
-    def connect_processor(self,
-                          queue_name,
-                          job_name,
-                          processor,
-                          backoff_policy=None):
-        """
-        Assign processor (a function) to handle jobs with the name job_name
-        from the queue queue_name
-        """
-        extra = {
-            'queue_name': queue_name,
-            'job_name': job_name,
-            'processor_name': processor.__module__ + '.' + processor.__name__,
-        }
-        logger.debug(
-            'Connect {queue_name}.{job_name} to '
-            'processor {processor_name}'.format(**extra),
-            extra=extra)
-        self.processors[queue_name][job_name] = self.processor_maker(
-            self, queue_name, job_name, processor, backoff_policy
-            or self.backoff_policy)
-        return AsyncTask(self, queue_name, job_name, processor)
-
-    def processor(self, queue_name, job_name, backoff_policy=None):
-        """
-        Decorator to assign processor to handle jobs with the name job_name
-        from the queue queue_name
-
-        Usage example:
-
-
-        @sqs.processor('q1', 'say_hello')
-        def say_hello(name):
-            print("Hello, " + name)
-
-        Then you can add messages to the queue by calling ".delay" attribute
-        of a newly created object:
-
-        >>> say_hello.delay(name='John')
-
-        Here, instead of calling function locally, it will be pushed to the
-        queue (essentially, mimics the non-blocking call of the function).
-
-        If you still want to call function locally, you can call
-
-        >>> say_hello(name='John')
-        """
-
-        def fn(processor):
-            return self.connect_processor(queue_name, job_name, processor,
-                                          backoff_policy)
-
-        return fn
-
-    def connect_batch_processor(self,
-                                queue_name,
-                                job_name,
-                                processor,
-                                backoff_policy=None):
-        """
-        Assign a batch processor (function) to handle jobs with the name
-        job_name from the queue queue_name
-        """
-        extra = {
-            'queue_name': queue_name,
-            'job_name': job_name,
-            'processor_name': processor.__module__ + '.' + processor.__name__,
-        }
-        logger.debug(
-            'Connect {queue_name}.{job_name} to '
-            'batch processor {processor_name}'.format(**extra),
-            extra=extra)
-        self.processors[queue_name][job_name] = self.batch_processor_maker(
-            self, queue_name, job_name, processor, backoff_policy
-            or self.backoff_policy)
-        return AsyncBatchTask(self, queue_name, job_name, processor)
-
-    def batch_processor(self, queue_name, job_name, backoff_policy=None):
-        """
-        Decorator to assign a batch processor to handle jobs with the name
-        job_name from the queue queue_name. The batch processor has to be a
-        function which accepts the only argument "jobs".
-
-        "jobs" is a list of properly decoded dicts
-
-        Usage example:
-
-
-        @sqs.batch_processor('q1', 'batch_say_hello')
-        def batch_say_hello(jobs):
-            names = ', '.join([job['name'] for job in jobs])
-            print("Hello, " + names)
-
-        Then you can add messages to the queue by calling ".delay" attribute
-        of a newly created object:
-
-        >>> batch_say_hello.delay(name='John')
-
-        Here, instead of calling function locally, it will be pushed to the
-        queue (essentially, mimics the non-blocking call of the function).
-
-        If you still want to call function locally, you can call
-
-        >>> batch_say_hello(name='John')
-        """
-
-        def fn(processor):
-            return self.connect_batch_processor(queue_name, job_name,
-                                                processor, backoff_policy)
-
-        return fn
-
-    def copy_processors(self, src_queue, dst_queue):
-        """
-        Copy processors from src_queue to dst_queue (both queues identified
-        by their names). Can be helpful to process dead-letter queue with
-        processors from the main queue.
-
-        Usage example.
-
-        sqs = SQSEnv()
-        ...
-        sqs.copy_processors('foo', 'foo_dead')
-        sqs.process_queue("foo_dead", shutdown_policy=IdleShutdown(10))
-
-        Here the queue "foo_dead" will be processed with processors from the
-        queue "foo".
-        """
-        for job_name, processor in self.processors[src_queue].items():
-            self.processors[dst_queue][job_name] = processor.copy(
-                queue_name=dst_queue)
-
     def add_job(self,
                 queue_name,
                 job_name,
@@ -227,12 +95,13 @@ class MemoryEnv(object):
         """
         codec = codecs.get_codec(_content_type)
         message_body = codec.serialize(job_kwargs)
+        job_context = codec.serialize(self.context.to_dict())
         return self.add_raw_job(queue_name, job_name, message_body,
-                                _content_type, _delay_seconds,
+                                job_context, _content_type, _delay_seconds,
                                 _deduplication_id, _group_id)
 
-    def add_raw_job(self, queue_name, job_name, message_body, content_type,
-                    delay_seconds, deduplication_id, group_id):
+    def add_raw_job(self, queue_name, job_name, message_body, job_context,
+                    content_type, delay_seconds, deduplication_id, group_id):
         """
         Low-level function to put message to the queue
         """
@@ -241,6 +110,10 @@ class MemoryEnv(object):
             'MessageAttributes': {
                 'ContentType': {
                     'StringValue': content_type,
+                    'DataType': 'String',
+                },
+                'JobContext': {
+                    'StringValue': job_context,
                     'DataType': 'String',
                 },
                 'JobName': {
@@ -311,9 +184,9 @@ class MemoryEnv(object):
         """
         queue = self.queues[queue_name]
         messages = self.get_raw_messages(queue_name, wait_seconds)
-        result = BatchProcessingResult()
-        for job_name, job_messages in self.group_messages(messages):
-            processor = self.get_processor(queue_name, job_name)
+        result = BatchProcessingResult(queue_name)
+        for job_name, job_messages in group_messages(queue_name, messages):
+            processor = self.processors.get(queue_name, job_name)
             succeeded, failed = processor.process_batch(job_messages)
             result.update(succeeded, failed)
             if failed:
@@ -367,22 +240,6 @@ class MemoryEnv(object):
 
     def get_all_known_queues(self):
         return list(self.queues.keys())
-
-    def get_processor(self, queue_name, job_name):
-        """
-        Helper function to return a processor for the queue
-        """
-        processor = self.processors[queue_name].get(job_name)
-        if processor is None:
-            processor = self.fallback_processor_maker(self, queue_name,
-                                                      job_name)
-            self.processors[queue_name][job_name] = processor
-        return processor
-
-    def group_messages(self, messages):
-        messages = sorted(messages, key=get_job_name)
-        for job_name, job_messages in groupby(messages, key=get_job_name):
-            yield job_name, list(job_messages)
 
     def get_sqs_queue_name(self, queue_name):
         return queue_name
