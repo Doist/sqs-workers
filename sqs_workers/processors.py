@@ -214,7 +214,7 @@ class DeadLetterProcessor(GenericProcessor):
     """
 
     def process_batch(self, job_messages):
-        if not self.is_dead():
+        if not is_deadletter(self.queue_name):
             warnings.warn('Error while processing {}.{}'.format(
                 self.queue_name, self.job_name))
             return [], []
@@ -224,17 +224,18 @@ class DeadLetterProcessor(GenericProcessor):
         return job_messages, []  # all succeeded
 
     def push_back_message(self, message):
-        queue_name = self.get_upstream_name()
+        queue_name = get_deadletter_upstream_name(self.queue_name)
         content_type = message.message_attributes['ContentType']['StringValue']
         job_context = message.message_attributes['JobContext']['StringValue']
         if queue_name.endswith('.fifo'):
-            deduplication_id = message.message_attributes[
-                'MessageDeduplicationId']['StringValue']
-            group_id = message.message_attributes['MessageGroupId'][
-                'StringValue']
+            deduplication_id = message.attributes['MessageDeduplicationId']
+            group_id = message.attributes['MessageGroupId']
+            # FIFO queues don't allow to set delay_seconds
+            delay_seconds = None
         else:
             deduplication_id = None
             group_id = None
+            delay_seconds = 1
         logger.debug(
             'Push back dead letter job {}.{}'.format(self.queue_name,
                                                      self.job_name),
@@ -244,19 +245,29 @@ class DeadLetterProcessor(GenericProcessor):
                 'job_name': self.job_name,
             })
         self.sqs_env.add_raw_job(queue_name, self.job_name, message.body,
-                                 job_context, content_type, 1,
+                                 job_context, content_type, delay_seconds,
                                  deduplication_id, group_id)
 
-    def is_dead(self):
-        return (self.queue_name.endswith('_dead')
-                or self.queue_name.endswith('_dead.fifo'))
 
-    def get_upstream_name(self):
-        if self.queue_name.endswith('_dead'):
-            return self.queue_name[:-len('_dead')]
-        if self.queue_name.endswith('_dead.fifo'):
-            return self.queue_name[:-len('_dead.fifo')] + '.fifo'
-        raise RuntimeError("Not a deadletter queue")
+def is_deadletter(queue_name):
+    """
+    Helper function which returns if queue has valid deadletter name
+    (that is, ends with "_dead" or "_dead.fifo")
+    """
+    return queue_name.endswith('_dead') or queue_name.endswith('_dead.fifo')
+
+
+def get_deadletter_upstream_name(queue_name):
+    """
+    Return upstream name for deadletter queue name: "foo" for "foo_dead"
+    and "foo.fifo" for "foo_dead.fifo". Raise RuntimeError if queue doesn't
+    have a valid deadletter name.
+    """
+    if queue_name.endswith('_dead'):
+        return queue_name[:-len('_dead')]
+    if queue_name.endswith('_dead.fifo'):
+        return queue_name[:-len('_dead.fifo')] + '.fifo'
+    raise RuntimeError("Not a deadletter queue")
 
 
 def get_job_content_type(job_message):
