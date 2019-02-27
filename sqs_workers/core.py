@@ -386,4 +386,8 @@ def group_messages(queue_name, messages):
 
 def get_job_name(message):
     attrs = message.message_attributes or {}
-    return (attrs.get('JobName') or {}).get('StringValue')
+    job_name = (attrs.get('JobName') or {}).get('StringValue')
+    if job_name is None:
+        return "default_fallback"
+    else:
+        return job_name
