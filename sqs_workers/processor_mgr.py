@@ -133,11 +133,11 @@ class ProcessorManager(object):
             'processor {processor_name}'.format(**extra),
             extra=extra)
         self.processors[queue_name][job_name] = self.processor_maker(
-            self.sqs_env, queue_name, job_name, processor, pass_context, context_var,
-            backoff_policy or self.backoff_policy)
+            self.sqs_env, queue_name, job_name, processor, pass_context,
+            context_var, backoff_policy or self.backoff_policy)
         return AsyncTask(self.sqs_env, queue_name, job_name, processor)
 
-    def raw_connect(self, queue_name, processor, backoff_policy=None):
+    def connect_raw(self, queue_name, processor, backoff_policy=None):
         extra = {
             'queue_name': queue_name,
             'processor_name': processor.__module__ + '.' + processor.__name__,
@@ -146,9 +146,9 @@ class ProcessorManager(object):
             'Connect {queue_name} to '
             'raw processor {processor_name}'.format(**extra),
             extra=extra)
-        self.raw_processors[queue_name] = RawProcessor(
-            self.sqs_env, queue_name, processor,
-            backoff_policy or self.backoff_policy)
+        self.raw_processors[queue_name] = processors.RawProcessor(
+            self.sqs_env, queue_name, processor, backoff_policy or self.backoff_policy)
+
         return RawAsyncTask(self.sqs_env, queue_name, processor)
 
     def connect_batch(self,
@@ -242,6 +242,38 @@ class AsyncTask(object):
             self.queue_name,
             self.job_name,
             _content_type=_content_type,
+            _delay_seconds=_delay_seconds,
+            _deduplication_id=_deduplication_id,
+            _group_id=_group_id,
+            **kwargs)
+
+
+class RawAsyncTask(object):
+    def __init__(self, sqs_env, queue_name, processor):
+        self.sqs_env = sqs_env
+        self.queue_name = queue_name
+        self.processor = processor
+        self.__doc__ = processor.__doc__
+
+    def __call__(self, *args, **kwargs):
+        # TODO: this warning will showup if we decide to connect multiple
+        # TODO: jobs to the handler. Check this case ....
+        warnings.warn(
+            'Async task {0.queue_name} called synchronously'.
+            format(self))
+        return self.processor(*args, **kwargs)
+
+    def __repr__(self):
+        return '<%s %s>' % (self.__class__.__name__, self.queue_name)
+
+    def delay(self, *args, **kwargs):
+        _delay_seconds = kwargs.pop('_delay_seconds', None)
+        _deduplication_id = kwargs.pop('_deduplication_id', None)
+        _group_id = kwargs.pop('_group_id', None)
+        kwargs = adv_bind_arguments(self.processor, args, kwargs)
+        return self.sqs_env.add_raw_job(
+            self.queue_name,
+            {},
             _delay_seconds=_delay_seconds,
             _deduplication_id=_deduplication_id,
             _group_id=_group_id,

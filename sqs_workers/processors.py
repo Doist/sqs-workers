@@ -225,8 +225,6 @@ class DeadLetterProcessor(GenericProcessor):
 
     def push_back_message(self, message):
         queue_name = get_deadletter_upstream_name(self.queue_name)
-        content_type = message.message_attributes['ContentType']['StringValue']
-        job_context = message.message_attributes['JobContext']['StringValue']
         if queue_name.endswith('.fifo'):
             deduplication_id = message.attributes['MessageDeduplicationId']
             group_id = message.attributes['MessageGroupId']
@@ -244,9 +242,45 @@ class DeadLetterProcessor(GenericProcessor):
                 'queue_name': self.queue_name,
                 'job_name': self.job_name,
             })
-        self.sqs_env.add_raw_job(queue_name, self.job_name, message.body,
-                                 job_context, content_type, delay_seconds,
+        self.sqs_env.add_raw_job(queue_name, message.body,
+                                 message.message_attributes, delay_seconds,
                                  deduplication_id, group_id)
+
+
+class RawProcessor(GenericProcessor):
+
+    def __init__(self, sqs_env, queue_name, fn=None,
+                 backoff_policy=DEFAULT_BACKOFF):
+
+        super(RawProcessor, self).__init__(
+            sqs_env=sqs_env,
+            queue_name=queue_name,
+            job_name=None,
+            fn=fn,
+            backoff_policy=backoff_policy,
+        )
+
+    def process_batch(self, job_messages):
+        succeeded, failed = [], []
+        for message in job_messages:
+            extra = {
+                'message_id': message.message_id,
+                'queue_name': self.queue_name,
+            }
+            logger.debug(
+                'Process raw data from {queue_name}'.format(**extra), extra=extra)
+
+            try:
+                self.fn(message.body)
+            except Exception:
+                logger.exception(
+                    'Error while processing raw queue: {queue_name}'.format(
+                        **extra),
+                    extra=extra)
+                failed.append(message)
+            else:
+                succeeded.append(message)
+        return succeeded, failed
 
 
 def is_deadletter(queue_name):

@@ -150,12 +150,27 @@ class SQSEnv(ProcessorManagerProxy):
         codec = codecs.get_codec(_content_type)
         message_body = codec.serialize(job_kwargs)
         job_context = codec.serialize(self.context.to_dict())
-        return self.add_raw_job(queue_name, job_name, message_body,
-                                job_context, _content_type, _delay_seconds,
-                                _deduplication_id, _group_id)
 
-    def add_raw_job(self, queue_name, job_name, message_body, job_context,
-                    content_type, delay_seconds, deduplication_id, group_id):
+        message_attributes = {
+                'ContentType': {
+                    'StringValue': _content_type,
+                    'DataType': 'String',
+                },
+                'JobContext': {
+                    'StringValue': job_context,
+                    'DataType': 'String',
+                },
+                'JobName': {
+                    'StringValue': job_name,
+                    'DataType': 'String',
+                }
+        }
+
+        return self.add_raw_job(queue_name, message_body, message_attributes,
+                                _delay_seconds, _deduplication_id, _group_id)
+
+    def add_raw_job(self, queue_name, message_body, message_attributes,
+                    delay_seconds, deduplication_id, group_id):
         """
         Low-level function to put message to the queue
         """
@@ -168,20 +183,7 @@ class SQSEnv(ProcessorManagerProxy):
         queue = self.get_queue(queue_name)
         kwargs = {
             'MessageBody': message_body,
-            'MessageAttributes': {
-                'ContentType': {
-                    'StringValue': content_type,
-                    'DataType': 'String',
-                },
-                'JobContext': {
-                    'StringValue': job_context,
-                    'DataType': 'String',
-                },
-                'JobName': {
-                    'StringValue': job_name,
-                    'DataType': 'String',
-                },
-            },
+            'MessageAttributes': message_attributes
         }
         if delay_seconds is not None:
             kwargs['DelaySeconds'] = int(delay_seconds)
