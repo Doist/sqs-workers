@@ -228,7 +228,7 @@ class SQSEnv(ProcessorManagerProxy):
         queue = self.get_queue(queue_name)
         deleted_count = 0
         while True:
-            messages = self.get_raw_messages(queue_name, wait_seconds)
+            messages = self.get_sqs_messages(queue_name, wait_seconds)
             if not messages:
                 break
             entries = [{
@@ -273,7 +273,7 @@ class SQSEnv(ProcessorManagerProxy):
         the number of successfully processed messages, and exit
         """
         queue = self.get_queue(queue_name)
-        messages = self.get_raw_messages(queue_name, wait_seconds)
+        messages = self.get_sqs_messages(queue_name, wait_seconds)
         result = BatchProcessingResult(queue_name)
 
         for job_name, job_messages in group_messages(queue_name, messages):
@@ -298,7 +298,7 @@ class SQSEnv(ProcessorManagerProxy):
                 queue.change_message_visibility_batch(Entries=entries)
         return result
 
-    def get_raw_messages(self, queue_name, wait_seconds):
+    def get_sqs_messages(self, queue_name, wait_seconds):
         """
         Return raw messages from the queue, addressed by its name
         """

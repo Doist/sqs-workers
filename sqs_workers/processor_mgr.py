@@ -105,6 +105,7 @@ class ProcessorManager(object):
     ):
         self.sqs_env = sqs_env
         self.processors = defaultdict(lambda: {})
+        self.raw_processors = {}
         self.backoff_policy = backoff_policy
         self.processor_maker = processor_maker
         self.batch_processor_maker = batch_processor_maker
@@ -135,6 +136,20 @@ class ProcessorManager(object):
             self.sqs_env, queue_name, job_name, processor, pass_context, context_var,
             backoff_policy or self.backoff_policy)
         return AsyncTask(self.sqs_env, queue_name, job_name, processor)
+
+    def raw_connect(self, queue_name, processor, backoff_policy=None):
+        extra = {
+            'queue_name': queue_name,
+            'processor_name': processor.__module__ + '.' + processor.__name__,
+        }
+        logger.debug(
+            'Connect {queue_name} to '
+            'raw processor {processor_name}'.format(**extra),
+            extra=extra)
+        self.raw_processors[queue_name] = RawProcessor(
+            self.sqs_env, queue_name, processor,
+            backoff_policy or self.backoff_policy)
+        return RawAsyncTask(self.sqs_env, queue_name, processor)
 
     def connect_batch(self,
                       queue_name,
@@ -185,12 +200,18 @@ class ProcessorManager(object):
         """
         Helper function to return a processor for the queue
         """
+        if self.is_raw_queue(queue_name):
+            return self.raw_processors[queue_name]
+
         processor = self.processors[queue_name].get(job_name)
         if processor is None:
             processor = self.fallback_processor_maker(self.sqs_env, queue_name,
                                                       job_name)
             self.processors[queue_name][job_name] = processor
         return processor
+
+    def is_raw_queue(self, queue_name):
+        return queue_name in self.raw_processors
 
 
 class AsyncTask(object):

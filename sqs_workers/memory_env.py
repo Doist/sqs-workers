@@ -217,7 +217,7 @@ class MemoryEnv(ProcessorManagerProxy):
     def _get_some_raw_messages(self, queue_name, max_messages):
         """
         Helper function which returns at most max_messages from the
-        queue. Used in an infinite loop inside `get_raw_messages`
+        queue. Used in an infinite loop inside `get_sqs_messages`
         """
         queue = self.queues[queue_name]
         messages = []

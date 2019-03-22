@@ -32,7 +32,7 @@ def _reset_worker_results():
 
 def test_add_pickle_job(sqs, queue):
     sqs.add_job(queue, 'say_hello', username='Homer')
-    job_messages = sqs.get_raw_messages(queue, 0)
+    job_messages = sqs.get_sqs_messages(queue, 0)
     msg = job_messages[0]
     assert msg.message_attributes['JobName']['StringValue'] == 'say_hello'
     assert msg.message_attributes['ContentType']['StringValue'] == 'pickle'
@@ -41,7 +41,7 @@ def test_add_pickle_job(sqs, queue):
 
 def test_add_json_job(sqs, queue):
     sqs.add_job(queue, 'say_hello', username='Homer', _content_type='json')
-    job_messages = sqs.get_raw_messages(queue, 0)
+    job_messages = sqs.get_sqs_messages(queue, 0)
     msg = job_messages[0]
     assert msg.message_attributes['JobName']['StringValue'] == 'say_hello'
     assert msg.message_attributes['ContentType']['StringValue'] == 'json'
