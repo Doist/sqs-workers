@@ -256,8 +256,6 @@ class RawAsyncTask(object):
         self.__doc__ = processor.__doc__
 
     def __call__(self, *args, **kwargs):
-        # TODO: this warning will showup if we decide to connect multiple
-        # TODO: jobs to the handler. Check this case ....
         warnings.warn(
             'Async task {0.queue_name} called synchronously'.
             format(self))
