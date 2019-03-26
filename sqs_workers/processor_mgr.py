@@ -192,22 +192,35 @@ class ProcessorManager(object):
         Here the queue "foo_dead" will be processed with processors from the
         queue "foo".
         """
-        for job_name, processor in self.processors[src_queue].items():
-            self.processors[dst_queue][job_name] = processor.copy(
-                queue_name=dst_queue)
+
+        if self.is_raw_queue(src_queue):
+            self.raw_processors[dst_queue] = self.raw_processors[src_queue].copy()
+
+        else:
+            for job_name, processor in self.processors[src_queue].items():
+                self.processors[dst_queue][job_name] = processor.copy(
+                    queue_name=dst_queue)
 
     def get(self, queue_name, job_name):
         """
         Helper function to return a processor for the queue
         """
-        if self.is_raw_queue(queue_name):
-            return self.raw_processors[queue_name]
 
-        processor = self.processors[queue_name].get(job_name)
-        if processor is None:
-            processor = self.fallback_processor_maker(self.sqs_env, queue_name,
-                                                      job_name)
-            self.processors[queue_name][job_name] = processor
+        if self.is_raw_queue(queue_name):
+            processor = self.raw_processors[queue_name]
+            if processor is None:
+                processor = self.fallback_processor_maker(self.sqs_env,
+                                                          queue_name,
+                                                          job_name)
+                self.raw_processors[queue_name] = processor
+        else:
+            processor = self.processors[queue_name].get(job_name)
+            if processor is None:
+                processor = self.fallback_processor_maker(self.sqs_env,
+                                                          queue_name,
+                                                          job_name)
+                self.processors[queue_name][job_name] = processor
+
         return processor
 
     def is_raw_queue(self, queue_name):
@@ -264,18 +277,17 @@ class RawAsyncTask(object):
     def __repr__(self):
         return '<%s %s>' % (self.__class__.__name__, self.queue_name)
 
-    def delay(self, *args, **kwargs):
-        _delay_seconds = kwargs.pop('_delay_seconds', None)
-        _deduplication_id = kwargs.pop('_deduplication_id', None)
-        _group_id = kwargs.pop('_group_id', None)
-        kwargs = adv_bind_arguments(self.processor, args, kwargs)
+    def delay(self, row_data, delay_seconds=None, deduplication_id=None,
+              group_id=None):
+        # type (str, int, str, str) -> str
+
         return self.sqs_env.add_raw_job(
             self.queue_name,
-            {},
-            _delay_seconds=_delay_seconds,
-            _deduplication_id=_deduplication_id,
-            _group_id=_group_id,
-            **kwargs)
+            row_data,
+            message_attributes={},
+            delay_seconds=delay_seconds,
+            deduplication_id=deduplication_id,
+            group_id=group_id)
 
 
 class AsyncBatchTask(AsyncTask):

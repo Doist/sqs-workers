@@ -34,7 +34,7 @@ class GenericProcessor(object):
     def __init__(self,
                  sqs_env,
                  queue_name,
-                 job_name,
+                 job_name=None,
                  fn=None,
                  pass_context=False,
                  context_var=DEFAULT_CONTEXT_VAR,
@@ -250,14 +250,14 @@ class DeadLetterProcessor(GenericProcessor):
 class RawProcessor(GenericProcessor):
 
     def __init__(self, sqs_env, queue_name, fn=None,
-                 backoff_policy=DEFAULT_BACKOFF):
+                 backoff_policy=DEFAULT_BACKOFF, **kwargs):
 
         super(RawProcessor, self).__init__(
             sqs_env=sqs_env,
             queue_name=queue_name,
-            job_name=None,
             fn=fn,
             backoff_policy=backoff_policy,
+            **kwargs
         )
 
     def process_batch(self, job_messages):

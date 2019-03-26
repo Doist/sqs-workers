@@ -170,7 +170,7 @@ class SQSEnv(ProcessorManagerProxy):
                                 _delay_seconds, _deduplication_id, _group_id)
 
     def add_raw_job(self, queue_name, message_body, message_attributes,
-                    delay_seconds, deduplication_id, group_id):
+                    delay_seconds=None, deduplication_id=None, group_id=None):
         """
         Low-level function to put message to the queue
         """
