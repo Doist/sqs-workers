@@ -132,8 +132,8 @@ class ProcessorManager(object):
             'processor {processor_name}'.format(**extra),
             extra=extra)
         self.processors[queue_name][job_name] = self.processor_maker(
-            self.sqs_env, queue_name, job_name, processor, pass_context, context_var,
-            backoff_policy or self.backoff_policy)
+            self.sqs_env, queue_name, job_name, processor, pass_context,
+            context_var, backoff_policy or self.backoff_policy)
         return AsyncTask(self.sqs_env, queue_name, job_name, processor)
 
     def connect_batch(self,
@@ -157,8 +157,8 @@ class ProcessorManager(object):
             'batch processor {processor_name}'.format(**extra),
             extra=extra)
         self.processors[queue_name][job_name] = self.batch_processor_maker(
-            self.sqs_env, queue_name, job_name, processor, pass_context, context_var,
-            backoff_policy or self.backoff_policy)
+            self.sqs_env, queue_name, job_name, processor, pass_context,
+            context_var, backoff_policy or self.backoff_policy)
         return AsyncBatchTask(self.sqs_env, queue_name, job_name, processor)
 
     def copy(self, src_queue, dst_queue):
@@ -226,6 +226,14 @@ class AsyncTask(object):
             _group_id=_group_id,
             **kwargs)
 
+    def bake(self, *args, **kwargs):
+        """
+        Create a baked version of the async task, which contains the reference
+        to a queue and task, as well as all arguments which needs to be passed
+        to it.
+        """
+        return BakedAsyncTask(self, args, kwargs)
+
 
 class AsyncBatchTask(AsyncTask):
     def __call__(self, **kwargs):
@@ -239,3 +247,19 @@ class AsyncBatchTask(AsyncTask):
         # processor always accepts the list of dicts, so we just pass kwargs
         # as is
         return self.sqs_env.add_job(self.queue_name, self.job_name, **kwargs)
+
+
+class BakedAsyncTask(object):
+    def __init__(self, async_task, args, kwargs):
+        self.async_task = async_task
+        self.args = args
+        self.kwargs = kwargs
+
+    def __call__(self):
+        self.async_task(*self.args, **self.kwargs)
+
+    def delay(self):
+        self.async_task.delay(*self.args, **self.kwargs)
+
+    def __repr__(self):
+        return 'BakedAsyncTask(%r, ...)' % self.async_task

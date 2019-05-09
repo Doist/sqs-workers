@@ -91,6 +91,28 @@ Serialization
 There are two serializers: json and pickle.
 
 
+Baked tasks
+-----------
+
+You can create so-called "baked async tasks", entities which besides the
+task itself, contain arguments which have to be used to call the task.
+
+Think of baked tasks as of light version of
+[Celery signatures](http://docs.celeryproject.org/en/latest/userguide/canvas.html#signatures)
+
+
+```python
+task = send_email.bake(to='user@examile.com', subject='Hello world', body='hello world')
+task.delay()
+```
+
+Is the same as
+
+```python
+send_email.delay(to='user@examile.com', subject='Hello world', body='hello world')
+```
+
+
 FIFO queues
 -----------
 

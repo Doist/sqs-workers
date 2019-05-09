@@ -7,6 +7,7 @@ class NeverShutdown(object):
     """
     Never shutdown the worker
     """
+
     def update_state(self, batch_processing_result):
         pass
 

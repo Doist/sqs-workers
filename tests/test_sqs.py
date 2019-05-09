@@ -56,6 +56,14 @@ def test_processor(sqs, queue):
     assert worker_results['say_hello'] == 'Homer'
 
 
+def test_baked_tasks(sqs, queue):
+    say_hello_task = sqs.processors.connect(queue, 'say_hello', say_hello)
+    baked_task = say_hello_task.bake(username='Homer')
+    baked_task.delay()
+    sqs.process_batch(queue, wait_seconds=0)
+    assert worker_results['say_hello'] == 'Homer'
+
+
 def test_process_messages_once(sqs, queue):
     say_hello_task = sqs.processors.connect(queue, 'say_hello', say_hello)
     say_hello_task.delay(username='Homer')
