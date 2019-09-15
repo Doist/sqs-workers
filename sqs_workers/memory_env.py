@@ -194,13 +194,14 @@ class MemoryEnv(ProcessorManagerProxy):
         result = BatchProcessingResult(queue_name)
         for message in messages:
             job_name = get_job_name(message)
-            job_messages = [message]
             processor = self.processors.get(queue_name, job_name)
-            succeeded, failed = processor.process_batch(job_messages)
-            result.update(succeeded, failed)
-            if failed:
-                for msg in failed:
-                    queue.put(msg)
+            success = processor.process_message(message)
+            if success:
+                result.update([message], [])
+            else:
+                result.update([], [message])
+            if not success:
+                queue.put(message)
         return result
 
     def get_raw_messages(self, queue_name, wait_seconds=0):

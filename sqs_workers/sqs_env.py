@@ -252,27 +252,26 @@ class SQSEnv(ProcessorManagerProxy):
 
         for message in messages:
             job_name = get_job_name(message)
-            job_messages = [message]
             processor = self.processors.get(queue_name, job_name)
-            succeeded, failed = processor.process_batch(job_messages)
-            result.update(succeeded, failed)
-            if succeeded:
-                entries = [
-                    {"Id": msg.message_id, "ReceiptHandle": msg.receipt_handle}
-                    for msg in succeeded
-                ]
-                queue.delete_messages(Entries=entries)
-            if failed:
-                _timeout = processor.backoff_policy.get_visibility_timeout
-                entries = [
-                    {
-                        "Id": msg.message_id,
-                        "ReceiptHandle": msg.receipt_handle,
-                        "VisibilityTimeout": _timeout(msg),
-                    }
-                    for msg in failed
-                ]
-                queue.change_message_visibility_batch(Entries=entries)
+            success = processor.process_message(message)
+            if success:
+                result.update([message], [])
+            else:
+                result.update([], [message])
+            if success:
+                entry = {
+                    "Id": message.message_id,
+                    "ReceiptHandle": message.receipt_handle,
+                }
+                queue.delete_messages(Entries=[entry])
+            else:
+                timeout = processor.backoff_policy.get_visibility_timeout(message)
+                entry = {
+                    "Id": message.message_id,
+                    "ReceiptHandle": message.receipt_handle,
+                    "VisibilityTimeout": timeout,
+                }
+                queue.change_message_visibility_batch(Entries=[entry])
         return result
 
     def get_raw_messages(self, queue_name, wait_seconds):
