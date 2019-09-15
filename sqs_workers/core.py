@@ -1,6 +1,5 @@
 import json
 import logging
-from itertools import groupby
 
 logger = logging.getLogger(__name__)
 
@@ -60,18 +59,6 @@ class RedrivePolicy(object):
                 "maxReceiveCount": str(self.max_receive_count),
             }
         )
-
-
-def group_messages(queue_name, messages):
-    """
-    Group SQSMessage instances by JobName attribute. If queue name ends with
-    .fifo (it's a FIFO queue), we don't reorder messages while grouping,
-    otherwise messages can get out of the grouper reorderd
-    """
-    if not queue_name.endswith(".fifo"):
-        messages = sorted(messages, key=get_job_name)
-    for job_name, job_messages in groupby(messages, key=get_job_name):
-        yield job_name, list(job_messages)
 
 
 def get_job_name(message):

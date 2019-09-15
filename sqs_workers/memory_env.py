@@ -8,7 +8,7 @@ from queue import Empty, Queue
 from sqs_workers import codecs, context, processors
 from sqs_workers.backoff_policies import DEFAULT_BACKOFF
 from sqs_workers.codecs import DEFAULT_CONTENT_TYPE
-from sqs_workers.core import BatchProcessingResult, RedrivePolicy, group_messages
+from sqs_workers.core import BatchProcessingResult, RedrivePolicy, get_job_name
 from sqs_workers.processor_mgr import ProcessorManager, ProcessorManagerProxy
 from sqs_workers.shutdown_policies import NEVER_SHUTDOWN, NeverShutdown
 
@@ -192,7 +192,9 @@ class MemoryEnv(ProcessorManagerProxy):
         queue = self.queues[queue_name]
         messages = self.get_raw_messages(queue_name, wait_seconds)
         result = BatchProcessingResult(queue_name)
-        for job_name, job_messages in group_messages(queue_name, messages):
+        for message in messages:
+            job_name = get_job_name(message)
+            job_messages = [message]
             processor = self.processors.get(queue_name, job_name)
             succeeded, failed = processor.process_batch(job_messages)
             result.update(succeeded, failed)

@@ -5,7 +5,7 @@ import boto3
 
 from sqs_workers import DEFAULT_BACKOFF, codecs, context, processors
 from sqs_workers.codecs import DEFAULT_CONTENT_TYPE
-from sqs_workers.core import BatchProcessingResult, RedrivePolicy, group_messages
+from sqs_workers.core import BatchProcessingResult, RedrivePolicy, get_job_name
 from sqs_workers.processor_mgr import ProcessorManager, ProcessorManagerProxy
 from sqs_workers.shutdown_policies import NEVER_SHUTDOWN, NeverShutdown
 
@@ -250,7 +250,9 @@ class SQSEnv(ProcessorManagerProxy):
         messages = self.get_raw_messages(queue_name, wait_seconds)
         result = BatchProcessingResult(queue_name)
 
-        for job_name, job_messages in group_messages(queue_name, messages):
+        for message in messages:
+            job_name = get_job_name(message)
+            job_messages = [message]
             processor = self.processors.get(queue_name, job_name)
             succeeded, failed = processor.process_batch(job_messages)
             result.update(succeeded, failed)
