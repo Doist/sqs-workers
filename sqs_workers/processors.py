@@ -61,6 +61,13 @@ class GenericProcessor(object):
     def process_batch(self, job_messages):
         raise NotImplementedError("Must be implemented in subclasses")
 
+    def process_message(self, message):
+        # type: (...) -> bool
+        """
+        Process single message. Return True if processing succeeded.
+        """
+        raise NotImplementedError("Must be implemented in subclasses")
+
     def copy(self, **kwargs):
         """
         Create a new instance of the processor, optionally updating
@@ -89,29 +96,36 @@ class Processor(GenericProcessor):
     def process_batch(self, job_messages):
         succeeded, failed = [], []
         for message in job_messages:
-            extra = {
-                "message_id": message.message_id,
-                "queue_name": self.queue_name,
-                "job_name": self.job_name,
-            }
-            logger.debug("Process {queue_name}.{job_name}".format(**extra), extra=extra)
-
-            try:
-                content_type = get_job_content_type(message)
-                extra["job_content_type"] = content_type
-                codec = codecs.get_codec(content_type)
-                job_kwargs = codec.deserialize(message.body)
-                job_context = get_job_context(message, codec)
-                self.process(job_kwargs, job_context)
-            except Exception:
-                logger.exception(
-                    "Error while processing {queue_name}.{job_name}".format(**extra),
-                    extra=extra,
-                )
-                failed.append(message)
-            else:
+            success = self.process_message(message)
+            if success:
                 succeeded.append(message)
+            else:
+                failed.append(message)
         return succeeded, failed
+
+    def process_message(self, message):
+        extra = {
+            "message_id": message.message_id,
+            "queue_name": self.queue_name,
+            "job_name": self.job_name,
+        }
+        logger.debug("Process {queue_name}.{job_name}".format(**extra), extra=extra)
+
+        try:
+            content_type = get_job_content_type(message)
+            extra["job_content_type"] = content_type
+            codec = codecs.get_codec(content_type)
+            job_kwargs = codec.deserialize(message.body)
+            job_context = get_job_context(message, codec)
+            self.process(job_kwargs, job_context)
+        except Exception:
+            logger.exception(
+                "Error while processing {queue_name}.{job_name}".format(**extra),
+                extra=extra,
+            )
+            return False
+        else:
+            return True
 
     def process(self, job_kwargs, job_context):
         effective_kwargs = job_kwargs.copy()
@@ -135,6 +149,12 @@ class FallbackProcessor(GenericProcessor):
         # - it will not put messages back to the queue either, so they
         #   automatically appear there on reaching the visibility timeout
         return [], []
+
+    def process_message(self, message):
+        warnings.warn(
+            "Error while processing {}.{}".format(self.queue_name, self.job_name)
+        )
+        return False
 
 
 class DeadLetterProcessor(GenericProcessor):
@@ -178,6 +198,16 @@ class DeadLetterProcessor(GenericProcessor):
         for message in job_messages:
             self.push_back_message(message)
         return job_messages, []  # all succeeded
+
+    def process_message(self, message):
+        if not is_deadletter(self.queue_name):
+            warnings.warn(
+                "Error while processing {}.{}".format(self.queue_name, self.job_name)
+            )
+            return False
+
+        self.push_back_message(message)
+        return True
 
     def push_back_message(self, message):
         queue_name = get_deadletter_upstream_name(self.queue_name)
