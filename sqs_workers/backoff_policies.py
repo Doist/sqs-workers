@@ -20,24 +20,18 @@ class ExponentialBackoff(object):
     with an exponential backoff
     """
 
-    def __init__(self,
-                 base=2,
-                 min_visibility_timeout=0,
-                 max_visbility_timeout=30 * 60):
+    def __init__(self, base=2, min_visibility_timeout=0, max_visbility_timeout=30 * 60):
         self.base = base  # in seconds
         self.min_visibility_timeout = min_visibility_timeout
         self.max_visibility_timeout = max_visbility_timeout
 
     def get_visibility_timeout(self, message):
-        prev_receive_count = int(
-            message.attributes['ApproximateReceiveCount']) - 1
-        mu = self.min_visibility_timeout + (self.base**prev_receive_count)
+        prev_receive_count = int(message.attributes["ApproximateReceiveCount"]) - 1
+        mu = self.min_visibility_timeout + (self.base ** prev_receive_count)
         sigma = float(mu) / 10
         visibility_timeout = random.normalvariate(mu, sigma)
-        visibility_timeout = max(self.min_visibility_timeout,
-                                 visibility_timeout)
-        visibility_timeout = min(self.max_visibility_timeout,
-                                 visibility_timeout)
+        visibility_timeout = max(self.min_visibility_timeout, visibility_timeout)
+        visibility_timeout = min(self.max_visibility_timeout, visibility_timeout)
         return int(round(visibility_timeout))
 
 

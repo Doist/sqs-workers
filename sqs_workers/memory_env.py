@@ -8,7 +8,11 @@ from queue import Empty, Queue
 from sqs_workers import codecs, context, processors
 from sqs_workers.backoff_policies import DEFAULT_BACKOFF
 from sqs_workers.core import (
-    DEFAULT_CONTENT_TYPE, BatchProcessingResult, RedrivePolicy, group_messages)
+    DEFAULT_CONTENT_TYPE,
+    BatchProcessingResult,
+    RedrivePolicy,
+    group_messages,
+)
 from sqs_workers.processor_mgr import ProcessorManager, ProcessorManagerProxy
 from sqs_workers.shutdown_policies import NEVER_SHUTDOWN, NeverShutdown
 
@@ -33,20 +37,26 @@ class MemoryEnv(ProcessorManagerProxy):
 
     # TODO: maybe it can be implemented more effectively with sched
 
-    def __init__(self,
-                 backoff_policy=DEFAULT_BACKOFF,
-                 processor_maker=processors.Processor,
-                 batch_processor_maker=processors.BatchProcessor,
-                 fallback_processor_maker=processors.FallbackProcessor,
-                 context_maker=context.SQSContext):
+    def __init__(
+        self,
+        backoff_policy=DEFAULT_BACKOFF,
+        processor_maker=processors.Processor,
+        batch_processor_maker=processors.BatchProcessor,
+        fallback_processor_maker=processors.FallbackProcessor,
+        context_maker=context.SQSContext,
+    ):
         """
         Initialize pseudo SQS environment
         """
         self.backoff_policy = backoff_policy
         self.context = context_maker()
         self.processors = ProcessorManager(
-            self, backoff_policy, processor_maker, batch_processor_maker,
-            fallback_processor_maker)
+            self,
+            backoff_policy,
+            processor_maker,
+            batch_processor_maker,
+            fallback_processor_maker,
+        )
         self.queues = {}  # type: dict[str, Queue]
 
     def create_standard_queue(self, queue_name, **kwargs):
@@ -54,7 +64,7 @@ class MemoryEnv(ProcessorManagerProxy):
         Create a new standard queue
         """
         self.queues[queue_name] = Queue()
-        return 'memory://%s' % queue_name
+        return "memory://%s" % queue_name
 
     def create_fifo_queue(self, queue_name, **kwargs):
         """
@@ -62,7 +72,7 @@ class MemoryEnv(ProcessorManagerProxy):
         queue
         """
         self.queues[queue_name] = Queue()
-        return 'memory://%s' % queue_name
+        return "memory://%s" % queue_name
 
     def purge_queue(self, queue_name):
         """
@@ -81,14 +91,16 @@ class MemoryEnv(ProcessorManagerProxy):
         """
         self.queues.pop(queue_name)
 
-    def add_job(self,
-                queue_name,
-                job_name,
-                _content_type=DEFAULT_CONTENT_TYPE,
-                _delay_seconds=None,
-                _deduplication_id=None,
-                _group_id=None,
-                **job_kwargs):
+    def add_job(
+        self,
+        queue_name,
+        job_name,
+        _content_type=DEFAULT_CONTENT_TYPE,
+        _delay_seconds=None,
+        _deduplication_id=None,
+        _group_id=None,
+        **job_kwargs
+    ):
         """
         Add job to the queue. The body of the job will be converted to the text
         with one of the codes (by default it's "pickle")
@@ -96,45 +108,51 @@ class MemoryEnv(ProcessorManagerProxy):
         codec = codecs.get_codec(_content_type)
         message_body = codec.serialize(job_kwargs)
         job_context = codec.serialize(self.context.to_dict())
-        return self.add_raw_job(queue_name, job_name, message_body,
-                                job_context, _content_type, _delay_seconds,
-                                _deduplication_id, _group_id)
+        return self.add_raw_job(
+            queue_name,
+            job_name,
+            message_body,
+            job_context,
+            _content_type,
+            _delay_seconds,
+            _deduplication_id,
+            _group_id,
+        )
 
-    def add_raw_job(self, queue_name, job_name, message_body, job_context,
-                    content_type, delay_seconds, deduplication_id, group_id):
+    def add_raw_job(
+        self,
+        queue_name,
+        job_name,
+        message_body,
+        job_context,
+        content_type,
+        delay_seconds,
+        deduplication_id,
+        group_id,
+    ):
         """
         Low-level function to put message to the queue
         """
         kwargs = {
-            'MessageBody': message_body,
-            'MessageAttributes': {
-                'ContentType': {
-                    'StringValue': content_type,
-                    'DataType': 'String',
-                },
-                'JobContext': {
-                    'StringValue': job_context,
-                    'DataType': 'String',
-                },
-                'JobName': {
-                    'StringValue': job_name,
-                    'DataType': 'String',
-                },
+            "MessageBody": message_body,
+            "MessageAttributes": {
+                "ContentType": {"StringValue": content_type, "DataType": "String"},
+                "JobContext": {"StringValue": job_context, "DataType": "String"},
+                "JobName": {"StringValue": job_name, "DataType": "String"},
             },
         }
         if delay_seconds is not None:
             delay_seconds_int = int(delay_seconds)
             execute_at = datetime.datetime.utcnow() + datetime.timedelta(
-                seconds=delay_seconds)
-            kwargs['DelaySeconds'] = delay_seconds_int
-            kwargs['_execute_at'] = execute_at
+                seconds=delay_seconds
+            )
+            kwargs["DelaySeconds"] = delay_seconds_int
+            kwargs["_execute_at"] = execute_at
         queue = self.queues[queue_name]
         queue.put(kwargs)
-        return ''
+        return ""
 
-    def process_queues(self,
-                       queue_names=None,
-                       shutdown_policy_maker=NeverShutdown):
+    def process_queues(self, queue_names=None, shutdown_policy_maker=NeverShutdown):
         """
         Use multiprocessing to process multiple queues at once. If queue names
         are not set, process all known queues
@@ -149,9 +167,10 @@ class MemoryEnv(ProcessorManagerProxy):
             p = multiprocessing.Process(
                 target=self.process_queue,
                 kwargs={
-                    'queue_name': queue_name,
-                    'shutdown_policy': shutdown_policy_maker(),
-                })
+                    "queue_name": queue_name,
+                    "shutdown_policy": shutdown_policy_maker(),
+                },
+            )
             p.start()
             processes.append(p)
         for p in processes:
@@ -163,10 +182,7 @@ class MemoryEnv(ProcessorManagerProxy):
         """
         self.purge_queue(queue_name)
 
-    def process_queue(self,
-                      queue_name,
-                      shutdown_policy=NEVER_SHUTDOWN,
-                      wait_second=10):
+    def process_queue(self, queue_name, shutdown_policy=NEVER_SHUTDOWN, wait_second=10):
         """
         Run worker to process one queue in the infinite loop
         """
@@ -230,7 +246,7 @@ class MemoryEnv(ProcessorManagerProxy):
         now = datetime.datetime.utcnow()
         ready_messages = []
         for message in messages:
-            execute_at = message.get('_execute_at', now)
+            execute_at = message.get("_execute_at", now)
             if execute_at > now:
                 queue.put(message)
             else:
@@ -255,11 +271,11 @@ class RawMessage(dict):
 
     @property
     def message_attributes(self):
-        return self['MessageAttributes']
+        return self["MessageAttributes"]
 
     @property
     def body(self):
-        return self['MessageBody']
+        return self["MessageBody"]
 
     @property
     def message_id(self):

@@ -103,4 +103,4 @@ class SQSContext(local):
             self.set(**orig_context)
 
     def __repr__(self):
-        return '{}({!r})'.format(self.__class__.__name__, self._context)
+        return "{}({!r})".format(self.__class__.__name__, self._context)

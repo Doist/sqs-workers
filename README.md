@@ -4,7 +4,7 @@ SQS Workers
 How can I use it?
 -----------------
 
-Unless you are the part of the [Doist development team](https://github.com/orgs/Doist/people), 
+Unless you are the part of the [Doist development team](https://github.com/orgs/Doist/people),
 you most likely don't need it. It's something opinionated, built out of our own internal needs
 and probably provides little value for outside developers.
 
@@ -124,7 +124,7 @@ which ends with ".fifo". The dead-letter queue has to have a name
 from sqs_workers import SQSEnv
 sqs = SQSEnv()
 sqs.create_fifo_queue('emails_dead.fifo')
-sqs.create_fifo_queue('emails.fifo', 
+sqs.create_fifo_queue('emails.fifo',
     redrive_policy=sqs.redrive_policy('emails_dead.fifo', 3)
 )
 ```
@@ -244,7 +244,7 @@ sqs = SQSEnv(
     batch_processor_maker=CustomBatchProcessor,
 )
 ```
- 
+
 
 Dead-letter queues and redrive
 ------------------------------
@@ -256,7 +256,7 @@ policy, which can look like this
 from sqs_workers import SQSEnv
 sqs = SQSEnv()
 sqs.create_standard_queue('emails_dead')
-sqs.create_standard_queue('emails', 
+sqs.create_standard_queue('emails',
     redrive_policy=sqs.redrive_policy('emails_dead', 3)
 )
 ```
@@ -269,7 +269,7 @@ Backoff policies
 ----------------
 
 You can define the backoff policy for the entire environment or for specific
-processor. 
+processor.
 
 
 ```python
@@ -305,7 +305,7 @@ Following shutdown policies are supported:
 - MaxTasksShutdown(max_tasks): return from function after processing at
   least max_task jobs. Can be helpful to prevent memory leaks
 
-Default policy is NeverShutdown. It's also possible to combine two previous 
+Default policy is NeverShutdown. It's also possible to combine two previous
 policies with OrShutdown or AndShutdown policies, or create
 custom classes for specific behavior.
 
@@ -384,7 +384,7 @@ Using in unit tests with MemoryEnv
 
 There is a special MemoryEnv which can be used as a quick'n'dirty replacement
 for real queues in unit tests. If you have a function `create_task` which adds
-some tasks to the queue and you want to test how it works, you can technically 
+some tasks to the queue and you want to test how it works, you can technically
 write your tests like this:
 
 ```python
@@ -461,4 +461,3 @@ Why it depends on werkzeug? 😱
 
 The only reason is [werkzeug.utils.validate_arguments](http://werkzeug.pocoo.org/docs/dev/utils/#werkzeug.utils.validate_arguments)
 which we love and we are lazy enough to move it to this codebase.
-

@@ -1,3 +1,7 @@
-from .core import SQSEnv
-from .backoff_policies import (
-    ExponentialBackoff, ConstantBackoff, DEFAULT_BACKOFF, IMMEDIATE_RETURN)
+from .backoff_policies import (  # noqa: F401
+    DEFAULT_BACKOFF,
+    IMMEDIATE_RETURN,
+    ConstantBackoff,
+    ExponentialBackoff,
+)
+from .core import SQSEnv  # noqa: F401

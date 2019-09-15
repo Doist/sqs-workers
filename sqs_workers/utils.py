@@ -1,4 +1,4 @@
-from werkzeug.utils import validate_arguments, bind_arguments
+from werkzeug.utils import bind_arguments, validate_arguments
 
 
 def adv_validate_arguments(callback, args, kwargs):
@@ -10,8 +10,7 @@ def adv_validate_arguments(callback, args, kwargs):
     """
     bind_args = list(args)
     bind_kwargs = kwargs.copy()
-    arguments, keyword_arguments = validate_arguments(callback, bind_args,
-                                                      bind_kwargs)
+    arguments, keyword_arguments = validate_arguments(callback, bind_args, bind_kwargs)
     return arguments, keyword_arguments
 
 

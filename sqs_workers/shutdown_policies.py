@@ -15,7 +15,7 @@ class NeverShutdown(object):
         return False
 
     def __repr__(self):
-        return 'NeverShutdown()'
+        return "NeverShutdown()"
 
 
 class IdleShutdown(object):
@@ -45,7 +45,7 @@ class IdleShutdown(object):
         return now() - self._last_seen >= self._idle_delta
 
     def __repr__(self):
-        return 'IdleShutdown({})'.format(self.idle_seconds)
+        return "IdleShutdown({})".format(self.idle_seconds)
 
 
 class MaxTasksShutdown(object):
@@ -65,7 +65,7 @@ class MaxTasksShutdown(object):
         return self._tasks >= self.max_tasks
 
     def __repr__(self):
-        return 'MaxTasksShutdown({})'.format(self.max_tasks)
+        return "MaxTasksShutdown({})".format(self.max_tasks)
 
 
 class OrShutdown(object):
@@ -87,8 +87,8 @@ class OrShutdown(object):
         return False
 
     def __repr__(self):
-        repr_policies = ', '.join([repr(p) for p in self.policies])
-        return 'OrShutdown({})'.format(repr_policies)
+        repr_policies = ", ".join([repr(p) for p in self.policies])
+        return "OrShutdown({})".format(repr_policies)
 
 
 class AndShutdown(object):
@@ -110,8 +110,8 @@ class AndShutdown(object):
         return True
 
     def __repr__(self):
-        repr_policies = ', '.join([repr(p) for p in self.policies])
-        return 'AndShutdown({})'.format(repr_policies)
+        repr_policies = ", ".join([repr(p) for p in self.policies])
+        return "AndShutdown({})".format(repr_policies)
 
 
 NEVER_SHUTDOWN = NeverShutdown()

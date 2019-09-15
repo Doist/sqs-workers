@@ -15,12 +15,14 @@ class ProcessorManagerProxy(object):
 
     processors = None  # type: "ProcessorManager"
 
-    def processor(self,
-                  queue_name,
-                  job_name,
-                  pass_context=False,
-                  context_var=DEFAULT_CONTEXT_VAR,
-                  backoff_policy=None):
+    def processor(
+        self,
+        queue_name,
+        job_name,
+        pass_context=False,
+        context_var=DEFAULT_CONTEXT_VAR,
+        backoff_policy=None,
+    ):
         """
         Decorator to assign processor to handle jobs with the name job_name
         from the queue queue_name
@@ -46,18 +48,25 @@ class ProcessorManagerProxy(object):
         """
 
         def fn(processor):
-            return self.processors.connect(queue_name, job_name, processor,
-                                           pass_context, context_var,
-                                           backoff_policy)
+            return self.processors.connect(
+                queue_name,
+                job_name,
+                processor,
+                pass_context,
+                context_var,
+                backoff_policy,
+            )
 
         return fn
 
-    def batch_processor(self,
-                        queue_name,
-                        job_name,
-                        pass_context=False,
-                        context_var=DEFAULT_CONTEXT_VAR,
-                        backoff_policy=None):
+    def batch_processor(
+        self,
+        queue_name,
+        job_name,
+        pass_context=False,
+        context_var=DEFAULT_CONTEXT_VAR,
+        backoff_policy=None,
+    ):
         """
         Decorator to assign a batch processor to handle jobs with the name
         job_name from the queue queue_name. The batch processor has to be a
@@ -87,21 +96,26 @@ class ProcessorManagerProxy(object):
         """
 
         def fn(processor):
-            return self.processors.connect_batch(queue_name, job_name,
-                                                 processor, pass_context,
-                                                 context_var, backoff_policy)
+            return self.processors.connect_batch(
+                queue_name,
+                job_name,
+                processor,
+                pass_context,
+                context_var,
+                backoff_policy,
+            )
 
         return fn
 
 
 class ProcessorManager(object):
     def __init__(
-            self,
-            sqs_env,
-            backoff_policy=DEFAULT_BACKOFF,
-            processor_maker=processors.Processor,
-            batch_processor_maker=processors.BatchProcessor,
-            fallback_processor_maker=processors.FallbackProcessor,
+        self,
+        sqs_env,
+        backoff_policy=DEFAULT_BACKOFF,
+        processor_maker=processors.Processor,
+        batch_processor_maker=processors.BatchProcessor,
+        fallback_processor_maker=processors.FallbackProcessor,
     ):
         self.sqs_env = sqs_env
         self.processors = defaultdict(lambda: {})
@@ -111,54 +125,72 @@ class ProcessorManager(object):
         self.fallback_processor_maker = fallback_processor_maker
         self.processors = defaultdict(lambda: {})
 
-    def connect(self,
-                queue_name,
-                job_name,
-                processor,
-                pass_context=False,
-                context_var=DEFAULT_CONTEXT_VAR,
-                backoff_policy=None):
+    def connect(
+        self,
+        queue_name,
+        job_name,
+        processor,
+        pass_context=False,
+        context_var=DEFAULT_CONTEXT_VAR,
+        backoff_policy=None,
+    ):
         """
         Assign processor (a function) to handle jobs with the name job_name
         from the queue queue_name
         """
         extra = {
-            'queue_name': queue_name,
-            'job_name': job_name,
-            'processor_name': processor.__module__ + '.' + processor.__name__,
+            "queue_name": queue_name,
+            "job_name": job_name,
+            "processor_name": processor.__module__ + "." + processor.__name__,
         }
         logger.debug(
-            'Connect {queue_name}.{job_name} to '
-            'processor {processor_name}'.format(**extra),
-            extra=extra)
+            "Connect {queue_name}.{job_name} to "
+            "processor {processor_name}".format(**extra),
+            extra=extra,
+        )
         self.processors[queue_name][job_name] = self.processor_maker(
-            self.sqs_env, queue_name, job_name, processor, pass_context,
-            context_var, backoff_policy or self.backoff_policy)
+            self.sqs_env,
+            queue_name,
+            job_name,
+            processor,
+            pass_context,
+            context_var,
+            backoff_policy or self.backoff_policy,
+        )
         return AsyncTask(self.sqs_env, queue_name, job_name, processor)
 
-    def connect_batch(self,
-                      queue_name,
-                      job_name,
-                      processor,
-                      pass_context=False,
-                      context_var=DEFAULT_CONTEXT_VAR,
-                      backoff_policy=None):
+    def connect_batch(
+        self,
+        queue_name,
+        job_name,
+        processor,
+        pass_context=False,
+        context_var=DEFAULT_CONTEXT_VAR,
+        backoff_policy=None,
+    ):
         """
         Assign a batch processor (function) to handle jobs with the name
         job_name from the queue queue_name
         """
         extra = {
-            'queue_name': queue_name,
-            'job_name': job_name,
-            'processor_name': processor.__module__ + '.' + processor.__name__,
+            "queue_name": queue_name,
+            "job_name": job_name,
+            "processor_name": processor.__module__ + "." + processor.__name__,
         }
         logger.debug(
-            'Connect {queue_name}.{job_name} to '
-            'batch processor {processor_name}'.format(**extra),
-            extra=extra)
+            "Connect {queue_name}.{job_name} to "
+            "batch processor {processor_name}".format(**extra),
+            extra=extra,
+        )
         self.processors[queue_name][job_name] = self.batch_processor_maker(
-            self.sqs_env, queue_name, job_name, processor, pass_context,
-            context_var, backoff_policy or self.backoff_policy)
+            self.sqs_env,
+            queue_name,
+            job_name,
+            processor,
+            pass_context,
+            context_var,
+            backoff_policy or self.backoff_policy,
+        )
         return AsyncBatchTask(self.sqs_env, queue_name, job_name, processor)
 
     def copy(self, src_queue, dst_queue):
@@ -178,8 +210,7 @@ class ProcessorManager(object):
         queue "foo".
         """
         for job_name, processor in self.processors[src_queue].items():
-            self.processors[dst_queue][job_name] = processor.copy(
-                queue_name=dst_queue)
+            self.processors[dst_queue][job_name] = processor.copy(queue_name=dst_queue)
 
     def get(self, queue_name, job_name):
         """
@@ -187,8 +218,9 @@ class ProcessorManager(object):
         """
         processor = self.processors[queue_name].get(job_name)
         if processor is None:
-            processor = self.fallback_processor_maker(self.sqs_env, queue_name,
-                                                      job_name)
+            processor = self.fallback_processor_maker(
+                self.sqs_env, queue_name, job_name
+            )
             self.processors[queue_name][job_name] = processor
         return processor
 
@@ -203,19 +235,18 @@ class AsyncTask(object):
 
     def __call__(self, *args, **kwargs):
         warnings.warn(
-            'Async task {0.queue_name}.{0.job_name} called synchronously'.
-            format(self))
+            "Async task {0.queue_name}.{0.job_name} called synchronously".format(self)
+        )
         return self.processor(*args, **kwargs)
 
     def __repr__(self):
-        return '<%s %s.%s>' % (self.__class__.__name__, self.queue_name,
-                               self.job_name)
+        return "<%s %s.%s>" % (self.__class__.__name__, self.queue_name, self.job_name)
 
     def delay(self, *args, **kwargs):
-        _content_type = kwargs.pop('_content_type', DEFAULT_CONTENT_TYPE)
-        _delay_seconds = kwargs.pop('_delay_seconds', None)
-        _deduplication_id = kwargs.pop('_deduplication_id', None)
-        _group_id = kwargs.pop('_group_id', None)
+        _content_type = kwargs.pop("_content_type", DEFAULT_CONTENT_TYPE)
+        _delay_seconds = kwargs.pop("_delay_seconds", None)
+        _deduplication_id = kwargs.pop("_deduplication_id", None)
+        _group_id = kwargs.pop("_group_id", None)
         kwargs = adv_bind_arguments(self.processor, args, kwargs)
         return self.sqs_env.add_job(
             self.queue_name,
@@ -224,7 +255,8 @@ class AsyncTask(object):
             _delay_seconds=_delay_seconds,
             _deduplication_id=_deduplication_id,
             _group_id=_group_id,
-            **kwargs)
+            **kwargs
+        )
 
     def bake(self, *args, **kwargs):
         """
@@ -238,8 +270,8 @@ class AsyncTask(object):
 class AsyncBatchTask(AsyncTask):
     def __call__(self, **kwargs):
         warnings.warn(
-            'Async task {0.queue_name}.{0.job_name} called synchronously'.
-            format(self))
+            "Async task {0.queue_name}.{0.job_name} called synchronously".format(self)
+        )
         return self.processor([kwargs])
 
     def delay(self, **kwargs):
@@ -262,4 +294,4 @@ class BakedAsyncTask(object):
         self.async_task.delay(*self.args, **self.kwargs)
 
     def __repr__(self):
-        return 'BakedAsyncTask(%r, ...)' % self.async_task
+        return "BakedAsyncTask(%r, ...)" % self.async_task
