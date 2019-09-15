@@ -48,7 +48,7 @@ class MemoryEnv(ProcessorManagerProxy):
         self.processors = ProcessorManager(
             self, backoff_policy, processor_maker, fallback_processor_maker
         )
-        self.queues = {}  # type: dict[str, Queue]
+        self.lowlevel_queues = {}  # type: dict[str, Queue]
 
     def create_standard_queue(self, queue_name, **kwargs):
         """
@@ -176,7 +176,7 @@ class MemoryEnv(ProcessorManagerProxy):
         return MemoryEnvQueue(self, queue_name).get_raw_messages(wait_seconds)
 
     def get_all_known_queues(self):
-        return list(self.queues.keys())
+        return list(self.lowlevel_queues.keys())
 
     def get_sqs_queue_name(self, queue_name):
         return MemoryEnvQueue(self, queue_name).get_sqs_queue_name()
@@ -195,7 +195,7 @@ class MemoryEnvQueue(object):
         """
         Create a new standard queue
         """
-        self.env.queues[self.name] = Queue()
+        self.env.lowlevel_queues[self.name] = Queue()
         return "memory://%s" % self.name
 
     def create_fifo_queue(self, **kwargs):
@@ -203,14 +203,14 @@ class MemoryEnvQueue(object):
         Create a new FIFO queue. Implementation is the same as for the standard
         queue
         """
-        self.env.queues[self.name] = Queue()
+        self.env.lowlevel_queues[self.name] = Queue()
         return "memory://%s" % self.name
 
     def purge_queue(self):
         """
         Remove all messages from the queue
         """
-        queue = self.env.queues[self.name]
+        queue = self.env.lowlevel_queues[self.name]
         while True:
             try:
                 queue.get_nowait()
@@ -221,7 +221,7 @@ class MemoryEnvQueue(object):
         """
         Delete the queue
         """
-        self.env.queues.pop(self.name)
+        self.env.lowlevel_queues.pop(self.name)
 
     def add_job(
         self,
@@ -277,7 +277,7 @@ class MemoryEnvQueue(object):
             )
             kwargs["DelaySeconds"] = delay_seconds_int
             kwargs["_execute_at"] = execute_at
-        queue = self.env.queues[self.name]
+        queue = self.env.lowlevel_queues[self.name]
         queue.put(kwargs)
         return ""
 
@@ -303,7 +303,7 @@ class MemoryEnvQueue(object):
         Process a batch of messages from the queue (10 messages at most), return
         the number of successfully processed messages, and exit
         """
-        queue = self.env.queues[self.name]
+        queue = self.env.lowlevel_queues[self.name]
         messages = self.get_raw_messages(wait_seconds)
         result = BatchProcessingResult(self.name)
         for message in messages:
@@ -340,7 +340,7 @@ class MemoryEnvQueue(object):
         Helper function which returns at most max_messages from the
         queue. Used in an infinite loop inside `get_raw_messages`
         """
-        queue = self.env.queues[self.name]
+        queue = self.env.lowlevel_queues[self.name]
         messages = []
         for i in range(max_messages):
             try:
@@ -360,7 +360,7 @@ class MemoryEnvQueue(object):
         return ready_messages
 
     def get_all_known_queues(self):
-        return list(self.env.queues.keys())
+        return list(self.env.lowlevel_queues.keys())
 
     def get_sqs_queue_name(self):
         return self.name
