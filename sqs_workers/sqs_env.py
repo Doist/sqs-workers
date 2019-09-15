@@ -34,6 +34,12 @@ class SQSEnv(ProcessorManagerProxy):
         self.processors = ProcessorManager(
             self, backoff_policy, processor_maker, fallback_processor_maker
         )
+        self.queues = {}  # type: dict[str, SQSEnvQueue]
+
+    def queue(self, queue_name):
+        if queue_name not in self.queues:
+            self.queues[queue_name] = SQSEnvQueue(self, queue_name)
+        return self.queues[queue_name]
 
     def create_standard_queue(
         self,
@@ -45,7 +51,7 @@ class SQSEnv(ProcessorManagerProxy):
         """
         Create a new standard queue
         """
-        return SQSEnvQueue(self, queue_name).create_standard_queue(
+        return self.queue(queue_name).create_standard_queue(
             message_retention_period, visibility_timeout, redrive_policy
         )
 
@@ -67,7 +73,7 @@ class SQSEnv(ProcessorManagerProxy):
           redrive_policy() method of SQS. In the latter case if defines the
           way failed messages are processed.
         """
-        return SQSEnvQueue(self, queue_name).create_fifo_queue(
+        return self.queue(queue_name).create_fifo_queue(
             content_based_deduplication,
             message_retention_period,
             visibility_timeout,
@@ -78,13 +84,13 @@ class SQSEnv(ProcessorManagerProxy):
         """
         Remove all messages from the queue
         """
-        return SQSEnvQueue(self, queue_name).purge_queue()
+        return self.queue(queue_name).purge_queue()
 
     def delete_queue(self, queue_name):
         """
         Delete the queue
         """
-        return SQSEnvQueue(self, queue_name).delete_queue()
+        return self.queue(queue_name).delete_queue()
 
     def add_job(
         self,
@@ -100,7 +106,7 @@ class SQSEnv(ProcessorManagerProxy):
         Add job to the queue. The body of the job will be converted to the text
         with one of the codes (by default it's "pickle")
         """
-        return SQSEnvQueue(self, queue_name).add_job(
+        return self.queue(queue_name).add_job(
             job_name,
             _content_type,
             _delay_seconds,
@@ -123,7 +129,7 @@ class SQSEnv(ProcessorManagerProxy):
         """
         Low-level function to put message to the queue
         """
-        return SQSEnvQueue(self, queue_name).add_raw_job(
+        return self.queue(queue_name).add_raw_job(
             job_name,
             message_body,
             job_context,
@@ -165,13 +171,13 @@ class SQSEnv(ProcessorManagerProxy):
         """
         Delete all messages from the queue without calling purge()
         """
-        return SQSEnvQueue(self, queue_name).drain_queue(wait_seconds)
+        return self.queue(queue_name).drain_queue(wait_seconds)
 
     def process_queue(self, queue_name, shutdown_policy=NEVER_SHUTDOWN, wait_second=10):
         """
         Run worker to process one queue in the infinite loop
         """
-        return SQSEnvQueue(self, queue_name).process_queue(shutdown_policy, wait_second)
+        return self.queue(queue_name).process_queue(shutdown_policy, wait_second)
 
     def process_batch(self, queue_name, wait_seconds=0):
         # type: (str, int) -> BatchProcessingResult
@@ -179,19 +185,19 @@ class SQSEnv(ProcessorManagerProxy):
         Process a batch of messages from the queue (10 messages at most), return
         the number of successfully processed messages, and exit
         """
-        return SQSEnvQueue(self, queue_name).process_batch(wait_seconds)
+        return self.queue(queue_name).process_batch(wait_seconds)
 
     def get_raw_messages(self, queue_name, wait_seconds):
         """
         Return raw messages from the queue, addressed by its name
         """
-        return SQSEnvQueue(self, queue_name).get_raw_messages(wait_seconds)
+        return self.queue(queue_name).get_raw_messages(wait_seconds)
 
     def get_queue(self, queue_name):
         """
         Helper function to return queue object by name
         """
-        return SQSEnvQueue(self, queue_name).get_queue()
+        return self.queue(queue_name).get_queue()
 
     def get_all_known_queues(self):
         resp = self.sqs_client.list_queues(**{"QueueNamePrefix": self.queue_prefix})
@@ -211,7 +217,7 @@ class SQSEnv(ProcessorManagerProxy):
         ("low level") name by simply prefixing it. Used to create namespaces
         for different environments (development, staging, production, etc)
         """
-        return SQSEnvQueue(self, queue_name).get_sqs_queue_name()
+        return self.queue(queue_name).get_sqs_queue_name()
 
     def redrive_policy(self, dead_letter_queue_name, max_receive_count):
         return RedrivePolicy(self, dead_letter_queue_name, max_receive_count)
