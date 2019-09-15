@@ -58,16 +58,6 @@ class GenericProcessor(object):
             self.__class__.__name__, self.queue_name, self.job_name, fn_name
         )
 
-    def process_batch(self, job_messages):
-        succeeded, failed = [], []
-        for message in job_messages:
-            success = self.process_message(message)
-            if success:
-                succeeded.append(message)
-            else:
-                failed.append(message)
-        return succeeded, failed
-
     def process_message(self, message):
         # type: (...) -> bool
         """
