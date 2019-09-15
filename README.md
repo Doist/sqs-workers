@@ -148,17 +148,11 @@ If task processing ended up with an exception, the error is logged and the
 task is returned back to the queue after a while. The exact behavior is defined
 by queue settings.
 
-Batch processing
-----------------
-
-Instead of using `sqs.processor` decorator you can use `sqs.batch_processor`.
-In this case the function must accept parameter "messages" containing
-the list of dicts.
 
 Custom processors
 -----------------
 
-You can define your own processor or batch processor if you need to perform
+You can define your own processor if you need to perform
 some specific actions before of after executing a specific task.
 
 Example for the custom processor
@@ -221,7 +215,7 @@ can perform this in processors by subclassing them.
 ```python
 import os
 from sqs_workers import SQSEnv
-from sqs_workers.processors import BatchProcessor, Processor
+from sqs_workers.processors import Processor
 
 class CustomProcessor(Processor):
     def process(self, job_kwargs, job_context):
@@ -229,19 +223,8 @@ class CustomProcessor(Processor):
         super(CustomProcessor, self).process(job_kwargs, job_context)
         os.unsetenv('REMOTE_ADDR')
 
-
-class CustomBatchProcessor(BatchProcessor):
-    def process(self, jobs, context):
-        # in this case context variable contains the list of
-        # context objects, and it may or may not make sense to
-        # process them before starting the main function.
-        print("Jobs context", context)
-        super(CustomBatchProcessor, self).process(jobs, context)
-
-
 sqs = SQSEnv(
     processor_maker=CustomProcessor,
-    batch_processor_maker=CustomBatchProcessor,
 )
 ```
 

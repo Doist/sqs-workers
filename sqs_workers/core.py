@@ -53,7 +53,6 @@ class SQSEnv(ProcessorManagerProxy):
         queue_prefix="",
         backoff_policy=DEFAULT_BACKOFF,
         processor_maker=processors.Processor,
-        batch_processor_maker=processors.BatchProcessor,
         fallback_processor_maker=processors.FallbackProcessor,
         context_maker=context.SQSContext,
     ):
@@ -66,11 +65,7 @@ class SQSEnv(ProcessorManagerProxy):
         self.queue_prefix = queue_prefix
         self.context = context_maker()
         self.processors = ProcessorManager(
-            self,
-            backoff_policy,
-            processor_maker,
-            batch_processor_maker,
-            fallback_processor_maker,
+            self, backoff_policy, processor_maker, fallback_processor_maker
         )
 
         # internal mapping from queue names to queue objects

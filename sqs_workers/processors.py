@@ -120,55 +120,6 @@ class Processor(GenericProcessor):
         return call_handler(self.fn, effective_kwargs)
 
 
-class BatchProcessor(GenericProcessor):
-    """
-    Processor which calls its function for the entire batch of incoming.
-
-    The function is called for the list of decoded message bodies
-    """
-
-    def process_batch(self, job_messages):
-        if job_messages:
-            extra = {
-                "job_count": len(job_messages),
-                "queue_name": self.queue_name,
-                "job_name": self.job_name,
-            }
-            logger.debug(
-                "Process {job_count} messages "
-                "to {queue_name}.{job_name}".format(**extra),
-                extra=extra,
-            )
-            try:
-                jobs, context = self.decode_messages(job_messages)
-                self.process(jobs, context)
-            except Exception:
-                logger.exception(
-                    "Error while processing {job_count} messages "
-                    "to {queue_name}.{job_name}".format(**extra),
-                    extra=extra,
-                )
-                return [], job_messages  # all failed
-            else:
-                return job_messages, []  # all succeeded
-
-    def decode_messages(self, job_messages):
-        jobs = []
-        context = []
-        for message in job_messages:
-            content_type = get_job_content_type(message)
-            codec = codecs.get_codec(content_type)
-            job = codec.deserialize(message.body)
-            jobs.append(job)
-            context.append(get_job_context(message, codec))
-        return jobs, context
-
-    def process(self, jobs, context):
-        if self.pass_context:
-            return self.fn(jobs, **{self.context_var: context})
-        return self.fn(jobs)
-
-
 class FallbackProcessor(GenericProcessor):
     """
     Processor which is used by default when none of the processors is attached

@@ -59,54 +59,6 @@ class ProcessorManagerProxy(object):
 
         return fn
 
-    def batch_processor(
-        self,
-        queue_name,
-        job_name,
-        pass_context=False,
-        context_var=DEFAULT_CONTEXT_VAR,
-        backoff_policy=None,
-    ):
-        """
-        Decorator to assign a batch processor to handle jobs with the name
-        job_name from the queue queue_name. The batch processor has to be a
-        function which accepts the only argument "jobs".
-
-        "jobs" is a list of properly decoded dicts
-
-        Usage example:
-
-
-        @sqs.processors.connect('q1', 'batch_say_hello')
-        def batch_say_hello(jobs):
-            names = ', '.join([job['name'] for job in jobs])
-            print("Hello, " + names)
-
-        Then you can add messages to the queue by calling ".delay" attribute
-        of a newly created object:
-
-        >>> batch_say_hello.delay(name='John')
-
-        Here, instead of calling function locally, it will be pushed to the
-        queue (essentially, mimics the non-blocking call of the function).
-
-        If you still want to call function locally, you can call
-
-        >>> batch_say_hello(name='John')
-        """
-
-        def fn(processor):
-            return self.processors.connect_batch(
-                queue_name,
-                job_name,
-                processor,
-                pass_context,
-                context_var,
-                backoff_policy,
-            )
-
-        return fn
-
 
 class ProcessorManager(object):
     def __init__(
@@ -114,14 +66,12 @@ class ProcessorManager(object):
         sqs_env,
         backoff_policy=DEFAULT_BACKOFF,
         processor_maker=processors.Processor,
-        batch_processor_maker=processors.BatchProcessor,
         fallback_processor_maker=processors.FallbackProcessor,
     ):
         self.sqs_env = sqs_env
         self.processors = defaultdict(lambda: {})
         self.backoff_policy = backoff_policy
         self.processor_maker = processor_maker
-        self.batch_processor_maker = batch_processor_maker
         self.fallback_processor_maker = fallback_processor_maker
         self.processors = defaultdict(lambda: {})
 
@@ -158,40 +108,6 @@ class ProcessorManager(object):
             backoff_policy or self.backoff_policy,
         )
         return AsyncTask(self.sqs_env, queue_name, job_name, processor)
-
-    def connect_batch(
-        self,
-        queue_name,
-        job_name,
-        processor,
-        pass_context=False,
-        context_var=DEFAULT_CONTEXT_VAR,
-        backoff_policy=None,
-    ):
-        """
-        Assign a batch processor (function) to handle jobs with the name
-        job_name from the queue queue_name
-        """
-        extra = {
-            "queue_name": queue_name,
-            "job_name": job_name,
-            "processor_name": processor.__module__ + "." + processor.__name__,
-        }
-        logger.debug(
-            "Connect {queue_name}.{job_name} to "
-            "batch processor {processor_name}".format(**extra),
-            extra=extra,
-        )
-        self.processors[queue_name][job_name] = self.batch_processor_maker(
-            self.sqs_env,
-            queue_name,
-            job_name,
-            processor,
-            pass_context,
-            context_var,
-            backoff_policy or self.backoff_policy,
-        )
-        return AsyncBatchTask(self.sqs_env, queue_name, job_name, processor)
 
     def copy(self, src_queue, dst_queue):
         """
@@ -265,20 +181,6 @@ class AsyncTask(object):
         to it.
         """
         return BakedAsyncTask(self, args, kwargs)
-
-
-class AsyncBatchTask(AsyncTask):
-    def __call__(self, **kwargs):
-        warnings.warn(
-            "Async task {0.queue_name}.{0.job_name} called synchronously".format(self)
-        )
-        return self.processor([kwargs])
-
-    def delay(self, **kwargs):
-        # unlike AsyncTask, we cannot validate or bind arguments, because
-        # processor always accepts the list of dicts, so we just pass kwargs
-        # as is
-        return self.sqs_env.add_job(self.queue_name, self.job_name, **kwargs)
 
 
 class BakedAsyncTask(object):

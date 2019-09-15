@@ -5,9 +5,9 @@ import pytest
 from sqs_workers import IMMEDIATE_RETURN, ExponentialBackoff
 from sqs_workers.codecs import JSONCodec, PickleCodec
 from sqs_workers.memory_env import MemoryEnv
-from sqs_workers.processors import BatchProcessor, DeadLetterProcessor, Processor
+from sqs_workers.processors import DeadLetterProcessor, Processor
 
-worker_results = {"say_hello": None, "batch_say_hello": set()}
+worker_results = {"say_hello": None}
 
 
 def raise_exception(username="Anonymous"):
@@ -18,15 +18,10 @@ def say_hello(username="Anonymous"):
     worker_results["say_hello"] = username
 
 
-def batch_say_hello(messages):
-    for msg in messages:
-        worker_results["batch_say_hello"].add(msg["username"])
-
-
 @pytest.fixture(autouse=True)
 def _reset_worker_results():
     global worker_results
-    worker_results = {"say_hello": None, "batch_say_hello": set()}
+    worker_results = {"say_hello": None}
 
 
 def test_add_pickle_job(sqs, queue):
@@ -70,25 +65,6 @@ def test_process_messages_once(sqs, queue):
     assert processed == 1
     processed = sqs.process_batch(queue, wait_seconds=0).succeeded_count()
     assert processed == 0
-
-
-def test_batch_processor(sqs, queue):
-    task = sqs.processors.connect_batch(queue, "batch_say_hello", batch_say_hello)
-
-    usernames = {"u{}".format(i) for i in range(20)}
-
-    # enqueue messages
-    for username in usernames:
-        task.delay(username=username)
-
-    # sometimes SQS doesn't return all messages at once, and we need to drain
-    # the queue with the infinite loop
-    while True:
-        processed = sqs.process_batch(queue, wait_seconds=0).succeeded_count()
-        if processed == 0:
-            break
-
-    assert worker_results["batch_say_hello"] == usernames
 
 
 def test_copy_processors(sqs, queue, queue2):
@@ -266,17 +242,3 @@ def test_custom_processor(sqs, queue):
     say_hello_task.delay()
     assert sqs.process_batch(queue).succeeded_count() == 1
     assert worker_results["say_hello"] == "Foo"
-
-
-def test_custom_batch_processor(sqs, queue):
-    class CustomBatchProcessor(BatchProcessor):
-        def process(self, jobs, context):
-            jobs[0]["username"] = "Two"
-            super(CustomBatchProcessor, self).process(jobs, context)
-
-    sqs.processors.batch_processor_maker = CustomBatchProcessor
-    task = sqs.processors.connect_batch(queue, "batch_say_hello", batch_say_hello)
-
-    task.delay(username="One")
-    assert sqs.process_batch(queue).succeeded_count() == 1
-    assert worker_results["batch_say_hello"] == {"Two"}

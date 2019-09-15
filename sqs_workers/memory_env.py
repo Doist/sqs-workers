@@ -41,7 +41,6 @@ class MemoryEnv(ProcessorManagerProxy):
         self,
         backoff_policy=DEFAULT_BACKOFF,
         processor_maker=processors.Processor,
-        batch_processor_maker=processors.BatchProcessor,
         fallback_processor_maker=processors.FallbackProcessor,
         context_maker=context.SQSContext,
     ):
@@ -51,11 +50,7 @@ class MemoryEnv(ProcessorManagerProxy):
         self.backoff_policy = backoff_policy
         self.context = context_maker()
         self.processors = ProcessorManager(
-            self,
-            backoff_policy,
-            processor_maker,
-            batch_processor_maker,
-            fallback_processor_maker,
+            self, backoff_policy, processor_maker, fallback_processor_maker
         )
         self.queues = {}  # type: dict[str, Queue]
 
