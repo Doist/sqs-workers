@@ -59,7 +59,14 @@ class GenericProcessor(object):
         )
 
     def process_batch(self, job_messages):
-        raise NotImplementedError("Must be implemented in subclasses")
+        succeeded, failed = [], []
+        for message in job_messages:
+            success = self.process_message(message)
+            if success:
+                succeeded.append(message)
+            else:
+                failed.append(message)
+        return succeeded, failed
 
     def process_message(self, message):
         # type: (...) -> bool
@@ -92,16 +99,6 @@ class Processor(GenericProcessor):
     fn() accepts a single parameter "message" which is a decoded body of an
     SQS message
     """
-
-    def process_batch(self, job_messages):
-        succeeded, failed = [], []
-        for message in job_messages:
-            success = self.process_message(message)
-            if success:
-                succeeded.append(message)
-            else:
-                failed.append(message)
-        return succeeded, failed
 
     def process_message(self, message):
         extra = {
@@ -140,16 +137,6 @@ class FallbackProcessor(GenericProcessor):
     explicitly
     """
 
-    def process_batch(self, job_messages):
-        warnings.warn(
-            "Error while processing {}.{}".format(self.queue_name, self.job_name)
-        )
-        # return empty list for succeeded and failed messages
-        # - the queue will not delete messages
-        # - it will not put messages back to the queue either, so they
-        #   automatically appear there on reaching the visibility timeout
-        return [], []
-
     def process_message(self, message):
         warnings.warn(
             "Error while processing {}.{}".format(self.queue_name, self.job_name)
@@ -187,17 +174,6 @@ class DeadLetterProcessor(GenericProcessor):
     the foo queue. Then it waits 10 seconds to ensure no new messages appear,
     and quit.
     """
-
-    def process_batch(self, job_messages):
-        if not is_deadletter(self.queue_name):
-            warnings.warn(
-                "Error while processing {}.{}".format(self.queue_name, self.job_name)
-            )
-            return [], []
-
-        for message in job_messages:
-            self.push_back_message(message)
-        return job_messages, []  # all succeeded
 
     def process_message(self, message):
         if not is_deadletter(self.queue_name):
