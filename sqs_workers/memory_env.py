@@ -7,12 +7,8 @@ from queue import Empty, Queue
 
 from sqs_workers import codecs, context, processors
 from sqs_workers.backoff_policies import DEFAULT_BACKOFF
-from sqs_workers.core import (
-    DEFAULT_CONTENT_TYPE,
-    BatchProcessingResult,
-    RedrivePolicy,
-    group_messages,
-)
+from sqs_workers.codecs import DEFAULT_CONTENT_TYPE
+from sqs_workers.core import BatchProcessingResult, RedrivePolicy, group_messages
 from sqs_workers.processor_mgr import ProcessorManager, ProcessorManagerProxy
 from sqs_workers.shutdown_policies import NEVER_SHUTDOWN, NeverShutdown
 
