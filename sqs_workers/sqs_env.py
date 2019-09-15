@@ -35,9 +35,6 @@ class SQSEnv(ProcessorManagerProxy):
             self, backoff_policy, processor_maker, fallback_processor_maker
         )
 
-        # internal mapping from queue names to queue objects
-        self.queue_mapping_cache = {}
-
     def create_standard_queue(
         self,
         queue_name,
@@ -225,6 +222,7 @@ class SQSEnvQueue(object):
         # type: (SQSEnv, str) -> None
         self.env = env
         self.name = name
+        self._queue = None
 
     def create_standard_queue(
         self,
@@ -443,12 +441,11 @@ class SQSEnvQueue(object):
         """
         Helper function to return queue object by name
         """
-        if self.name not in self.env.queue_mapping_cache:
-            queue = self.env.sqs_resource.get_queue_by_name(
+        if self._queue is None:
+            self._queue = self.env.sqs_resource.get_queue_by_name(
                 QueueName=self.get_sqs_queue_name()
             )
-            self.env.queue_mapping_cache[self.name] = queue
-        return self.env.queue_mapping_cache[self.name]
+        return self._queue
 
     def get_sqs_queue_name(self):
         """
