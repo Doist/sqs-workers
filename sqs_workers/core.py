@@ -24,10 +24,6 @@ class BatchProcessingResult(object):
         else:
             self.failed.append(message)
 
-    def update(self, succeeded, failed):
-        self.succeeded += succeeded
-        self.failed += failed
-
     def succeeded_count(self):
         return len(self.succeeded)
 
