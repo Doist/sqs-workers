@@ -196,10 +196,7 @@ class MemoryEnv(ProcessorManagerProxy):
             job_name = get_job_name(message)
             processor = self.processors.get(queue_name, job_name)
             success = processor.process_message(message)
-            if success:
-                result.update([message], [])
-            else:
-                result.update([], [message])
+            result.update_with_message(message, success)
             if not success:
                 queue.put(message)
         return result

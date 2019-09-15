@@ -1,5 +1,6 @@
 import json
 import logging
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -12,6 +13,16 @@ class BatchProcessingResult(object):
         self.queue_name = queue_name
         self.succeeded = succeeded or []
         self.failed = failed or []
+
+    def update_with_message(self, message, success):
+        # type: (Any, bool) -> None
+        """
+        Update processing result with a message.
+        """
+        if success:
+            self.succeeded.append(message)
+        else:
+            self.failed.append(message)
 
     def update(self, succeeded, failed):
         self.succeeded += succeeded
