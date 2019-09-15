@@ -48,32 +48,38 @@ class MemoryEnv(ProcessorManagerProxy):
         self.processors = ProcessorManager(
             self, backoff_policy, processor_maker, fallback_processor_maker
         )
+        self.queues = {}  # type: dict[str, MemoryEnvQueue]
         self.lowlevel_queues = {}  # type: dict[str, Queue]
+
+    def queue(self, queue_name):
+        if queue_name not in self.queues:
+            self.queues[queue_name] = MemoryEnvQueue(self, queue_name)
+        return self.queues[queue_name]
 
     def create_standard_queue(self, queue_name, **kwargs):
         """
         Create a new standard queue
         """
-        return MemoryEnvQueue(self, queue_name).create_standard_queue(**kwargs)
+        return self.queue(queue_name).create_standard_queue(**kwargs)
 
     def create_fifo_queue(self, queue_name, **kwargs):
         """
         Create a new FIFO queue. Implementation is the same as for the standard
         queue
         """
-        return MemoryEnvQueue(self, queue_name).create_fifo_queue(**kwargs)
+        return self.queue(queue_name).create_fifo_queue(**kwargs)
 
     def purge_queue(self, queue_name):
         """
         Remove all messages from the queue
         """
-        return MemoryEnvQueue(self, queue_name).purge_queue()
+        return self.queue(queue_name).purge_queue()
 
     def delete_queue(self, queue_name):
         """
         Delete the queue
         """
-        return MemoryEnvQueue(self, queue_name).delete_queue()
+        return self.queue(queue_name).delete_queue()
 
     def add_job(
         self,
@@ -89,7 +95,7 @@ class MemoryEnv(ProcessorManagerProxy):
         Add job to the queue. The body of the job will be converted to the text
         with one of the codes (by default it's "pickle")
         """
-        return MemoryEnvQueue(self, queue_name).add_job(
+        return self.queue(queue_name).add_job(
             job_name,
             _content_type,
             _delay_seconds,
@@ -112,7 +118,7 @@ class MemoryEnv(ProcessorManagerProxy):
         """
         Low-level function to put message to the queue
         """
-        return MemoryEnvQueue(self, queue_name).add_raw_job(
+        return self.queue(queue_name).add_raw_job(
             job_name,
             message_body,
             job_context,
@@ -150,15 +156,13 @@ class MemoryEnv(ProcessorManagerProxy):
         """
         Delete all messages from the queue. An equivalent to purge()
         """
-        return MemoryEnvQueue(self, queue_name).drain_queue(wait_seconds)
+        return self.queue(queue_name).drain_queue(wait_seconds)
 
     def process_queue(self, queue_name, shutdown_policy=NEVER_SHUTDOWN, wait_second=10):
         """
         Run worker to process one queue in the infinite loop
         """
-        return MemoryEnvQueue(self, queue_name).process_queue(
-            shutdown_policy, wait_second
-        )
+        return self.queue(queue_name).process_queue(shutdown_policy, wait_second)
 
     def process_batch(self, queue_name, wait_seconds=0):
         # type: (str, int) -> BatchProcessingResult
@@ -166,20 +170,20 @@ class MemoryEnv(ProcessorManagerProxy):
         Process a batch of messages from the queue (10 messages at most), return
         the number of successfully processed messages, and exit
         """
-        return MemoryEnvQueue(self, queue_name).process_batch(wait_seconds)
+        return self.queue(queue_name).process_batch(wait_seconds)
 
     def get_raw_messages(self, queue_name, wait_seconds=0):
         """
         Helper function to get at most 10 messages from the queue, waiting for
         wait_seconds at most before they get ready.
         """
-        return MemoryEnvQueue(self, queue_name).get_raw_messages(wait_seconds)
+        return self.queue(queue_name).get_raw_messages(wait_seconds)
 
     def get_all_known_queues(self):
         return list(self.lowlevel_queues.keys())
 
     def get_sqs_queue_name(self, queue_name):
-        return MemoryEnvQueue(self, queue_name).get_sqs_queue_name()
+        return self.queue(queue_name).get_sqs_queue_name()
 
     def redrive_policy(self, dead_letter_queue_name, max_receive_count):
         return RedrivePolicy(self, dead_letter_queue_name, max_receive_count)
