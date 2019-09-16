@@ -31,7 +31,7 @@ def _reset_worker_results():
 
 
 def test_add_pickle_job(sqs, queue_name):
-    sqs.add_job(queue_name, "say_hello", username="Homer")
+    sqs.queue(queue_name).add_job("say_hello", username="Homer")
     job_messages = sqs.get_raw_messages(queue_name, 0)
     msg = job_messages[0]
     assert msg.message_attributes["JobName"]["StringValue"] == "say_hello"
@@ -40,7 +40,7 @@ def test_add_pickle_job(sqs, queue_name):
 
 
 def test_add_json_job(sqs, queue_name):
-    sqs.add_job(queue_name, "say_hello", username="Homer", _content_type="json")
+    sqs.queue(queue_name).add_job("say_hello", username="Homer", _content_type="json")
     job_messages = sqs.get_raw_messages(queue_name, 0)
     msg = job_messages[0]
     assert msg.message_attributes["JobName"]["StringValue"] == "say_hello"
@@ -79,7 +79,7 @@ def test_copy_processors(sqs, queue_name, queue_name2):
     sqs.processors.copy(queue_name, queue_name2)
 
     # add job to that queue_name
-    sqs.add_job(queue_name2, "say_hello")
+    sqs.queue(queue_name2).add_job("say_hello")
 
     # and see that it's succeeded
     processed = sqs.process_batch(queue_name2, wait_seconds=0).succeeded_count()
@@ -146,7 +146,7 @@ def test_dead_letter_processor(sqs, queue_name_with_redrive):
 
     # dead queue_name doesn't have a processor, so a dead letter processor
     # will be fired, and it will mark the task as successful
-    sqs.add_job(dead_queue, "say_hello")
+    sqs.queue(dead_queue).add_job("say_hello")
     assert sqs.process_batch(dead_queue, wait_seconds=0).succeeded_count() == 1
 
     # queue_name has processor which succeeds (but we need to wait at least

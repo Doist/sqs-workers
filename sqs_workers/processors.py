@@ -196,8 +196,7 @@ class DeadLetterProcessor(GenericProcessor):
                 "job_name": self.job_name,
             },
         )
-        self.sqs_env.add_raw_job(
-            queue_name,
+        self.sqs_env.queue(queue_name).add_raw_job(
             self.job_name,
             message.body,
             job_context,

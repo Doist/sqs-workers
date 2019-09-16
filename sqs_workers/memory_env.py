@@ -61,53 +61,6 @@ class MemoryEnv(object):
         """
         return self.queue(queue_name).purge_queue()
 
-    def add_job(
-        self,
-        queue_name,
-        job_name,
-        _content_type=DEFAULT_CONTENT_TYPE,
-        _delay_seconds=None,
-        _deduplication_id=None,
-        _group_id=None,
-        **job_kwargs
-    ):
-        """
-        Add job to the queue. The body of the job will be converted to the text
-        with one of the codes (by default it's "pickle")
-        """
-        return self.queue(queue_name).add_job(
-            job_name,
-            _content_type,
-            _delay_seconds,
-            _deduplication_id,
-            _group_id,
-            **job_kwargs
-        )
-
-    def add_raw_job(
-        self,
-        queue_name,
-        job_name,
-        message_body,
-        job_context,
-        content_type,
-        delay_seconds,
-        deduplication_id,
-        group_id,
-    ):
-        """
-        Low-level function to put message to the queue
-        """
-        return self.queue(queue_name).add_raw_job(
-            job_name,
-            message_body,
-            job_context,
-            content_type,
-            delay_seconds,
-            deduplication_id,
-            group_id,
-        )
-
     def process_queues(self, queue_names=None, shutdown_policy_maker=NeverShutdown):
         """
         Use multiprocessing to process multiple queues at once. If queue names

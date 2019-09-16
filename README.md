@@ -58,8 +58,7 @@ def send_email(to, subject, body):
 Then there are two ways of adding tasks to the queue. Classic (aka "explicit"):
 
 ```python
-sqs.add_job(
-    "emails", "send_email", to="user@examile.com", subject="Hello world", body="hello world")
+queue.add_job("send_email", to="user@examile.com", subject="Hello world", body="hello world")
 ```
 
 
@@ -138,8 +137,8 @@ sent with an attribute `_deduplication_id`. By default all messages have the
 same message group `default`, but you can change it with `_group_id`.
 
 ```python
-sqs.add_job(
-    'emails.fifo', 'send_email', _deduplication_id=subject, _group_id=email, **kwargs)
+sqs.queue("emails.fifo").add_job(
+    'send_email', _deduplication_id=subject, _group_id=email, **kwargs)
 ```
 
 [More about FIFO queues on AWS](https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/FIFO-queues.html)

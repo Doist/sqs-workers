@@ -165,8 +165,7 @@ class AsyncTask(object):
         _deduplication_id = kwargs.pop("_deduplication_id", None)
         _group_id = kwargs.pop("_group_id", None)
         kwargs = adv_bind_arguments(self.processor, args, kwargs)
-        return self.sqs_env.add_job(
-            self.queue_name,
+        return self.sqs_env.queue(self.queue_name).add_job(
             self.job_name,
             _content_type=_content_type,
             _delay_seconds=_delay_seconds,

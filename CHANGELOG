@@ -6,6 +6,8 @@
 - Changed the way handlers are defined: instead of @sqs.processor("q1", "handler")
   you should use queue = sqs.queue("q1") and then @queue.handler
 - Extracted functions to create and delete queues for SQSEnv to a separate module
+- Remove SQSEnv.add_job() and SQSEnv.add_raw_job(). SQSEnv.queue().add_job()
+  has to be used instead
 
 ### Added
 
