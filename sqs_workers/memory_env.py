@@ -15,7 +15,7 @@ from sqs_workers.shutdown_policies import NEVER_SHUTDOWN, NeverShutdown
 logger = logging.getLogger(__name__)
 
 
-class MemoryEnv(ProcessorManagerProxy):
+class MemoryEnv(object):
     """
     In-memory pseudo SQS implementation, for faster and more predictable
     processing in tests.
@@ -190,7 +190,7 @@ class MemoryEnv(ProcessorManagerProxy):
         return RedrivePolicy(self, dead_letter_queue_name, max_receive_count)
 
 
-class MemoryEnvQueue(object):
+class MemoryEnvQueue(ProcessorManagerProxy):
     def __init__(self, env, name):
         # type: (MemoryEnv, str) -> None
         self.env = env

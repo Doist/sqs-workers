@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 DEFAULT_MESSAGE_GROUP_ID = "default"
 
 
-class SQSEnv(ProcessorManagerProxy):
+class SQSEnv(object):
     def __init__(
         self,
         session=boto3,
@@ -223,7 +223,7 @@ class SQSEnv(ProcessorManagerProxy):
         return RedrivePolicy(self, dead_letter_queue_name, max_receive_count)
 
 
-class SQSEnvQueue(object):
+class SQSEnvQueue(ProcessorManagerProxy):
     def __init__(self, env, name):
         # type: (SQSEnv, str) -> None
         self.env = env

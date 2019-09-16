@@ -13,11 +13,11 @@ logger = logging.getLogger(__name__)
 
 class ProcessorManagerProxy(object):
 
-    processors = None  # type: "ProcessorManager"
+    name = None  # type: str
+    env = None
 
     def processor(
         self,
-        queue_name,
         job_name,
         pass_context=False,
         context_var=DEFAULT_CONTEXT_VAR,
@@ -29,8 +29,9 @@ class ProcessorManagerProxy(object):
 
         Usage example:
 
+        queue = sqs.queue('q1')
 
-        @sqs.processor('q1', 'say_hello')
+        @queue.processor('say_hello')
         def say_hello(name):
             print("Hello, " + name)
 
@@ -48,8 +49,8 @@ class ProcessorManagerProxy(object):
         """
 
         def fn(processor):
-            return self.processors.connect(
-                queue_name,
+            return self.env.processors.connect(
+                self.name,
                 job_name,
                 processor,
                 pass_context,
