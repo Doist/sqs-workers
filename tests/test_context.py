@@ -13,17 +13,17 @@ def _reset_worker_results():
     worker_results = {"say_hello": None}
 
 
-def test_context(sqs, queue):
-    sqs.processors.connect(queue, "say_hello", say_hello_ctx, pass_context=True)
+def test_context(sqs, queue_name):
+    sqs.processors.connect(queue_name, "say_hello", say_hello_ctx, pass_context=True)
     sqs.context["remote_addr"] = "127.0.0.1"
-    sqs.add_job(queue, "say_hello", username="Homer")
-    sqs.process_batch(queue)
+    sqs.add_job(queue_name, "say_hello", username="Homer")
+    sqs.process_batch(queue_name)
     assert worker_results["say_hello"] == ("Homer", "127.0.0.1")
 
 
-def test_context_with(sqs, queue):
-    sqs.processors.connect(queue, "say_hello", say_hello_ctx, pass_context=True)
+def test_context_with(sqs, queue_name):
+    sqs.processors.connect(queue_name, "say_hello", say_hello_ctx, pass_context=True)
     with sqs.context(remote_addr="127.0.0.2"):
-        sqs.add_job(queue, "say_hello", username="Homer")
-    sqs.process_batch(queue)
+        sqs.add_job(queue_name, "say_hello", username="Homer")
+    sqs.process_batch(queue_name)
     assert worker_results["say_hello"] == ("Homer", "127.0.0.2")

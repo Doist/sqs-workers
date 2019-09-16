@@ -30,31 +30,31 @@ def sqs(sqs_session):
 
 
 @pytest.fixture
-def queue(sqs, random_queue_name):
+def queue_name(sqs, random_string):
     # type: (SQSEnv) -> string
-    sqs.create_standard_queue(random_queue_name)
-    yield random_queue_name
-    sqs.delete_queue(random_queue_name)
+    sqs.create_standard_queue(random_string)
+    yield random_string
+    sqs.delete_queue(random_string)
 
 
 @pytest.fixture
-def queue2(sqs, random_queue_name):
+def queue_name2(sqs, random_string):
     # type: (SQSEnv) -> string
-    sqs.create_standard_queue(random_queue_name + "_2")
-    yield random_queue_name + "_2"
-    sqs.delete_queue(random_queue_name + "_2")
+    sqs.create_standard_queue(random_string + "_2")
+    yield random_string + "_2"
+    sqs.delete_queue(random_string + "_2")
 
 
 @pytest.fixture
-def queue_with_redrive(sqs, random_queue_name):
-    # dead letter queue
-    queue = random_queue_name
-    dead_queue = random_queue_name + "_dead"
+def queue_name_with_redrive(sqs, random_string):
+    # dead letter queue_name
+    queue = random_string
+    dead_queue = random_string + "_dead"
     sqs.create_standard_queue(dead_queue)
 
-    # standard queue
+    # standard queue_name
     # 1 is the minimal value for redrive, and means
-    # "put this to the dead letter queue after two failed attempts"
+    # "put this to the dead letter queue_name after two failed attempts"
     sqs.create_standard_queue(queue, redrive_policy=sqs.redrive_policy(dead_queue, 1))
     yield queue, dead_queue
 
@@ -64,16 +64,16 @@ def queue_with_redrive(sqs, random_queue_name):
 
 
 @pytest.fixture
-def fifo_queue(sqs, random_queue_name):
+def fifo_queue(sqs, random_string):
     # type: (SQSEnv) -> string
-    queue_name = random_queue_name + ".fifo"
+    queue_name = random_string + ".fifo"
     sqs.create_fifo_queue(queue_name)
     yield queue_name
     sqs.delete_queue(queue_name)
 
 
 @pytest.fixture
-def random_queue_name():
+def random_string():
     return "".join([symbol() for i in range(10)])
 
 
