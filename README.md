@@ -43,10 +43,13 @@ sqs = SQSEnv()
 # Create a new queue.
 # Note that you can use AWS web interface for the same action as well, the
 # web interface provides more options. You only need to do it once.
-sqs.create_standard_queue('emails')
+sqs.create_standard_queue("emails")
+
+# Get the queue object
+queue = sqs.queue("emails")
 
 # Register a queue processor
-@sqs.processor('emails', 'send_email')
+@queue.processor("send_email")
 def send_email(to, subject, body):
     print(f"Sending email {subject} to {to}")
 ```
@@ -56,14 +59,14 @@ Then there are two ways of adding tasks to the queue. Classic (aka "explicit"):
 
 ```python
 sqs.add_job(
-    'emails', 'send_email', to='user@examile.com', subject='Hello world', body='hello world')
+    "emails", "send_email", to="user@examile.com", subject="Hello world", body="hello world")
 ```
 
 
 And the "Celery way" (we mimic the Celery API to some extent)
 
 ```python
-send_email.delay(to='user@examile.com', subject='Hello world', body='hello world')
+send_email.delay(to="user@examile.com", subject="Hello world", body="hello world")
 ```
 
 To process the queue you have to run workers manually. Create a new file which
@@ -179,7 +182,9 @@ Usage example.
 
 
 ```python
-@sqs.processor('q1', 'hello_world', pass_context=True)
+queue = sqs.queue("q1")
+
+@queue.processor('q1', 'hello_world', pass_context=True)
 def hello_world(username=None, context=None):
     print(f'Hello {username} from {context["remote_addr"]}')
 
@@ -256,7 +261,9 @@ processor.
 
 
 ```python
-@sqs.processor('emails', 'send_email', backoff_policy=DEFAULT_BACKOFF)
+queue = sqs.queue("emails")
+
+@queue.processor('send_email', backoff_policy=DEFAULT_BACKOFF)
 def send_email(to, subject, body):
     print(f"Sending email {subject} to {to}")
 ```
@@ -269,7 +276,9 @@ Alternatively you can set the backoff to IMMEDIATE_RETURN to re-execute
 failed task immediately.
 
 ```python
-@sqs.processor('emails', 'send_email', backoff_policy=IMMEDIATE_RETURN)
+queue = sqs.queue("emails")
+
+@queue.processor('send_email', backoff_policy=IMMEDIATE_RETURN)
 def send_email(to, subject, body):
     print(f"Sending email {subject} to {to}")
 ```
