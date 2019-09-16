@@ -5,6 +5,7 @@
 - Removed support for batched processors
 - Changed the way handlers are defined: instead of @sqs.processor("q1", "handler")
   you should use queue = sqs.queue("q1") and then @queue.handler
+- Extracted functions to create and delete queues for SQSEnv to a separate module
 
 ### Added
 

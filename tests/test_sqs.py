@@ -2,7 +2,13 @@ import time
 
 import pytest
 
-from sqs_workers import IMMEDIATE_RETURN, ExponentialBackoff
+from sqs_workers import (
+    IMMEDIATE_RETURN,
+    ExponentialBackoff,
+    create_fifo_queue,
+    create_standard_queue,
+    delete_queue,
+)
 from sqs_workers.codecs import JSONCodec, PickleCodec
 from sqs_workers.memory_env import MemoryEnv
 from sqs_workers.processors import DeadLetterProcessor, Processor
@@ -170,16 +176,19 @@ def test_drain_queue(sqs, queue_name):
 
 
 def test_message_retention_period(sqs, random_string):
+    if isinstance(sqs, MemoryEnv):
+        pytest.skip("Message Retention id not implemented with MemoryEnv")
+
     try:
-        sqs.create_standard_queue(random_string, message_retention_period=600)
-        sqs.create_fifo_queue(random_string + ".fifo", message_retention_period=600)
+        create_standard_queue(sqs, random_string, message_retention_period=600)
+        create_fifo_queue(sqs, random_string + ".fifo", message_retention_period=600)
     finally:
         try:
-            sqs.delete_queue(random_string)
+            delete_queue(sqs, random_string)
         except Exception:
             pass
         try:
-            sqs.delete_queue(random_string + ".fifo")
+            delete_queue(sqs, random_string + ".fifo")
         except Exception:
             pass
 
@@ -217,16 +226,19 @@ def test_delay_seconds(sqs, queue_name):
 
 
 def test_visibility_timeout(sqs, random_string):
+    if isinstance(sqs, MemoryEnv):
+        pytest.skip("Visibility timeout id not implemented with MemoryEnv")
+
     try:
-        sqs.create_standard_queue(random_string, visibility_timeout=1)
-        sqs.create_fifo_queue(random_string + ".fifo", visibility_timeout=1)
+        create_standard_queue(sqs, random_string, visibility_timeout=1)
+        create_fifo_queue(sqs, random_string + ".fifo", visibility_timeout=1)
     finally:
         try:
-            sqs.delete_queue(random_string)
+            delete_queue(sqs, random_string)
         except Exception:
             pass
         try:
-            sqs.delete_queue(random_string + ".fifo")
+            delete_queue(sqs, random_string + ".fifo")
         except Exception:
             pass
 

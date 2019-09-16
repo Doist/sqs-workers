@@ -6,7 +6,7 @@ import boto3
 import localstack_client.session
 import pytest
 
-from sqs_workers import SQSEnv
+from sqs_workers import SQSEnv, create_fifo_queue, create_standard_queue, delete_queue
 from sqs_workers.memory_env import MemoryEnv
 
 
@@ -30,46 +30,59 @@ def sqs(sqs_session):
 
 
 @pytest.fixture
-def queue_name(sqs, random_string):
+def queue_name(sqs_session, sqs, random_string):
     # type: (SQSEnv) -> string
-    sqs.create_standard_queue(random_string)
+    if sqs_session is not None:
+        create_standard_queue(sqs, random_string)
     yield random_string
-    sqs.delete_queue(random_string)
+    if sqs_session is not None:
+        delete_queue(sqs, random_string)
 
 
 @pytest.fixture
-def queue_name2(sqs, random_string):
+def queue_name2(sqs_session, sqs, random_string):
     # type: (SQSEnv) -> string
-    sqs.create_standard_queue(random_string + "_2")
+    if sqs_session is not None:
+        create_standard_queue(sqs, random_string + "_2")
     yield random_string + "_2"
-    sqs.delete_queue(random_string + "_2")
+    if sqs_session is not None:
+        delete_queue(sqs, random_string + "_2")
 
 
 @pytest.fixture
-def queue_name_with_redrive(sqs, random_string):
+def queue_name_with_redrive(sqs_session, sqs, random_string):
     # dead letter queue_name
     queue = random_string
     dead_queue = random_string + "_dead"
-    sqs.create_standard_queue(dead_queue)
+
+    if sqs_session is not None:
+        create_standard_queue(sqs, dead_queue)
 
     # standard queue_name
     # 1 is the minimal value for redrive, and means
     # "put this to the dead letter queue_name after two failed attempts"
-    sqs.create_standard_queue(queue, redrive_policy=sqs.redrive_policy(dead_queue, 1))
+    if sqs_session is not None:
+        create_standard_queue(
+            sqs, queue, redrive_policy=sqs.redrive_policy(dead_queue, 1)
+        )
+
     yield queue, dead_queue
 
     # delete all the queues
-    sqs.delete_queue(queue)
-    sqs.delete_queue(dead_queue)
+    if sqs_session is not None:
+        delete_queue(sqs, queue)
+        delete_queue(sqs, dead_queue)
 
 
 @pytest.fixture
-def fifo_queue(sqs, random_string):
+def fifo_queue(sqs_session, sqs, random_string):
     # type: (SQSEnv) -> string
     queue_name = random_string + ".fifo"
-    sqs.create_fifo_queue(queue_name)
+    if sqs_session is not None:
+        create_fifo_queue(sqs, queue_name)
     yield queue_name
-    sqs.delete_queue(queue_name)
+    if sqs_session is not None:
+        delete_queue(sqs, queue_name)
 
 
 @pytest.fixture

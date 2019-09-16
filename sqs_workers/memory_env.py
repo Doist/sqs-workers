@@ -55,32 +55,11 @@ class MemoryEnv(object):
             self.queues[queue_name] = MemoryEnvQueue(self, queue_name)
         return self.queues[queue_name]
 
-    def create_standard_queue(self, queue_name, **kwargs):
-        """
-        Create a new standard queue
-        """
-        self.queue(queue_name)
-        return "memory://{}".format(queue_name)
-
-    def create_fifo_queue(self, queue_name, **kwargs):
-        """
-        Create a new FIFO queue. Implementation is the same as for the standard
-        queue
-        """
-        self.queue(queue_name)
-        return "memory://{}".format(queue_name)
-
     def purge_queue(self, queue_name):
         """
         Remove all messages from the queue
         """
         return self.queue(queue_name).purge_queue()
-
-    def delete_queue(self, queue_name):
-        """
-        Delete the queue
-        """
-        self.queues.pop(queue_name)
 
     def add_job(
         self,
@@ -196,19 +175,6 @@ class MemoryEnvQueue(ProcessorManagerProxy):
         self.env = env
         self.name = name
         self._queue = Queue()
-
-    def create_standard_queue(self, **kwargs):
-        """
-        Create a new standard queue
-        """
-        return "memory://%s" % self.name
-
-    def create_fifo_queue(self, **kwargs):
-        """
-        Create a new FIFO queue. Implementation is the same as for the standard
-        queue
-        """
-        return "memory://%s" % self.name
 
     def purge_queue(self):
         """

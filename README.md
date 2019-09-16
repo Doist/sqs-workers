@@ -35,7 +35,7 @@ Then you will start managing two systems (most likely, from the same codebase):
 one of them adds messages to the queue and another one executes them.
 
 ```python
-from sqs_workers import SQSEnv
+from sqs_workers import SQSEnv, create_standard_queue
 
 # This environment will use AWS requisites from ~/.aws/ directory
 sqs = SQSEnv()
@@ -43,7 +43,7 @@ sqs = SQSEnv()
 # Create a new queue.
 # Note that you can use AWS web interface for the same action as well, the
 # web interface provides more options. You only need to do it once.
-sqs.create_standard_queue("emails")
+create_standard_queue(sqs, "emails")
 
 # Get the queue object
 queue = sqs.queue("emails")
@@ -124,10 +124,11 @@ which ends with ".fifo". The dead-letter queue has to have a name
 `something_dead.fifo`.
 
 ```python
-from sqs_workers import SQSEnv
+from sqs_workers import SQSEnv, create_fifo_queue
 sqs = SQSEnv()
-sqs.create_fifo_queue('emails_dead.fifo')
-sqs.create_fifo_queue('emails.fifo',
+
+create_fifo_queue(sqs, 'emails_dead.fifo')
+create_fifo_queue(sqs, 'emails.fifo',
     redrive_policy=sqs.redrive_policy('emails_dead.fifo', 3)
 )
 ```
@@ -241,10 +242,11 @@ On creating the queue you can set the fallback dead-letter queue and redrive
 policy, which can look like this
 
 ```python
-from sqs_workers import SQSEnv
+from sqs_workers import SQSEnv, create_standard_queue
 sqs = SQSEnv()
-sqs.create_standard_queue('emails_dead')
-sqs.create_standard_queue('emails',
+
+create_standard_queue(sqs, 'emails_dead')
+create_standard_queue(sqs, 'emails',
     redrive_policy=sqs.redrive_policy('emails_dead', 3)
 )
 ```

@@ -41,56 +41,11 @@ class SQSEnv(object):
             self.queues[queue_name] = SQSEnvQueue(self, queue_name)
         return self.queues[queue_name]
 
-    def create_standard_queue(
-        self,
-        queue_name,
-        message_retention_period=None,
-        visibility_timeout=None,
-        redrive_policy=None,
-    ):
-        """
-        Create a new standard queue
-        """
-        return self.queue(queue_name).create_standard_queue(
-            message_retention_period, visibility_timeout, redrive_policy
-        )
-
-    def create_fifo_queue(
-        self,
-        queue_name,
-        content_based_deduplication=False,
-        message_retention_period=None,
-        visibility_timeout=None,
-        redrive_policy=None,
-    ):
-        """
-        Create a new FIFO queue. Note that queue name has to end with ".fifo"
-
-        - "content_based_deduplication" turns on automatic content-based
-          deduplication of messages in the queue
-
-        - redrive_policy can be None or an object, generated with
-          redrive_policy() method of SQS. In the latter case if defines the
-          way failed messages are processed.
-        """
-        return self.queue(queue_name).create_fifo_queue(
-            content_based_deduplication,
-            message_retention_period,
-            visibility_timeout,
-            redrive_policy,
-        )
-
     def purge_queue(self, queue_name):
         """
         Remove all messages from the queue
         """
         return self.queue(queue_name).purge_queue()
-
-    def delete_queue(self, queue_name):
-        """
-        Delete the queue
-        """
-        return self.queue(queue_name).delete_queue()
 
     def add_job(
         self,
@@ -229,68 +184,6 @@ class SQSEnvQueue(ProcessorManagerProxy):
         self.env = env
         self.name = name
         self._queue = None
-
-    def create_standard_queue(
-        self,
-        message_retention_period=None,
-        visibility_timeout=None,
-        redrive_policy=None,
-    ):
-        """
-        Create a new standard queue
-        """
-        attrs = {}
-        kwargs = {"QueueName": self.get_sqs_queue_name(), "Attributes": attrs}
-        if message_retention_period is not None:
-            attrs["MessageRetentionPeriod"] = str(message_retention_period)
-        if visibility_timeout is not None:
-            attrs["VisibilityTimeout"] = str(visibility_timeout)
-        if redrive_policy is not None:
-            attrs["RedrivePolicy"] = redrive_policy.__json__()
-        ret = self.env.sqs_client.create_queue(**kwargs)
-        return ret["QueueUrl"]
-
-    def create_fifo_queue(
-        self,
-        content_based_deduplication=False,
-        message_retention_period=None,
-        visibility_timeout=None,
-        redrive_policy=None,
-    ):
-        """
-        Create a new FIFO queue. Note that queue name has to end with ".fifo"
-
-        - "content_based_deduplication" turns on automatic content-based
-          deduplication of messages in the queue
-
-        - redrive_policy can be None or an object, generated with
-          redrive_policy() method of SQS. In the latter case if defines the
-          way failed messages are processed.
-        """
-        attrs = {"FifoQueue": "true"}
-        kwargs = {"QueueName": self.get_sqs_queue_name(), "Attributes": attrs}
-        if content_based_deduplication:
-            attrs["ContentBasedDeduplication"] = "true"
-        if message_retention_period is not None:
-            attrs["MessageRetentionPeriod"] = str(message_retention_period)
-        if visibility_timeout is not None:
-            attrs["VisibilityTimeout"] = str(visibility_timeout)
-        if redrive_policy is not None:
-            attrs["RedrivePolicy"] = redrive_policy.__json__()
-        ret = self.env.sqs_client.create_queue(**kwargs)
-        return ret["QueueUrl"]
-
-    def purge_queue(self):
-        """
-        Remove all messages from the queue
-        """
-        self.get_queue().purge()
-
-    def delete_queue(self):
-        """
-        Delete the queue
-        """
-        self.get_queue().delete()
 
     def add_job(
         self,
