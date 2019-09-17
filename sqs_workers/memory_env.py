@@ -94,7 +94,8 @@ class MemoryEnv(object):
 class MemoryEnvQueue(GenericQueue):
     def __init__(self, env, name):
         super(MemoryEnvQueue, self).__init__(env, name)
-        self._queue = Queue()
+        self._raw_queue = Queue()
+        self._queue = MemoryQueueImpl(self._raw_queue)
 
     def purge_queue(self):
         """
@@ -102,7 +103,7 @@ class MemoryEnvQueue(GenericQueue):
         """
         while True:
             try:
-                self._queue.get_nowait()
+                self._raw_queue.get_nowait()
             except Empty:
                 return
 
@@ -134,7 +135,7 @@ class MemoryEnvQueue(GenericQueue):
             )
             kwargs["DelaySeconds"] = delay_seconds_int
             kwargs["_execute_at"] = execute_at
-        self._queue.put(kwargs)
+        self._raw_queue.put(kwargs)
         return ""
 
     def drain_queue(self, wait_seconds=0):
@@ -157,7 +158,7 @@ class MemoryEnvQueue(GenericQueue):
             success = processor.process_message(message)
             result.update_with_message(message, success)
             if not success:
-                self._queue.put(message)
+                self._raw_queue.put(message)
         return result
 
     def get_raw_messages(self, wait_seconds=0):
@@ -188,7 +189,7 @@ class MemoryEnvQueue(GenericQueue):
         messages = []
         for i in range(max_messages):
             try:
-                messages.append(RawMessage(self._queue.get_nowait()))
+                messages.append(RawMessage(self._raw_queue.get_nowait()))
             except Empty:
                 break
 
@@ -197,7 +198,7 @@ class MemoryEnvQueue(GenericQueue):
         for message in messages:
             execute_at = message.get("_execute_at", now)
             if execute_at > now:
-                self._queue.put(message)
+                self._raw_queue.put(message)
             else:
                 ready_messages.append(message)
 
@@ -208,6 +209,23 @@ class MemoryEnvQueue(GenericQueue):
 
     def redrive_policy(self, dead_letter_queue_name, max_receive_count):
         return RedrivePolicy(self, dead_letter_queue_name, max_receive_count)
+
+
+class MemoryQueueImpl(object):
+    """
+    In-memory queue which mimics the subset of SQS Queue object.
+
+    Ref: https://boto3.amazonaws.com/v1/documentation/api/latest/reference/
+         services/sqs.html#queue
+    """
+
+    def __init__(self, _queue=None):
+        if _queue is None:
+            _queue = Queue()
+        self._queue = _queue
+
+    def send_message(self, **kwargs):
+        pass
 
 
 class RawMessage(dict):
