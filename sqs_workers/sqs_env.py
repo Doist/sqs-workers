@@ -94,9 +94,7 @@ class SQSEnv(object):
 
 class SQSEnvQueue(GenericQueue):
     def __init__(self, env, name):
-        # type: (SQSEnv, str) -> None
-        self.env = env
-        self.name = name
+        super(SQSEnvQueue, self).__init__(env, name)
         self._queue = None
 
     def add_job(

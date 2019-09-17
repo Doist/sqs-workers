@@ -94,9 +94,7 @@ class MemoryEnv(object):
 
 class MemoryEnvQueue(GenericQueue):
     def __init__(self, env, name):
-        # type: (MemoryEnv, str) -> None
-        self.env = env
-        self.name = name
+        super(MemoryEnvQueue, self).__init__(env, name)
         self._queue = Queue()
 
     def purge_queue(self):
