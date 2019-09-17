@@ -10,7 +10,6 @@ from sqs_workers.queue import GenericQueue
 from sqs_workers.shutdown_policies import NeverShutdown
 
 logger = logging.getLogger(__name__)
-DEFAULT_MESSAGE_GROUP_ID = "default"
 
 
 class SQSEnv(object):
@@ -96,43 +95,6 @@ class SQSEnvQueue(GenericQueue):
         super(SQSEnvQueue, self).__init__(env, name)
         self._queue = None
 
-    def add_raw_job(
-        self,
-        job_name,
-        message_body,
-        job_context,
-        content_type,
-        delay_seconds,
-        deduplication_id,
-        group_id,
-    ):
-        """
-        Low-level function to put message to the queue
-        """
-        # if queue name ends with .fifo, then according to the AWS specs,
-        # it's a FIFO queue, and requires group_id.
-        # Otherwise group_id can be set to None
-        if group_id is None and self.name.endswith(".fifo"):
-            group_id = DEFAULT_MESSAGE_GROUP_ID
-
-        queue = self.get_queue()
-        kwargs = {
-            "MessageBody": message_body,
-            "MessageAttributes": {
-                "ContentType": {"StringValue": content_type, "DataType": "String"},
-                "JobContext": {"StringValue": job_context, "DataType": "String"},
-                "JobName": {"StringValue": job_name, "DataType": "String"},
-            },
-        }
-        if delay_seconds is not None:
-            kwargs["DelaySeconds"] = int(delay_seconds)
-        if deduplication_id is not None:
-            kwargs["MessageDeduplicationId"] = str(deduplication_id)
-        if group_id is not None:
-            kwargs["MessageGroupId"] = str(group_id)
-        ret = queue.send_message(**kwargs)
-        return ret["MessageId"]
-
     def drain_queue(self, wait_seconds=0):
         """
         Delete all messages from the queue without calling purge()
@@ -197,7 +159,7 @@ class SQSEnvQueue(GenericQueue):
 
     def get_queue(self):
         """
-        Helper function to return queue object by name
+        Helper function to return queue object.
         """
         if self._queue is None:
             self._queue = self.env.sqs_resource.get_queue_by_name(

@@ -110,33 +110,6 @@ class MemoryEnvQueue(GenericQueue):
             except Empty:
                 return
 
-    def add_raw_job(
-        self,
-        job_name,
-        message_body,
-        job_context,
-        content_type,
-        delay_seconds,
-        deduplication_id,
-        group_id,
-    ):
-        """
-        Low-level function to put message to the queue
-        """
-
-        kwargs = {
-            "MessageBody": message_body,
-            "MessageAttributes": {
-                "ContentType": {"StringValue": content_type, "DataType": "String"},
-                "JobContext": {"StringValue": job_context, "DataType": "String"},
-                "JobName": {"StringValue": job_name, "DataType": "String"},
-            },
-        }
-        if delay_seconds is not None:
-            kwargs["DelaySeconds"] = delay_seconds
-        self._queue.send_message(**kwargs)
-        return ""
-
     def drain_queue(self, wait_seconds=0):
         """
         Delete all messages from the queue. An equivalent to purge()
@@ -207,6 +180,9 @@ class MemoryEnvQueue(GenericQueue):
 
     def redrive_policy(self, dead_letter_queue_name, max_receive_count):
         return RedrivePolicy(self, dead_letter_queue_name, max_receive_count)
+
+    def get_queue(self):
+        return self._queue
 
 
 class MemoryQueueImpl(object):

@@ -5,6 +5,8 @@ from sqs_workers import codecs
 from sqs_workers.processor_mgr import ProcessorManagerProxy
 from sqs_workers.shutdown_policies import NEVER_SHUTDOWN
 
+DEFAULT_MESSAGE_GROUP_ID = "default"
+
 if TYPE_CHECKING:
     from sqs_workers import MemoryEnv, SQSEnv
 
@@ -54,7 +56,32 @@ class GenericQueue(ProcessorManagerProxy):
         deduplication_id,
         group_id,
     ):
-        raise NotImplementedError("Must be implemented in subclass")
+        """
+        Low-level function to put message to the queue
+        """
+        # if queue name ends with .fifo, then according to the AWS specs,
+        # it's a FIFO queue, and requires group_id.
+        # Otherwise group_id can be set to None
+        if group_id is None and self.name.endswith(".fifo"):
+            group_id = DEFAULT_MESSAGE_GROUP_ID
+
+        queue = self.get_queue()
+        kwargs = {
+            "MessageBody": message_body,
+            "MessageAttributes": {
+                "ContentType": {"StringValue": content_type, "DataType": "String"},
+                "JobContext": {"StringValue": job_context, "DataType": "String"},
+                "JobName": {"StringValue": job_name, "DataType": "String"},
+            },
+        }
+        if delay_seconds is not None:
+            kwargs["DelaySeconds"] = int(delay_seconds)
+        if deduplication_id is not None:
+            kwargs["MessageDeduplicationId"] = str(deduplication_id)
+        if group_id is not None:
+            kwargs["MessageGroupId"] = str(group_id)
+        ret = queue.send_message(**kwargs)
+        return ret["MessageId"]
 
     def process_queue(self, shutdown_policy=NEVER_SHUTDOWN, wait_second=10):
         """
@@ -81,3 +108,9 @@ class GenericQueue(ProcessorManagerProxy):
                     },
                 )
                 break
+
+    def get_queue(self):
+        """
+        Helper function to return queue object.
+        """
+        raise NotImplementedError()
