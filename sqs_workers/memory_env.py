@@ -100,16 +100,6 @@ class MemoryEnvQueue(GenericQueue):
         self._raw_queue = Queue()
         self._queue = MemoryQueueImpl(self._raw_queue)
 
-    def purge_queue(self):
-        """
-        Remove all messages from the queue
-        """
-        while True:
-            try:
-                self._raw_queue.get_nowait()
-            except Empty:
-                return
-
     def get_sqs_queue_name(self):
         return self.name
 
