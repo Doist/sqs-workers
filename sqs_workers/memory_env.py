@@ -138,20 +138,14 @@ class MemoryEnvQueue(GenericQueue):
         Helper function to get at most 10 messages from the queue, waiting for
         wait_seconds at most before they get ready.
         """
-        max_messages = 10
-        sleep_interval = 0.1
-
-        messages = []
-        while True:
-            messages += self._get_some_raw_messages(max_messages)
-            if len(messages) >= max_messages:
-                break
-            if wait_seconds <= 0:
-                break
-            wait_seconds -= sleep_interval
-            time.sleep(sleep_interval)
-
-        return messages
+        kwargs = {
+            "WaitTimeSeconds": wait_seconds,
+            "MaxNumberOfMessages": 10,
+            "MessageAttributeNames": ["All"],
+            "AttributeNames": ["All"],
+        }
+        queue = self.get_queue()
+        return queue.receive_messages(**kwargs)
 
     def _get_some_raw_messages(self, max_messages):
         """
@@ -190,13 +184,29 @@ class MemoryQueueImpl(object):
         self._queue.put(message)
         return {"MessageId": message.message_id, "SequenceNumber": 0}
 
-    def receive_messages(self, MaxNumberOfMessages="10", **kwargs):
+    def receive_messages(self, WaitTimeSeconds="0", MaxNumberOfMessages="10", **kwargs):
         """
         Helper function which returns at most max_messages from the
         queue. Used in an infinite loop inside `get_raw_messages`
         """
+        sleep_interval = 0.1
+
+        wait_seconds = int(WaitTimeSeconds)
+        max_messages = int(MaxNumberOfMessages)
         messages = []
-        for i in range(MaxNumberOfMessages):
+        while True:
+            messages += self._receive_some_message(max_messages)
+            if len(messages) >= max_messages:
+                break
+            if wait_seconds <= 0:
+                break
+            wait_seconds -= sleep_interval
+            time.sleep(sleep_interval)
+        return messages
+
+    def _receive_some_message(self, max_number):
+        messages = []
+        for i in range(max_number):
             try:
                 messages.append(self._queue.get_nowait())
             except Empty:
@@ -210,7 +220,7 @@ class MemoryQueueImpl(object):
             else:
                 ready_messages.append(message)
 
-        return {"Messages": ready_messages}
+        return ready_messages
 
 
 @attr.s(frozen=True)
