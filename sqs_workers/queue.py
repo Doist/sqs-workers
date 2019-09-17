@@ -2,6 +2,7 @@ import logging
 from typing import TYPE_CHECKING, Union
 
 from sqs_workers import codecs
+from sqs_workers.core import BatchProcessingResult, get_job_name
 from sqs_workers.processor_mgr import ProcessorManagerProxy
 from sqs_workers.shutdown_policies import NEVER_SHUTDOWN
 
@@ -108,6 +109,32 @@ class GenericQueue(ProcessorManagerProxy):
                     },
                 )
                 break
+
+    def process_batch(self, wait_seconds=0):
+        # type: (int) -> BatchProcessingResult
+        """
+        Process a batch of messages from the queue (10 messages at most), return
+        the number of successfully processed messages, and exit
+        """
+        queue = self.get_queue()
+        messages = self.get_raw_messages(wait_seconds)
+        result = BatchProcessingResult(self.name)
+
+        for message in messages:
+            job_name = get_job_name(message)
+            processor = self.env.processors.get(self.name, job_name)
+            success = processor.process_message(message)
+            result.update_with_message(message, success)
+            if success:
+                entry = {
+                    "Id": message.message_id,
+                    "ReceiptHandle": message.receipt_handle,
+                }
+                queue.delete_messages(Entries=[entry])
+            else:
+                timeout = processor.backoff_policy.get_visibility_timeout(message)
+                message.change_visibility(VisibilityTimeout=timeout)
+        return result
 
     def get_queue(self):
         """

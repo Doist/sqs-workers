@@ -4,7 +4,7 @@ import multiprocessing
 import boto3
 
 from sqs_workers import DEFAULT_BACKOFF, context, processors
-from sqs_workers.core import BatchProcessingResult, RedrivePolicy, get_job_name
+from sqs_workers.core import RedrivePolicy
 from sqs_workers.processor_mgr import ProcessorManager
 from sqs_workers.queue import GenericQueue
 from sqs_workers.shutdown_policies import NeverShutdown
@@ -94,37 +94,6 @@ class SQSEnvQueue(GenericQueue):
     def __init__(self, env, name):
         super(SQSEnvQueue, self).__init__(env, name)
         self._queue = None
-
-    def process_batch(self, wait_seconds=0):
-        # type: (int) -> BatchProcessingResult
-        """
-        Process a batch of messages from the queue (10 messages at most), return
-        the number of successfully processed messages, and exit
-        """
-        queue = self.get_queue()
-        messages = self.get_raw_messages(wait_seconds)
-        result = BatchProcessingResult(self.name)
-
-        for message in messages:
-            job_name = get_job_name(message)
-            processor = self.env.processors.get(self.name, job_name)
-            success = processor.process_message(message)
-            result.update_with_message(message, success)
-            if success:
-                entry = {
-                    "Id": message.message_id,
-                    "ReceiptHandle": message.receipt_handle,
-                }
-                queue.delete_messages(Entries=[entry])
-            else:
-                timeout = processor.backoff_policy.get_visibility_timeout(message)
-                entry = {
-                    "Id": message.message_id,
-                    "ReceiptHandle": message.receipt_handle,
-                    "VisibilityTimeout": timeout,
-                }
-                queue.change_message_visibility_batch(Entries=[entry])
-        return result
 
     def get_queue(self):
         """

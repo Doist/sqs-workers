@@ -10,7 +10,7 @@ import attr
 
 from sqs_workers import context, processors
 from sqs_workers.backoff_policies import DEFAULT_BACKOFF
-from sqs_workers.core import BatchProcessingResult, RedrivePolicy, get_job_name
+from sqs_workers.core import RedrivePolicy
 from sqs_workers.processor_mgr import ProcessorManager
 from sqs_workers.queue import GenericQueue
 from sqs_workers.shutdown_policies import NeverShutdown
@@ -110,23 +110,6 @@ class MemoryEnvQueue(GenericQueue):
             except Empty:
                 return
 
-    def process_batch(self, wait_seconds=0):
-        # type: (int) -> BatchProcessingResult
-        """
-        Process a batch of messages from the queue (10 messages at most), return
-        the number of successfully processed messages, and exit
-        """
-        messages = self.get_raw_messages(wait_seconds)
-        result = BatchProcessingResult(self.name)
-        for message in messages:
-            job_name = get_job_name(message)
-            processor = self.env.processors.get(self.name, job_name)
-            success = processor.process_message(message)
-            result.update_with_message(message, success)
-            if not success:
-                self._raw_queue.put(message)
-        return result
-
     def get_sqs_queue_name(self):
         return self.name
 
@@ -151,7 +134,7 @@ class MemoryQueueImpl(object):
         self._queue = _queue
 
     def send_message(self, **kwargs):
-        message = MessageImpl.from_kwargs(kwargs)
+        message = MessageImpl.from_kwargs(self, kwargs)
         self._queue.put(message)
         return {"MessageId": message.message_id, "SequenceNumber": 0}
 
@@ -233,6 +216,8 @@ class MessageImpl(object):
          services/sqs.html#SQS.Message
     """
 
+    queue_impl = attr.ib()  # type: MemoryQueueImpl
+
     # The message's contents (not URL-encoded).
     body = attr.ib()  # type: bytes
 
@@ -253,7 +238,7 @@ class MessageImpl(object):
     receipt_handle = attr.ib(factory=lambda: uuid.uuid4().hex)  # type: str
 
     @classmethod
-    def from_kwargs(cls, kwargs):
+    def from_kwargs(cls, queue_impl, kwargs):
         """
         Make a message from kwargs, as provided by queue.send_message():
 
@@ -265,7 +250,7 @@ class MessageImpl(object):
         message_atttributes = kwargs["MessageAttributes"]
 
         # optional attributes
-        attributes = {}
+        attributes = {"ApproximateReceiveCount": 1}
         if "MessageDeduplicationId" in kwargs:
             attributes["MessageDeduplicationId"] = kwargs["MessageDeduplicationId"]
 
@@ -277,4 +262,13 @@ class MessageImpl(object):
             delay_seconds_int = int(kwargs["DelaySeconds"])
             execute_at += datetime.timedelta(seconds=delay_seconds_int)
 
-        return MessageImpl(body, message_atttributes, attributes, execute_at)
+        return MessageImpl(
+            queue_impl, body, message_atttributes, attributes, execute_at
+        )
+
+    def change_visibility(self, VisibilityTimeout="0", **kwargs):
+        timeout = int(VisibilityTimeout)
+        execute_at = datetime.datetime.utcnow() + datetime.timedelta(seconds=timeout)
+        message = attr.evolve(self, execute_at=execute_at)
+        message.attributes["ApproximateReceiveCount"] += 1
+        self.queue_impl._queue.put_nowait(message)
