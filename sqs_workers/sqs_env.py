@@ -7,7 +7,7 @@ from sqs_workers import DEFAULT_BACKOFF, context, processors
 from sqs_workers.core import BatchProcessingResult, RedrivePolicy, get_job_name
 from sqs_workers.processor_mgr import ProcessorManager
 from sqs_workers.queue import GenericQueue
-from sqs_workers.shutdown_policies import NEVER_SHUTDOWN, NeverShutdown
+from sqs_workers.shutdown_policies import NeverShutdown
 
 logger = logging.getLogger(__name__)
 DEFAULT_MESSAGE_GROUP_ID = "default"
@@ -150,32 +150,6 @@ class SQSEnvQueue(GenericQueue):
             queue.delete_messages(Entries=entries)
             deleted_count += len(messages)
         return deleted_count
-
-    def process_queue(self, shutdown_policy=NEVER_SHUTDOWN, wait_second=10):
-        """
-        Run worker to process one queue in the infinite loop
-        """
-        logger.debug(
-            "Start processing queue {}".format(self.name),
-            extra={
-                "queue_name": self.name,
-                "wait_seconds": wait_second,
-                "shutdown_policy": repr(shutdown_policy),
-            },
-        )
-        while True:
-            result = self.process_batch(wait_seconds=wait_second)
-            shutdown_policy.update_state(result)
-            if shutdown_policy.need_shutdown():
-                logger.debug(
-                    "Stop processing queue {}".format(self.name),
-                    extra={
-                        "queue_name": self.name,
-                        "wait_seconds": wait_second,
-                        "shutdown_policy": repr(shutdown_policy),
-                    },
-                )
-                break
 
     def process_batch(self, wait_seconds=0):
         # type: (int) -> BatchProcessingResult

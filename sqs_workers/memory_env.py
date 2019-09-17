@@ -10,7 +10,7 @@ from sqs_workers.backoff_policies import DEFAULT_BACKOFF
 from sqs_workers.core import BatchProcessingResult, RedrivePolicy, get_job_name
 from sqs_workers.processor_mgr import ProcessorManager
 from sqs_workers.queue import GenericQueue
-from sqs_workers.shutdown_policies import NEVER_SHUTDOWN, NeverShutdown
+from sqs_workers.shutdown_policies import NeverShutdown
 
 logger = logging.getLogger(__name__)
 
@@ -142,16 +142,6 @@ class MemoryEnvQueue(GenericQueue):
         Delete all messages from the queue. An equivalent to purge()
         """
         self.purge_queue()
-
-    def process_queue(self, shutdown_policy=NEVER_SHUTDOWN, wait_second=10):
-        """
-        Run worker to process one queue in the infinite loop
-        """
-        while True:
-            result = self.process_batch(wait_seconds=wait_second)
-            shutdown_policy.update_state(result)
-            if shutdown_policy.need_shutdown():
-                break
 
     def process_batch(self, wait_seconds=0):
         # type: (int) -> BatchProcessingResult
