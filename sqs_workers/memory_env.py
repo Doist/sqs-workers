@@ -158,22 +158,9 @@ class MemoryEnvQueue(GenericQueue):
         Helper function which returns at most max_messages from the
         queue. Used in an infinite loop inside `get_raw_messages`
         """
-        messages = []
-        for i in range(max_messages):
-            try:
-                messages.append(self._raw_queue.get_nowait())
-            except Empty:
-                break
-
-        now = datetime.datetime.utcnow()
-        ready_messages = []
-        for message in messages:  # type: MessageImpl
-            if message.execute_at > now:
-                self._raw_queue.put(message)
-            else:
-                ready_messages.append(message)
-
-        return ready_messages
+        return self._queue.receive_messages(MaxNumberOfMessages=max_messages)[
+            "Messages"
+        ]
 
     def get_sqs_queue_name(self):
         return self.name
@@ -202,6 +189,28 @@ class MemoryQueueImpl(object):
         message = MessageImpl.from_kwargs(kwargs)
         self._queue.put(message)
         return {"MessageId": message.message_id, "SequenceNumber": 0}
+
+    def receive_messages(self, MaxNumberOfMessages="10", **kwargs):
+        """
+        Helper function which returns at most max_messages from the
+        queue. Used in an infinite loop inside `get_raw_messages`
+        """
+        messages = []
+        for i in range(MaxNumberOfMessages):
+            try:
+                messages.append(self._queue.get_nowait())
+            except Empty:
+                break
+
+        now = datetime.datetime.utcnow()
+        ready_messages = []
+        for message in messages:  # type: MessageImpl
+            if message.execute_at > now:
+                self._queue.put(message)
+            else:
+                ready_messages.append(message)
+
+        return {"Messages": ready_messages}
 
 
 @attr.s(frozen=True)
