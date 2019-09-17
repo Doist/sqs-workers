@@ -133,20 +133,6 @@ class MemoryEnvQueue(GenericQueue):
                 self._raw_queue.put(message)
         return result
 
-    def get_raw_messages(self, wait_seconds=0):
-        """
-        Helper function to get at most 10 messages from the queue, waiting for
-        wait_seconds at most before they get ready.
-        """
-        kwargs = {
-            "WaitTimeSeconds": wait_seconds,
-            "MaxNumberOfMessages": 10,
-            "MessageAttributeNames": ["All"],
-            "AttributeNames": ["All"],
-        }
-        queue = self.get_queue()
-        return queue.receive_messages(**kwargs)
-
     def _get_some_raw_messages(self, max_messages):
         """
         Helper function which returns at most max_messages from the

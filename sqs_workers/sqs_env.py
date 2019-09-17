@@ -144,19 +144,6 @@ class SQSEnvQueue(GenericQueue):
                 queue.change_message_visibility_batch(Entries=[entry])
         return result
 
-    def get_raw_messages(self, wait_seconds):
-        """
-        Return raw messages from the queue, addressed by its name
-        """
-        kwargs = {
-            "WaitTimeSeconds": wait_seconds,
-            "MaxNumberOfMessages": 10,
-            "MessageAttributeNames": ["All"],
-            "AttributeNames": ["All"],
-        }
-        queue = self.get_queue()
-        return queue.receive_messages(**kwargs)
-
     def get_queue(self):
         """
         Helper function to return queue object.

@@ -114,3 +114,16 @@ class GenericQueue(ProcessorManagerProxy):
         Helper function to return queue object.
         """
         raise NotImplementedError()
+
+    def get_raw_messages(self, wait_seconds):
+        """
+        Return raw messages from the queue, addressed by its name
+        """
+        kwargs = {
+            "WaitTimeSeconds": wait_seconds,
+            "MaxNumberOfMessages": 10,
+            "MessageAttributeNames": ["All"],
+            "AttributeNames": ["All"],
+        }
+        queue = self.get_queue()
+        return queue.receive_messages(**kwargs)
