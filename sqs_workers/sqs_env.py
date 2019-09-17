@@ -3,8 +3,7 @@ import multiprocessing
 
 import boto3
 
-from sqs_workers import DEFAULT_BACKOFF, codecs, context, processors
-from sqs_workers.codecs import DEFAULT_CONTENT_TYPE
+from sqs_workers import DEFAULT_BACKOFF, context, processors
 from sqs_workers.core import BatchProcessingResult, RedrivePolicy, get_job_name
 from sqs_workers.processor_mgr import ProcessorManager
 from sqs_workers.queue import GenericQueue
@@ -96,32 +95,6 @@ class SQSEnvQueue(GenericQueue):
     def __init__(self, env, name):
         super(SQSEnvQueue, self).__init__(env, name)
         self._queue = None
-
-    def add_job(
-        self,
-        job_name,
-        _content_type=DEFAULT_CONTENT_TYPE,
-        _delay_seconds=None,
-        _deduplication_id=None,
-        _group_id=None,
-        **job_kwargs
-    ):
-        """
-        Add job to the queue. The body of the job will be converted to the text
-        with one of the codes (by default it's "pickle")
-        """
-        codec = codecs.get_codec(_content_type)
-        message_body = codec.serialize(job_kwargs)
-        job_context = codec.serialize(self.env.context.to_dict())
-        return self.add_raw_job(
-            job_name,
-            message_body,
-            job_context,
-            _content_type,
-            _delay_seconds,
-            _deduplication_id,
-            _group_id,
-        )
 
     def add_raw_job(
         self,

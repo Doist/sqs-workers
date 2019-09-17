@@ -5,9 +5,8 @@ import time
 import uuid
 from queue import Empty, Queue
 
-from sqs_workers import codecs, context, processors
+from sqs_workers import context, processors
 from sqs_workers.backoff_policies import DEFAULT_BACKOFF
-from sqs_workers.codecs import DEFAULT_CONTENT_TYPE
 from sqs_workers.core import BatchProcessingResult, RedrivePolicy, get_job_name
 from sqs_workers.processor_mgr import ProcessorManager
 from sqs_workers.queue import GenericQueue
@@ -106,32 +105,6 @@ class MemoryEnvQueue(GenericQueue):
                 self._queue.get_nowait()
             except Empty:
                 return
-
-    def add_job(
-        self,
-        job_name,
-        _content_type=DEFAULT_CONTENT_TYPE,
-        _delay_seconds=None,
-        _deduplication_id=None,
-        _group_id=None,
-        **job_kwargs
-    ):
-        """
-        Add job to the queue. The body of the job will be converted to the text
-        with one of the codes (by default it's "pickle")
-        """
-        codec = codecs.get_codec(_content_type)
-        message_body = codec.serialize(job_kwargs)
-        job_context = codec.serialize(self.env.context.to_dict())
-        return self.add_raw_job(
-            job_name,
-            message_body,
-            job_context,
-            _content_type,
-            _delay_seconds,
-            _deduplication_id,
-            _group_id,
-        )
 
     def add_raw_job(
         self,
