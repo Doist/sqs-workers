@@ -127,3 +127,21 @@ class GenericQueue(ProcessorManagerProxy):
         }
         queue = self.get_queue()
         return queue.receive_messages(**kwargs)
+
+    def drain_queue(self, wait_seconds=0):
+        """
+        Delete all messages from the queue without calling purge().
+        """
+        queue = self.get_queue()
+        deleted_count = 0
+        while True:
+            messages = self.get_raw_messages(wait_seconds)
+            if not messages:
+                break
+            entries = [
+                {"Id": msg.message_id, "ReceiptHandle": msg.receipt_handle}
+                for msg in messages
+            ]
+            queue.delete_messages(Entries=entries)
+            deleted_count += len(messages)
+        return deleted_count

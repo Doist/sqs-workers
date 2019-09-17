@@ -110,12 +110,6 @@ class MemoryEnvQueue(GenericQueue):
             except Empty:
                 return
 
-    def drain_queue(self, wait_seconds=0):
-        """
-        Delete all messages from the queue. An equivalent to purge()
-        """
-        self.purge_queue()
-
     def process_batch(self, wait_seconds=0):
         # type: (int) -> BatchProcessingResult
         """
@@ -132,15 +126,6 @@ class MemoryEnvQueue(GenericQueue):
             if not success:
                 self._raw_queue.put(message)
         return result
-
-    def _get_some_raw_messages(self, max_messages):
-        """
-        Helper function which returns at most max_messages from the
-        queue. Used in an infinite loop inside `get_raw_messages`
-        """
-        return self._queue.receive_messages(MaxNumberOfMessages=max_messages)[
-            "Messages"
-        ]
 
     def get_sqs_queue_name(self):
         return self.name
@@ -208,6 +193,36 @@ class MemoryQueueImpl(object):
 
         return ready_messages
 
+    def delete_messages(self, Entries):
+        """
+        Delete messages implementation.
+
+        See: https://boto3.amazonaws.com/v1/documentation/api/latest/reference/
+             services/sqs.html#SQS.Queue.delete_messages
+        """
+        message_ids = {entry["Id"] for entry in Entries}
+
+        successfully_deleted = set()
+        messages_to_push_back = []
+        while True:
+            try:
+                message = self._queue.get_nowait()  # type: MessageImpl
+                if message.message_id in message_ids:
+                    successfully_deleted.add(message.message_id)
+                else:
+                    messages_to_push_back.append(message)
+            except Empty:
+                break
+
+        for message in messages_to_push_back:
+            self._queue.put_nowait(message)
+
+        didnt_deleted = message_ids.difference(successfully_deleted)
+        return {
+            "Successful": [{"Id": _id} for _id in successfully_deleted],
+            "Failed": [{"Id": _id} for _id in didnt_deleted],
+        }
+
 
 @attr.s(frozen=True)
 class MessageImpl(object):
@@ -233,6 +248,9 @@ class MessageImpl(object):
 
     # A unique identifier for the message
     message_id = attr.ib(factory=lambda: uuid.uuid4().hex)  # type: str
+
+    # The Message's receipt_handle identifier
+    receipt_handle = attr.ib(factory=lambda: uuid.uuid4().hex)  # type: str
 
     @classmethod
     def from_kwargs(cls, kwargs):
