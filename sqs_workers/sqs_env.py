@@ -6,7 +6,8 @@ import boto3
 from sqs_workers import DEFAULT_BACKOFF, codecs, context, processors
 from sqs_workers.codecs import DEFAULT_CONTENT_TYPE
 from sqs_workers.core import BatchProcessingResult, RedrivePolicy, get_job_name
-from sqs_workers.processor_mgr import ProcessorManager, ProcessorManagerProxy
+from sqs_workers.processor_mgr import ProcessorManager
+from sqs_workers.queue import GenericQueue
 from sqs_workers.shutdown_policies import NEVER_SHUTDOWN, NeverShutdown
 
 logger = logging.getLogger(__name__)
@@ -91,7 +92,7 @@ class SQSEnv(object):
         return RedrivePolicy(self, dead_letter_queue_name, max_receive_count)
 
 
-class SQSEnvQueue(ProcessorManagerProxy):
+class SQSEnvQueue(GenericQueue):
     def __init__(self, env, name):
         # type: (SQSEnv, str) -> None
         self.env = env
