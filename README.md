@@ -76,7 +76,7 @@ by importing necessary modules from your project), and then run SQS
 from sqs_workers import SQSEnv
 sqs = SQSEnv()
 ...
-sqs.process_queue('emails')
+sqs.queue('emails').process_queue()
 ```
 
 In production we usually don't handle multiple queues in the same process,
@@ -191,7 +191,7 @@ def hello_world(username=None, context=None):
 with sqs.context(remote_addr='127.0.0.1'):
     hello_world.delay(username='Foo')
 
-sqs.process_batch('q1')
+queue.process_batch()
 ```
 
 Alternatively, you can set the context like this.
@@ -309,7 +309,7 @@ from sqs_workers import SQSEnv
 from sqs_workers.shutdown_policies import IdleShutdown
 
 sqs = SQSEnv()
-sqs.process_queue('foo', shutdown_policy=IdleShutdown(idle_seconds=300))
+sqs.queue("foo").process_queue(shutdown_policy=IdleShutdown(idle_seconds=300))
 ```
 
 Processing dead-letter queue by pushing back failed messages
@@ -345,7 +345,7 @@ from sqs_workers.processors import DeadLetterProcessor
 from sqs_workers.shutdown_policies import IdleShutdown
 
 sqs = SQSEnv(fallback_processor_maker=DeadLetterProcessor)
-sqs.process_queue("foo_dead", shutdown_policy=IdleShutdown(10))
+sqs.queue("foo_dead").process_queue(shutdown_policy=IdleShutdown(10))
 ```
 
 This code takes all the messages in foo_dead queue and push them back to
@@ -368,7 +368,7 @@ from sqs_workers.shutdown_policies import IdleShutdown
 sqs = SQSEnv()
 ...
 sqs.copy_processors('foo', 'foo_dead')
-sqs.process_queue('foo_dead', shutdown_policy=IdleShutdown(10))
+sqs.queue("foo_dead").process_queue(shutdown_policy=IdleShutdown(10))
 ```
 
 

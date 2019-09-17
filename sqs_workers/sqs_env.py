@@ -41,12 +41,6 @@ class SQSEnv(object):
             self.queues[queue_name] = SQSEnvQueue(self, queue_name)
         return self.queues[queue_name]
 
-    def purge_queue(self, queue_name):
-        """
-        Remove all messages from the queue
-        """
-        return self.queue(queue_name).purge_queue()
-
     def process_queues(self, queue_names=None, shutdown_policy_maker=NeverShutdown):
         """
         Use multiprocessing to process multiple queues at once. If queue names
@@ -63,49 +57,15 @@ class SQSEnv(object):
             queue_names = self.get_all_known_queues()
         processes = []
         for queue_name in queue_names:
+            queue = self.queue(queue_name)
             p = multiprocessing.Process(
-                target=self.process_queue,
-                kwargs={
-                    "queue_name": queue_name,
-                    "shutdown_policy": shutdown_policy_maker(),
-                },
+                target=queue.process_queue,
+                kwargs={"shutdown_policy": shutdown_policy_maker()},
             )
             p.start()
             processes.append(p)
         for p in processes:
             p.join()
-
-    def drain_queue(self, queue_name, wait_seconds=0):
-        """
-        Delete all messages from the queue without calling purge()
-        """
-        return self.queue(queue_name).drain_queue(wait_seconds)
-
-    def process_queue(self, queue_name, shutdown_policy=NEVER_SHUTDOWN, wait_second=10):
-        """
-        Run worker to process one queue in the infinite loop
-        """
-        return self.queue(queue_name).process_queue(shutdown_policy, wait_second)
-
-    def process_batch(self, queue_name, wait_seconds=0):
-        # type: (str, int) -> BatchProcessingResult
-        """
-        Process a batch of messages from the queue (10 messages at most), return
-        the number of successfully processed messages, and exit
-        """
-        return self.queue(queue_name).process_batch(wait_seconds)
-
-    def get_raw_messages(self, queue_name, wait_seconds):
-        """
-        Return raw messages from the queue, addressed by its name
-        """
-        return self.queue(queue_name).get_raw_messages(wait_seconds)
-
-    def get_queue(self, queue_name):
-        """
-        Helper function to return queue object by name
-        """
-        return self.queue(queue_name).get_queue()
 
     def get_all_known_queues(self):
         resp = self.sqs_client.list_queues(**{"QueueNamePrefix": self.queue_prefix})

@@ -8,6 +8,6 @@ def test_add_pickle_job(sqs, queue_name):
         messages.append(username)
 
     say_hello.delay(username="Homer")
-    result = sqs.process_batch(queue_name, wait_seconds=0)
+    result = sqs.queue(queue_name).process_batch(wait_seconds=0)
     assert result.succeeded_count() == 1
     assert messages == ["Homer"]
