@@ -4,6 +4,9 @@ import multiprocessing
 import time
 import uuid
 from queue import Empty, Queue
+from typing import Any, Dict
+
+import attr
 
 from sqs_workers import context, processors
 from sqs_workers.backoff_policies import DEFAULT_BACKOFF
@@ -120,6 +123,7 @@ class MemoryEnvQueue(GenericQueue):
         """
         Low-level function to put message to the queue
         """
+
         kwargs = {
             "MessageBody": message_body,
             "MessageAttributes": {
@@ -129,13 +133,8 @@ class MemoryEnvQueue(GenericQueue):
             },
         }
         if delay_seconds is not None:
-            delay_seconds_int = int(delay_seconds)
-            execute_at = datetime.datetime.utcnow() + datetime.timedelta(
-                seconds=delay_seconds
-            )
-            kwargs["DelaySeconds"] = delay_seconds_int
-            kwargs["_execute_at"] = execute_at
-        self._raw_queue.put(kwargs)
+            kwargs["DelaySeconds"] = delay_seconds
+        self._queue.send_message(**kwargs)
         return ""
 
     def drain_queue(self, wait_seconds=0):
@@ -189,15 +188,14 @@ class MemoryEnvQueue(GenericQueue):
         messages = []
         for i in range(max_messages):
             try:
-                messages.append(RawMessage(self._raw_queue.get_nowait()))
+                messages.append(self._raw_queue.get_nowait())
             except Empty:
                 break
 
         now = datetime.datetime.utcnow()
         ready_messages = []
-        for message in messages:
-            execute_at = message.get("_execute_at", now)
-            if execute_at > now:
+        for message in messages:  # type: MessageImpl
+            if message.execute_at > now:
                 self._raw_queue.put(message)
             else:
                 ready_messages.append(message)
@@ -225,22 +223,59 @@ class MemoryQueueImpl(object):
         self._queue = _queue
 
     def send_message(self, **kwargs):
-        pass
+        message = MessageImpl.from_kwargs(kwargs)
+        self._queue.put(message)
+        return {"MessageId": message.message_id, "SequenceNumber": 0}
 
 
-class RawMessage(dict):
+@attr.s(frozen=True)
+class MessageImpl(object):
     """
     A mock class to mimic the AWS message
+
+    Ref: https://boto3.amazonaws.com/v1/documentation/api/latest/reference/
+         services/sqs.html#SQS.Message
     """
 
-    @property
-    def message_attributes(self):
-        return self["MessageAttributes"]
+    # The message's contents (not URL-encoded).
+    body = attr.ib()  # type: bytes
 
-    @property
-    def body(self):
-        return self["MessageBody"]
+    # Each message attribute consists of a Name, Type, and Value.
+    message_attributes = attr.ib(factory=dict)  # type: Dict[str, Dict[str, str]]
 
-    @property
-    def message_id(self):
-        return uuid.uuid4().hex
+    # A map of the attributes requested in `` ReceiveMessage `` to their
+    # respective values.
+    attributes = attr.ib(factory=dict)  # type: Dict[str, Any]
+
+    # Internal attribute which contains the execution time.
+    execute_at = attr.ib(factory=datetime.datetime.utcnow)  # type: datetime.datetime
+
+    # A unique identifier for the message
+    message_id = attr.ib(factory=lambda: uuid.uuid4().hex)  # type: str
+
+    @classmethod
+    def from_kwargs(cls, kwargs):
+        """
+        Make a message from kwargs, as provided by queue.send_message():
+
+        Ref: https://boto3.amazonaws.com/v1/documentation/api/latest/reference/
+             services/sqs.html#SQS.Queue.send_message
+        """
+        # required attributes
+        body = kwargs["MessageBody"]
+        message_atttributes = kwargs["MessageAttributes"]
+
+        # optional attributes
+        attributes = {}
+        if "MessageDeduplicationId" in kwargs:
+            attributes["MessageDeduplicationId"] = kwargs["MessageDeduplicationId"]
+
+        if "MessageGroupId" in kwargs:
+            attributes["MessageGroupId"] = kwargs["MessageGroupId"]
+
+        execute_at = datetime.datetime.utcnow()
+        if "DelaySeconds" in kwargs:
+            delay_seconds_int = int(kwargs["DelaySeconds"])
+            execute_at += datetime.timedelta(seconds=delay_seconds_int)
+
+        return MessageImpl(body, message_atttributes, attributes, execute_at)
