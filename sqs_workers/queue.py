@@ -172,3 +172,11 @@ class GenericQueue(ProcessorManagerProxy):
             queue.delete_messages(Entries=entries)
             deleted_count += len(messages)
         return deleted_count
+
+    def get_sqs_queue_name(self):
+        """
+        Take "high-level" (user-visible) queue name and return SQS
+        ("low level") name by simply prefixing it. Used to create namespaces
+        for different environments (development, staging, production, etc)
+        """
+        return "{}{}".format(self.env.queue_prefix, self.name)

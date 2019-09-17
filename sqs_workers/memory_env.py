@@ -97,14 +97,7 @@ class MemoryEnv(object):
 class MemoryEnvQueue(GenericQueue):
     def __init__(self, env, name):
         super(MemoryEnvQueue, self).__init__(env, name)
-        self._raw_queue = Queue()
-        self._queue = MemoryQueueImpl(self._raw_queue)
-
-    def get_sqs_queue_name(self):
-        return self.name
-
-    def redrive_policy(self, dead_letter_queue_name, max_receive_count):
-        return RedrivePolicy(self, dead_letter_queue_name, max_receive_count)
+        self._queue = MemoryQueueImpl()
 
     def get_queue(self):
         return self._queue
@@ -118,10 +111,8 @@ class MemoryQueueImpl(object):
          services/sqs.html#queue
     """
 
-    def __init__(self, _queue=None):
-        if _queue is None:
-            _queue = Queue()
-        self._queue = _queue
+    def __init__(self):
+        self._queue = Queue()
 
     def send_message(self, **kwargs):
         message = MessageImpl.from_kwargs(self, kwargs)
