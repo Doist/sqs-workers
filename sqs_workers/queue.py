@@ -20,6 +20,7 @@ class GenericQueue(ProcessorManagerProxy):
         # type: (Union[SQSEnv, MemoryEnv], str) -> None
         self.env = env
         self.name = name
+        self._queue = None
 
     def add_job(
         self,
@@ -136,12 +137,6 @@ class GenericQueue(ProcessorManagerProxy):
                 message.change_visibility(VisibilityTimeout=timeout)
         return result
 
-    def get_queue(self):
-        """
-        Helper function to return queue object.
-        """
-        raise NotImplementedError()
-
     def get_raw_messages(self, wait_seconds):
         """
         Return raw messages from the queue, addressed by its name
@@ -180,3 +175,13 @@ class GenericQueue(ProcessorManagerProxy):
         for different environments (development, staging, production, etc)
         """
         return "{}{}".format(self.env.queue_prefix, self.name)
+
+    def get_queue(self):
+        """
+        Helper function to return queue object.
+        """
+        if self._queue is None:
+            self._queue = self.env.sqs_resource.get_queue_by_name(
+                QueueName=self.get_sqs_queue_name()
+            )
+        return self._queue

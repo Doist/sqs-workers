@@ -108,13 +108,3 @@ class MemoryEnvQueue(GenericQueue):
     def __init__(self, env, name):
         super(MemoryEnvQueue, self).__init__(env, name)
         self._queue = None
-
-    def get_queue(self):
-        """
-        Helper function to return queue object.
-        """
-        if self._queue is None:
-            self._queue = self.env.sqs_resource.get_queue_by_name(
-                QueueName=self.get_sqs_queue_name()
-            )
-        return self._queue
