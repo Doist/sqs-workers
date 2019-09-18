@@ -1,9 +1,11 @@
 import logging
 from typing import TYPE_CHECKING
 
+import attr
+
 from sqs_workers import codecs
 from sqs_workers.core import BatchProcessingResult, get_job_name
-from sqs_workers.processor_mgr import ProcessorManagerProxy
+from sqs_workers.processors import DEFAULT_CONTEXT_VAR
 from sqs_workers.shutdown_policies import NEVER_SHUTDOWN
 
 DEFAULT_MESSAGE_GROUP_ID = "default"
@@ -15,12 +17,56 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-class SQSQueue(ProcessorManagerProxy):
-    def __init__(self, env, name):
-        # type: (SQSEnv, str) -> None
-        self.env = env
-        self.name = name
-        self._queue = None
+@attr.s
+class SQSQueue(object):
+
+    env = attr.ib()  # type: SQSEnv
+    name = attr.ib()  # type: str
+    _queue = attr.ib(default=None)
+
+    def processor(
+        self,
+        job_name,
+        pass_context=False,
+        context_var=DEFAULT_CONTEXT_VAR,
+        backoff_policy=None,
+    ):
+        """
+        Decorator to assign processor to handle jobs with the name job_name
+        from the queue queue_name
+
+        Usage example:
+
+        queue = sqs.queue('q1')
+
+        @queue.processor('say_hello')
+        def say_hello(name):
+            print("Hello, " + name)
+
+        Then you can add messages to the queue by calling ".delay" attribute
+        of a newly created object:
+
+        >>> say_hello.delay(name='John')
+
+        Here, instead of calling function locally, it will be pushed to the
+        queue (essentially, mimics the non-blocking call of the function).
+
+        If you still want to call function locally, you can call
+
+        >>> say_hello(name='John')
+        """
+
+        def fn(processor):
+            return self.env.processors.connect(
+                self.name,
+                job_name,
+                processor,
+                pass_context,
+                context_var,
+                backoff_policy,
+            )
+
+        return fn
 
     def add_job(
         self,
