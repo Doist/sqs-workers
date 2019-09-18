@@ -19,7 +19,8 @@ class MemoryAWS(object):
     """
 
     client = attr.ib(
-        repr=False, default=attr.Factory(lambda self: Client(self), takes_self=True)
+        repr=False,
+        default=attr.Factory(lambda self: MemoryClient(self), takes_self=True),
     )  # type: "Client"
     resource = attr.ib(
         repr=False,
@@ -28,7 +29,7 @@ class MemoryAWS(object):
     queues = attr.ib(factory=list)  # type: List["MemoryQueueImpl"]
 
     def create_queue(self, QueueName, Attributes):
-        queue = MemoryQueueImpl(self, QueueName, Attributes)
+        queue = MemoryQueue(self, QueueName, Attributes)
         self.queues.append(queue)
         return queue
 
@@ -54,7 +55,7 @@ class MemorySession(object):
 
 
 @attr.s()
-class Client(object):
+class MemoryClient(object):
 
     aws = attr.ib(repr=False)
 
@@ -90,7 +91,7 @@ class ServiceResource(object):
 
 
 @attr.s()
-class MemoryQueueImpl(object):
+class MemoryQueue(object):
     """
     In-memory queue which mimics the subset of SQS Queue object.
 
@@ -111,7 +112,7 @@ class MemoryQueueImpl(object):
         return "memory://{}".format(self.name)
 
     def send_message(self, **kwargs):
-        message = MessageImpl.from_kwargs(self, kwargs)
+        message = MemoryMessage.from_kwargs(self, kwargs)
         self._queue.put(message)
         return {"MessageId": message.message_id, "SequenceNumber": 0}
 
@@ -145,7 +146,7 @@ class MemoryQueueImpl(object):
 
         now = datetime.datetime.utcnow()
         ready_messages = []
-        for message in messages:  # type: MessageImpl
+        for message in messages:  # type: MemoryMessage
             if message.execute_at > now:
                 self._queue.put(message)
             else:
@@ -166,7 +167,7 @@ class MemoryQueueImpl(object):
         messages_to_push_back = []
         while True:
             try:
-                message = self._queue.get_nowait()  # type: MessageImpl
+                message = self._queue.get_nowait()  # type: MemoryMessage
                 if message.message_id in message_ids:
                     successfully_deleted.add(message.message_id)
                 else:
@@ -194,7 +195,7 @@ class MemoryQueueImpl(object):
 
 
 @attr.s(frozen=True)
-class MessageImpl(object):
+class MemoryMessage(object):
     """
     A mock class to mimic the AWS message
 
@@ -202,7 +203,7 @@ class MessageImpl(object):
          services/sqs.html#SQS.Message
     """
 
-    queue_impl = attr.ib()  # type: MemoryQueueImpl
+    queue_impl = attr.ib()  # type: MemoryQueue
 
     # The message's contents (not URL-encoded).
     body = attr.ib()  # type: bytes
@@ -248,7 +249,7 @@ class MessageImpl(object):
             delay_seconds_int = int(kwargs["DelaySeconds"])
             execute_at += datetime.timedelta(seconds=delay_seconds_int)
 
-        return MessageImpl(
+        return MemoryMessage(
             queue_impl, body, message_atttributes, attributes, execute_at
         )
 
