@@ -33,11 +33,11 @@ class SQSEnv(object):
         self.processors = ProcessorManager(
             self, backoff_policy, processor_maker, fallback_processor_maker
         )
-        self.queues = {}  # type: dict[str, SQSEnvQueue]
+        self.queues = {}  # type: dict[str, GenericQueue]
 
     def queue(self, queue_name):
         if queue_name not in self.queues:
-            self.queues[queue_name] = SQSEnvQueue(self, queue_name)
+            self.queues[queue_name] = GenericQueue(self, queue_name)
         return self.queues[queue_name]
 
     def process_queues(self, queue_names=None, shutdown_policy_maker=NeverShutdown):
@@ -88,9 +88,3 @@ class SQSEnv(object):
 
     def redrive_policy(self, dead_letter_queue_name, max_receive_count):
         return RedrivePolicy(self, dead_letter_queue_name, max_receive_count)
-
-
-class SQSEnvQueue(GenericQueue):
-    def __init__(self, env, name):
-        super(SQSEnvQueue, self).__init__(env, name)
-        self._queue = None
