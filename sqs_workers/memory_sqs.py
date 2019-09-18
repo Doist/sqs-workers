@@ -13,29 +13,80 @@ import attr
 
 
 @attr.s()
-class MemorySession(object):
+class MemoryAWS(object):
+    """
+    In-memory AWS as a whole.
+    """
 
-    _client = attr.ib(factory=lambda: Client())  # type: "Client"
-    _resource = attr.ib(factory=lambda: ServiceResource())  # type: "ServiceResource"
+    client = attr.ib(
+        repr=False, default=attr.Factory(lambda self: Client(self), takes_self=True)
+    )  # type: "Client"
+    resource = attr.ib(
+        repr=False,
+        default=attr.Factory(lambda self: ServiceResource(self), takes_self=True),
+    )  # type: "ServiceResource"
+    queues = attr.ib(factory=list)  # type: List["MemoryQueueImpl"]
+
+    def create_queue(self, QueueName, Attributes):
+        queue = MemoryQueueImpl(self, QueueName, Attributes)
+        self.queues.append(queue)
+        return queue
+
+    def delete_queue(self, QueueUrl):
+        self.queues = [queue for queue in self.queues if queue.url != QueueUrl]
+
+
+@attr.s()
+class MemorySession(object):
+    """
+    In memory AWS session.
+    """
+
+    aws = attr.ib(repr=False)
 
     def client(self, service_name):
-        return self._client
+        assert service_name == "sqs"
+        return self.aws.client
 
     def resource(self, service_name):
-        return self._resource
+        assert service_name == "sqs"
+        return self.aws.resource
 
 
 @attr.s()
 class Client(object):
 
-    queues = attr.ib(factory=list)  # type: List[MemoryQueueImpl]
+    aws = attr.ib(repr=False)
+
+    def create_queue(self, QueueName, Attributes):
+        return self.aws.create_queue(QueueName, Attributes)
+
+    def delete_queue(self, QueueUrl):
+        return self.aws.delete_queue(QueueUrl)
 
     def list_queues(self, QueueNamePrefix=""):
-        pass
+        return {
+            "QueueUrls": [
+                queue.url
+                for queue in self.aws.queues
+                if queue.name.startswith(QueueNamePrefix)
+            ]
+        }
 
 
+@attr.s()
 class ServiceResource(object):
-    pass
+
+    aws = attr.ib(repr=False)  # type: MemoryAWS
+
+    def create_queue(self, QueueName, Attributes):
+        return self.aws.create_queue(QueueName, Attributes)
+
+    def get_queue_by_name(self, QueueName):
+        for queue in self.aws.queues:
+            if queue.name == QueueName:
+                return queue
+        return None
 
 
 @attr.s()
@@ -47,8 +98,13 @@ class MemoryQueueImpl(object):
          services/sqs.html#queue
     """
 
+    aws = attr.ib()  # type: MemoryAWS
     name = attr.ib()  # type: str
+    attributes = attr.ib()  # type: Dict[str, Dict[str, str]]
     _queue = attr.ib(factory=Queue)  # type: Queue
+
+    def __attrs_post_init__(self):
+        self.attributes["QueueArn"] = self.name
 
     @property
     def url(self):
@@ -126,6 +182,15 @@ class MemoryQueueImpl(object):
             "Successful": [{"Id": _id} for _id in successfully_deleted],
             "Failed": [{"Id": _id} for _id in didnt_deleted],
         }
+
+    def delete(self):
+        return self.aws.delete_queue(self.url)
+
+    def __dict__(self):
+        return {"QueueUrl": self.url}
+
+    def __getitem__(self, item):
+        return self.__dict__()[item]
 
 
 @attr.s(frozen=True)

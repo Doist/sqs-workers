@@ -32,21 +32,17 @@ def sqs(sqs_session):
 @pytest.fixture
 def queue_name(sqs_session, sqs, random_string):
     # type: (SQSEnv) -> string
-    if sqs_session is not None:
-        create_standard_queue(sqs, random_string)
+    create_standard_queue(sqs, random_string)
     yield random_string
-    if sqs_session is not None:
-        delete_queue(sqs, random_string)
+    delete_queue(sqs, random_string)
 
 
 @pytest.fixture
 def queue_name2(sqs_session, sqs, random_string):
     # type: (SQSEnv) -> string
-    if sqs_session is not None:
-        create_standard_queue(sqs, random_string + "_2")
+    create_standard_queue(sqs, random_string + "_2")
     yield random_string + "_2"
-    if sqs_session is not None:
-        delete_queue(sqs, random_string + "_2")
+    delete_queue(sqs, random_string + "_2")
 
 
 @pytest.fixture
@@ -55,34 +51,27 @@ def queue_name_with_redrive(sqs_session, sqs, random_string):
     queue = random_string
     dead_queue = random_string + "_dead"
 
-    if sqs_session is not None:
-        create_standard_queue(sqs, dead_queue)
+    create_standard_queue(sqs, dead_queue)
 
     # standard queue_name
     # 1 is the minimal value for redrive, and means
     # "put this to the dead letter queue_name after two failed attempts"
-    if sqs_session is not None:
-        create_standard_queue(
-            sqs, queue, redrive_policy=sqs.redrive_policy(dead_queue, 1)
-        )
+    create_standard_queue(sqs, queue, redrive_policy=sqs.redrive_policy(dead_queue, 1))
 
     yield queue, dead_queue
 
     # delete all the queues
-    if sqs_session is not None:
-        delete_queue(sqs, queue)
-        delete_queue(sqs, dead_queue)
+    delete_queue(sqs, queue)
+    delete_queue(sqs, dead_queue)
 
 
 @pytest.fixture
 def fifo_queue(sqs_session, sqs, random_string):
     # type: (SQSEnv) -> string
     queue_name = random_string + ".fifo"
-    if sqs_session is not None:
-        create_fifo_queue(sqs, queue_name)
+    create_fifo_queue(sqs, queue_name)
     yield queue_name
-    if sqs_session is not None:
-        delete_queue(sqs, queue_name)
+    delete_queue(sqs, queue_name)
 
 
 @pytest.fixture

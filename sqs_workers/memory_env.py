@@ -4,7 +4,7 @@ import multiprocessing
 from sqs_workers import context, processors
 from sqs_workers.backoff_policies import DEFAULT_BACKOFF
 from sqs_workers.core import RedrivePolicy
-from sqs_workers.memory_sqs import MemoryQueueImpl, MemorySession
+from sqs_workers.memory_sqs import MemoryAWS, MemorySession
 from sqs_workers.processor_mgr import ProcessorManager
 from sqs_workers.queue import GenericQueue
 from sqs_workers.shutdown_policies import NeverShutdown
@@ -32,7 +32,7 @@ class MemoryEnv(object):
 
     def __init__(
         self,
-        session=MemorySession(),
+        session=MemorySession(MemoryAWS()),
         queue_prefix="",
         backoff_policy=DEFAULT_BACKOFF,
         processor_maker=processors.Processor,
@@ -86,7 +86,16 @@ class MemoryEnv(object):
             p.join()
 
     def get_all_known_queues(self):
-        return list(self.queues.keys())
+        resp = self.sqs_client.list_queues(**{"QueueNamePrefix": self.queue_prefix})
+        if "QueueUrls" not in resp:
+            return []
+        urls = resp["QueueUrls"]
+        ret = []
+        for url in urls:
+            sqs_name = url.rsplit("/", 1)[-1]
+            queue_prefix_len = len(self.queue_prefix)
+            ret.append(sqs_name[queue_prefix_len:])
+        return ret
 
     def get_sqs_queue_name(self, queue_name):
         return self.queue(queue_name).get_sqs_queue_name()
@@ -98,7 +107,14 @@ class MemoryEnv(object):
 class MemoryEnvQueue(GenericQueue):
     def __init__(self, env, name):
         super(MemoryEnvQueue, self).__init__(env, name)
-        self._queue = MemoryQueueImpl(name)
+        self._queue = None
 
     def get_queue(self):
+        """
+        Helper function to return queue object.
+        """
+        if self._queue is None:
+            self._queue = self.env.sqs_resource.get_queue_by_name(
+                QueueName=self.get_sqs_queue_name()
+            )
         return self._queue
