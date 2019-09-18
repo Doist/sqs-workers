@@ -1,6 +1,7 @@
 import logging
 import multiprocessing
 
+import attr
 import boto3
 
 from sqs_workers import DEFAULT_BACKOFF, context, processors
@@ -12,28 +13,33 @@ from sqs_workers.shutdown_policies import NeverShutdown
 logger = logging.getLogger(__name__)
 
 
+@attr.s
 class SQSEnv(object):
-    def __init__(
-        self,
-        session=boto3,
-        queue_prefix="",
-        backoff_policy=DEFAULT_BACKOFF,
-        processor_maker=processors.Processor,
-        fallback_processor_maker=processors.FallbackProcessor,
-        context_maker=context.SQSContext,
-    ):
-        """
-        Initialize SQS environment with boto3 session
-        """
-        self.session = session
-        self.sqs_client = session.client("sqs")
-        self.sqs_resource = session.resource("sqs")
-        self.queue_prefix = queue_prefix
-        self.context = context_maker()
+
+    session = attr.ib(default=boto3)
+    queue_prefix = attr.ib(default="")
+    backoff_policy = attr.ib(default=DEFAULT_BACKOFF)
+    processor_maker = attr.ib(default=processors.Processor)
+    fallback_processor_maker = attr.ib(default=processors.FallbackProcessor)
+    context_maker = attr.ib(default=context.SQSContext)
+
+    # internal attributes
+    context = attr.ib(default=None)
+    sqs_client = attr.ib(default=None)
+    sqs_resource = attr.ib(default=None)
+    processors = attr.ib(init=False, default=None)  # type: ProcessorManager
+    queues = attr.ib(init=False, factory=dict)  # type: dict[str, SQSQueue]
+
+    def __attrs_post_init__(self):
         self.processors = ProcessorManager(
-            self, backoff_policy, processor_maker, fallback_processor_maker
+            self,
+            self.backoff_policy,
+            self.processor_maker,
+            self.fallback_processor_maker,
         )
-        self.queues = {}  # type: dict[str, SQSQueue]
+        self.context = self.context_maker()
+        self.sqs_client = self.session.client("sqs")
+        self.sqs_resource = self.session.resource("sqs")
 
     def queue(self, queue_name):
         if queue_name not in self.queues:
