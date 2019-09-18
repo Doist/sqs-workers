@@ -15,7 +15,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-class GenericQueue(ProcessorManagerProxy):
+class SQSQueue(ProcessorManagerProxy):
     def __init__(self, env, name):
         # type: (Union[SQSEnv, MemoryEnv], str) -> None
         self.env = env

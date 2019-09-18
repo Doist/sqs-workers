@@ -6,7 +6,7 @@ import boto3
 from sqs_workers import DEFAULT_BACKOFF, context, processors
 from sqs_workers.core import RedrivePolicy
 from sqs_workers.processor_mgr import ProcessorManager
-from sqs_workers.queue import GenericQueue
+from sqs_workers.queue import SQSQueue
 from sqs_workers.shutdown_policies import NeverShutdown
 
 logger = logging.getLogger(__name__)
@@ -33,11 +33,11 @@ class SQSEnv(object):
         self.processors = ProcessorManager(
             self, backoff_policy, processor_maker, fallback_processor_maker
         )
-        self.queues = {}  # type: dict[str, GenericQueue]
+        self.queues = {}  # type: dict[str, SQSQueue]
 
     def queue(self, queue_name):
         if queue_name not in self.queues:
-            self.queues[queue_name] = GenericQueue(self, queue_name)
+            self.queues[queue_name] = SQSQueue(self, queue_name)
         return self.queues[queue_name]
 
     def process_queues(self, queue_names=None, shutdown_policy_maker=NeverShutdown):
