@@ -1,6 +1,18 @@
 """
 In memory mockup implementation of essential parts of boto3 SQS objects.
 
+Used for faster and more predictable processing in tests.
+
+Lacks some features of "real sqs", and some other features implemented
+ineffectively.
+
+- Redrive policy doesn't work
+- There is no differences between standard and FIFO queues
+- FIFO queues don't support content-based deduplication
+- Delayed tasks executed ineffectively: the task is gotten from the queue,
+  and if the time hasn't come yet, the task is put back.
+- API can return slightly different results
+
 Ref: https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/sqs.html
 """
 import datetime
@@ -43,7 +55,7 @@ class MemorySession(object):
     In memory AWS session.
     """
 
-    aws = attr.ib(repr=False)
+    aws = attr.ib(repr=False, factory=MemoryAWS)
 
     def client(self, service_name):
         assert service_name == "sqs"

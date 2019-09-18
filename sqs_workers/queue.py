@@ -1,5 +1,5 @@
 import logging
-from typing import TYPE_CHECKING, Union
+from typing import TYPE_CHECKING
 
 from sqs_workers import codecs
 from sqs_workers.core import BatchProcessingResult, get_job_name
@@ -9,7 +9,7 @@ from sqs_workers.shutdown_policies import NEVER_SHUTDOWN
 DEFAULT_MESSAGE_GROUP_ID = "default"
 
 if TYPE_CHECKING:
-    from sqs_workers import MemoryEnv, SQSEnv
+    from sqs_workers import SQSEnv
 
 
 logger = logging.getLogger(__name__)
@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 
 class SQSQueue(ProcessorManagerProxy):
     def __init__(self, env, name):
-        # type: (Union[SQSEnv, MemoryEnv], str) -> None
+        # type: (SQSEnv, str) -> None
         self.env = env
         self.name = name
         self._queue = None

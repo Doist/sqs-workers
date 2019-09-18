@@ -7,7 +7,7 @@ import localstack_client.session
 import pytest
 
 from sqs_workers import SQSEnv, create_fifo_queue, create_standard_queue, delete_queue
-from sqs_workers.memory_env import MemoryEnv
+from sqs_workers.memory_sqs import MemoryAWS, MemorySession
 
 
 @pytest.fixture(scope="session", params=["aws", "localstack", "memory"])
@@ -17,13 +17,11 @@ def sqs_session(request):
     elif request.param == "localstack":
         return localstack_client.session.Session()
     else:
-        return None
+        return MemorySession(MemoryAWS())
 
 
 @pytest.fixture
 def sqs(sqs_session):
-    if sqs_session is None:
-        return MemoryEnv()
     queue_prefix = "sqs_workers_tests_{:%Y%m%d}_".format(datetime.datetime.utcnow())
     sqs = SQSEnv(session=sqs_session, queue_prefix=queue_prefix)
     return sqs

@@ -10,7 +10,7 @@ from sqs_workers import (
     delete_queue,
 )
 from sqs_workers.codecs import JSONCodec, PickleCodec
-from sqs_workers.memory_env import MemoryEnv
+from sqs_workers.memory_sqs import MemorySession
 from sqs_workers.processors import DeadLetterProcessor, Processor
 
 worker_results = {"say_hello": None}
@@ -118,9 +118,9 @@ def test_exception_returns_task_to_the_queue(sqs, queue_name):
     assert sqs.queue(queue_name).process_batch(wait_seconds=0).succeeded_count() == 1
 
 
-def test_redrive(sqs, queue_name_with_redrive):
-    if isinstance(sqs, MemoryEnv):
-        pytest.skip("Redrive not implemented with MemoryEnv")
+def test_redrive(sqs_session, sqs, queue_name_with_redrive):
+    if isinstance(sqs_session, MemorySession):
+        pytest.skip("Redrive not implemented with MemorySession")
 
     queue, dead_queue = queue_name_with_redrive
 
@@ -175,9 +175,9 @@ def test_drain_queue(sqs, queue_name):
     assert worker_results["say_hello"] is None
 
 
-def test_message_retention_period(sqs, random_string):
-    if isinstance(sqs, MemoryEnv):
-        pytest.skip("Message Retention id not implemented with MemoryEnv")
+def test_message_retention_period(sqs_session, sqs, random_string):
+    if isinstance(sqs_session, MemorySession):
+        pytest.skip("Message Retention id not implemented with MemorySession")
 
     try:
         create_standard_queue(sqs, random_string, message_retention_period=600)
@@ -193,9 +193,9 @@ def test_message_retention_period(sqs, random_string):
             pass
 
 
-def test_deduplication_id(sqs, fifo_queue):
-    if isinstance(sqs, MemoryEnv):
-        pytest.skip("Deduplication id not implemented with MemoryEnv")
+def test_deduplication_id(sqs_session, sqs, fifo_queue):
+    if isinstance(sqs_session, MemorySession):
+        pytest.skip("Deduplication id not implemented with MemorySession")
 
     say_hello_task = sqs.processors.connect(fifo_queue, "say_hello", say_hello)
     say_hello_task.delay(username="One", _deduplication_id="x")
@@ -204,11 +204,11 @@ def test_deduplication_id(sqs, fifo_queue):
     assert worker_results["say_hello"] == "One"
 
 
-def test_group_id(sqs, fifo_queue):
+def test_group_id(sqs_session, sqs, fifo_queue):
     # not much we can test here, but at least test that it doesn't blow up
     # and that group_id and deduplication_id are orthogonal
-    if isinstance(sqs, MemoryEnv):
-        pytest.skip("Deduplication id not implemented with MemoryEnv")
+    if isinstance(sqs_session, MemorySession):
+        pytest.skip("GroupId id not implemented with MemorySession")
 
     say_hello_task = sqs.processors.connect(fifo_queue, "say_hello", say_hello)
     say_hello_task.delay(username="One", _deduplication_id="x", _group_id="g1")
@@ -226,9 +226,6 @@ def test_delay_seconds(sqs, queue_name):
 
 
 def test_visibility_timeout(sqs, random_string):
-    if isinstance(sqs, MemoryEnv):
-        pytest.skip("Visibility timeout id not implemented with MemoryEnv")
-
     try:
         create_standard_queue(sqs, random_string, visibility_timeout=1)
         create_fifo_queue(sqs, random_string + ".fifo", visibility_timeout=1)
