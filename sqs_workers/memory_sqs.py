@@ -7,11 +7,38 @@ import datetime
 import time
 import uuid
 from queue import Empty, Queue
-from typing import Any, Dict
+from typing import Any, Dict, List
 
 import attr
 
 
+@attr.s()
+class MemorySession(object):
+
+    _client = attr.ib(factory=lambda: Client())  # type: "Client"
+    _resource = attr.ib(factory=lambda: ServiceResource())  # type: "ServiceResource"
+
+    def client(self, service_name):
+        return self._client
+
+    def resource(self, service_name):
+        return self._resource
+
+
+@attr.s()
+class Client(object):
+
+    queues = attr.ib(factory=list)  # type: List[MemoryQueueImpl]
+
+    def list_queues(self, QueueNamePrefix=""):
+        pass
+
+
+class ServiceResource(object):
+    pass
+
+
+@attr.s()
 class MemoryQueueImpl(object):
     """
     In-memory queue which mimics the subset of SQS Queue object.
@@ -20,8 +47,12 @@ class MemoryQueueImpl(object):
          services/sqs.html#queue
     """
 
-    def __init__(self):
-        self._queue = Queue()
+    name = attr.ib()  # type: str
+    _queue = attr.ib(factory=Queue)  # type: Queue
+
+    @property
+    def url(self):
+        return "memory://{}".format(self.name)
 
     def send_message(self, **kwargs):
         message = MessageImpl.from_kwargs(self, kwargs)

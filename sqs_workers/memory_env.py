@@ -4,7 +4,7 @@ import multiprocessing
 from sqs_workers import context, processors
 from sqs_workers.backoff_policies import DEFAULT_BACKOFF
 from sqs_workers.core import RedrivePolicy
-from sqs_workers.memory_sqs import MemoryQueueImpl
+from sqs_workers.memory_sqs import MemoryQueueImpl, MemorySession
 from sqs_workers.processor_mgr import ProcessorManager
 from sqs_workers.queue import GenericQueue
 from sqs_workers.shutdown_policies import NeverShutdown
@@ -32,6 +32,8 @@ class MemoryEnv(object):
 
     def __init__(
         self,
+        session=MemorySession(),
+        queue_prefix="",
         backoff_policy=DEFAULT_BACKOFF,
         processor_maker=processors.Processor,
         fallback_processor_maker=processors.FallbackProcessor,
@@ -40,6 +42,11 @@ class MemoryEnv(object):
         """
         Initialize pseudo SQS environment
         """
+        self.session = session
+        self.sqs_client = session.client("sqs")
+        self.sqs_resource = session.resource("sqs")
+        self.queue_prefix = queue_prefix
+
         self.backoff_policy = backoff_policy
         self.context = context_maker()
         self.processors = ProcessorManager(
@@ -91,7 +98,7 @@ class MemoryEnv(object):
 class MemoryEnvQueue(GenericQueue):
     def __init__(self, env, name):
         super(MemoryEnvQueue, self).__init__(env, name)
-        self._queue = MemoryQueueImpl()
+        self._queue = MemoryQueueImpl(name)
 
     def get_queue(self):
         return self._queue
