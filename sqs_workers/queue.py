@@ -19,12 +19,16 @@ logger = logging.getLogger(__name__)
 
 
 @attr.s
-class SQSQueue(object):
-
+class GenericQueue(object):
     env = attr.ib()  # type: SQSEnv
     name = attr.ib()  # type: str
-    processors = attr.ib(factory=dict)  # type: Dict[str, GenericProcessor]
     _queue = attr.ib(default=None)
+
+
+@attr.s
+class SQSQueue(GenericQueue):
+
+    processors = attr.ib(factory=dict)  # type: Dict[str, GenericProcessor]
 
     def processor(
         self,
