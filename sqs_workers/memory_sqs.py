@@ -16,9 +16,7 @@ ineffectively.
 Ref: https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/sqs.html
 """
 import datetime
-import time
 import uuid
-from queue import Empty, Queue
 from typing import Any, Dict, List
 
 import attr
@@ -114,7 +112,7 @@ class MemoryQueue(object):
     aws = attr.ib()  # type: MemoryAWS
     name = attr.ib()  # type: str
     attributes = attr.ib()  # type: Dict[str, Dict[str, str]]
-    _queue = attr.ib(factory=Queue)  # type: Queue
+    messages = attr.ib(factory=list)  # type: List[MemoryMessage]
 
     def __attrs_post_init__(self):
         self.attributes["QueueArn"] = self.name
@@ -125,7 +123,7 @@ class MemoryQueue(object):
 
     def send_message(self, **kwargs):
         message = MemoryMessage.from_kwargs(self, kwargs)
-        self._queue.put(message)
+        self.messages.append(message)
         return {"MessageId": message.message_id, "SequenceNumber": 0}
 
     def receive_messages(self, WaitTimeSeconds="0", MaxNumberOfMessages="10", **kwargs):
@@ -133,37 +131,21 @@ class MemoryQueue(object):
         Helper function which returns at most max_messages from the
         queue. Used in an infinite loop inside `get_raw_messages`
         """
-        sleep_interval = 0.1
-
         wait_seconds = int(WaitTimeSeconds)
         max_messages = int(MaxNumberOfMessages)
-        messages = []
-        while True:
-            messages += self._receive_some_message(max_messages)
-            if len(messages) >= max_messages:
-                break
-            if wait_seconds <= 0:
-                break
-            wait_seconds -= sleep_interval
-            time.sleep(sleep_interval)
-        return messages
 
-    def _receive_some_message(self, max_number):
-        messages = []
-        for i in range(max_number):
-            try:
-                messages.append(self._queue.get_nowait())
-            except Empty:
-                break
-
-        now = datetime.datetime.utcnow()
         ready_messages = []
-        for message in messages:  # type: MemoryMessage
-            if message.execute_at > now:
-                self._queue.put(message)
+        push_back_messages = []
+
+        threshold = datetime.datetime.utcnow() + datetime.timedelta(
+            seconds=wait_seconds
+        )
+        for message in self.messages:
+            if message.execute_at > threshold or len(ready_messages) >= max_messages:
+                push_back_messages.append(message)
             else:
                 ready_messages.append(message)
-
+        self.messages[:] = push_back_messages
         return ready_messages
 
     def delete_messages(self, Entries):
@@ -176,19 +158,14 @@ class MemoryQueue(object):
         message_ids = {entry["Id"] for entry in Entries}
 
         successfully_deleted = set()
-        messages_to_push_back = []
-        while True:
-            try:
-                message = self._queue.get_nowait()  # type: MemoryMessage
-                if message.message_id in message_ids:
-                    successfully_deleted.add(message.message_id)
-                else:
-                    messages_to_push_back.append(message)
-            except Empty:
-                break
+        push_back_messages = []
 
-        for message in messages_to_push_back:
-            self._queue.put_nowait(message)
+        for message in self.messages:
+            if message.message_id in message_ids:
+                successfully_deleted.add(message.message_id)
+            else:
+                push_back_messages.append(message)
+        self.messages[:] = push_back_messages
 
         didnt_deleted = message_ids.difference(successfully_deleted)
         return {
@@ -270,4 +247,4 @@ class MemoryMessage(object):
         execute_at = datetime.datetime.utcnow() + datetime.timedelta(seconds=timeout)
         message = attr.evolve(self, execute_at=execute_at)
         message.attributes["ApproximateReceiveCount"] += 1
-        self.queue_impl._queue.put_nowait(message)
+        self.queue_impl.messages.append(message)
