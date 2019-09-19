@@ -15,7 +15,7 @@ def _reset_worker_results():
 
 def test_context(sqs, queue_name):
     queue = sqs.queue(queue_name)
-    sqs.processors.connect(queue, "say_hello", say_hello_ctx, pass_context=True)
+    queue.connect_processor("say_hello", say_hello_ctx, pass_context=True)
     sqs.context["remote_addr"] = "127.0.0.1"
     queue.add_job("say_hello", username="Homer")
     queue.process_batch()
@@ -24,7 +24,7 @@ def test_context(sqs, queue_name):
 
 def test_context_with(sqs, queue_name):
     queue = sqs.queue(queue_name)
-    sqs.processors.connect(queue, "say_hello", say_hello_ctx, pass_context=True)
+    queue.connect_processor("say_hello", say_hello_ctx, pass_context=True)
     with sqs.context(remote_addr="127.0.0.2"):
         queue.add_job("say_hello", username="Homer")
     queue.process_batch()

@@ -367,8 +367,10 @@ from sqs_workers.shutdown_policies import IdleShutdown
 
 sqs = SQSEnv()
 ...
-sqs.copy_processors('foo', 'foo_dead')
-sqs.queue("foo_dead").process_queue(shutdown_policy=IdleShutdown(10))
+foo = sqs.queue("foo")
+foo_dead = sqs.queue("foo_dead")
+foo.copy_processors(foo_dead)
+foo_dead.process_queue(shutdown_policy=IdleShutdown(10))
 ```
 
 

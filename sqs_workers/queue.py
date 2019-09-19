@@ -1,11 +1,12 @@
 import logging
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Dict
 
 import attr
 
 from sqs_workers import codecs
+from sqs_workers.async_task import AsyncTask
 from sqs_workers.core import BatchProcessingResult, get_job_name
-from sqs_workers.processors import DEFAULT_CONTEXT_VAR
+from sqs_workers.processors import DEFAULT_CONTEXT_VAR, GenericProcessor
 from sqs_workers.shutdown_policies import NEVER_SHUTDOWN
 
 DEFAULT_MESSAGE_GROUP_ID = "default"
@@ -22,6 +23,7 @@ class SQSQueue(object):
 
     env = attr.ib()  # type: SQSEnv
     name = attr.ib()  # type: str
+    processors = attr.ib(factory=dict)  # type: Dict[str, GenericProcessor]
     _queue = attr.ib(default=None)
 
     def processor(
@@ -57,11 +59,53 @@ class SQSQueue(object):
         """
 
         def fn(processor):
-            return self.env.processors.connect(
-                self, job_name, processor, pass_context, context_var, backoff_policy
+            return self.connect_processor(
+                job_name, processor, pass_context, context_var, backoff_policy
             )
 
         return fn
+
+    def connect_processor(
+        self,
+        job_name,
+        processor,
+        pass_context=False,
+        context_var=DEFAULT_CONTEXT_VAR,
+        backoff_policy=None,
+    ):
+        """
+        Assign processor (a function) to handle jobs with the name job_name
+        from the queue queue_name
+        """
+        extra = {
+            "queue_name": self.name,
+            "job_name": job_name,
+            "processor_name": processor.__module__ + "." + processor.__name__,
+        }
+        logger.debug(
+            "Connect {queue_name}.{job_name} to "
+            "processor {processor_name}".format(**extra),
+            extra=extra,
+        )
+        self.processors[job_name] = self.env.processor_maker(
+            self,
+            job_name,
+            processor,
+            pass_context,
+            context_var,
+            backoff_policy or self.env.backoff_policy,
+        )
+        return AsyncTask(self, job_name, processor)
+
+    def get_processor(self, job_name):
+        """
+        Helper function to return a processor for the queue
+        """
+        processor = self.processors.get(job_name)
+        if processor is None:
+            processor = self.env.fallback_processor_maker(self, job_name)
+            self.processors[job_name] = processor
+        return processor
 
     def add_job(
         self,
@@ -164,7 +208,7 @@ class SQSQueue(object):
 
         for message in messages:
             job_name = get_job_name(message)
-            processor = self.env.processors.get(self, job_name)
+            processor = self.get_processor(job_name)
             success = processor.process_message(message)
             result.update_with_message(message, success)
             if success:
@@ -226,3 +270,24 @@ class SQSQueue(object):
                 QueueName=self.get_sqs_queue_name()
             )
         return self._queue
+
+    def copy_processors(self, dst_queue):
+        # type: (SQSQueue) -> None
+        """
+        Copy processors from self to dst_queue. Can be helpful to process d
+        ead-letter queue with processors from the main queue.
+
+        Usage example.
+
+        sqs = SQSEnv()
+        ...
+        foo = sqs.queue('foo')
+        foo_dead = sqs.queue('foo_dead')
+        foo.copy_processors('foo_dead')
+        foo_dead.process_queue(shutdown_policy=IdleShutdown(10))
+
+        Here the queue "foo_dead" will be processed with processors from the
+        queue "foo".
+        """
+        for job_name, processor in self.processors.items():
+            dst_queue.processors[job_name] = processor.copy(queue=dst_queue)

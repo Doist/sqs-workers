@@ -6,7 +6,6 @@ import boto3
 
 from sqs_workers import DEFAULT_BACKOFF, context, processors
 from sqs_workers.core import RedrivePolicy
-from sqs_workers.processor_mgr import ProcessorManager
 from sqs_workers.queue import SQSQueue
 from sqs_workers.shutdown_policies import NeverShutdown
 
@@ -27,13 +26,9 @@ class SQSEnv(object):
     context = attr.ib(default=None)
     sqs_client = attr.ib(default=None)
     sqs_resource = attr.ib(default=None)
-    processors = attr.ib(init=False, default=None)  # type: ProcessorManager
     queues = attr.ib(init=False, factory=dict)  # type: dict[str, SQSQueue]
 
     def __attrs_post_init__(self):
-        self.processors = ProcessorManager(
-            self.backoff_policy, self.processor_maker, self.fallback_processor_maker
-        )
         self.context = self.context_maker()
         self.sqs_client = self.session.client("sqs")
         self.sqs_resource = self.session.resource("sqs")
