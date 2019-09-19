@@ -32,10 +32,7 @@ class SQSEnv(object):
 
     def __attrs_post_init__(self):
         self.processors = ProcessorManager(
-            self,
-            self.backoff_policy,
-            self.processor_maker,
-            self.fallback_processor_maker,
+            self.backoff_policy, self.processor_maker, self.fallback_processor_maker
         )
         self.context = self.context_maker()
         self.sqs_client = self.session.client("sqs")

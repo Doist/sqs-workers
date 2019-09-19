@@ -58,12 +58,7 @@ class SQSQueue(object):
 
         def fn(processor):
             return self.env.processors.connect(
-                self.name,
-                job_name,
-                processor,
-                pass_context,
-                context_var,
-                backoff_policy,
+                self, job_name, processor, pass_context, context_var, backoff_policy
             )
 
         return fn
@@ -169,7 +164,7 @@ class SQSQueue(object):
 
         for message in messages:
             job_name = get_job_name(message)
-            processor = self.env.processors.get(self.name, job_name)
+            processor = self.env.processors.get(self, job_name)
             success = processor.process_message(message)
             result.update_with_message(message, success)
             if success:

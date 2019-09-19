@@ -1,7 +1,12 @@
 import random
 
 
-class ConstantBackoff(object):
+class BackoffPolicy(object):
+    def get_visibility_timeout(self):
+        raise NotImplementedError()
+
+
+class ConstantBackoff(BackoffPolicy):
     """
     Backoff policy which always returns the message back to the queue
     immediately on failure
@@ -14,7 +19,7 @@ class ConstantBackoff(object):
         return self.backoff_value
 
 
-class ExponentialBackoff(object):
+class ExponentialBackoff(BackoffPolicy):
     """
     Backoff policy which keeps the message hidden from the queue
     with an exponential backoff

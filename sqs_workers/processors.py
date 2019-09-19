@@ -1,10 +1,14 @@
 import logging
 import warnings
+from typing import TYPE_CHECKING, Callable
 
 from sqs_workers import codecs
-from sqs_workers.backoff_policies import DEFAULT_BACKOFF
+from sqs_workers.backoff_policies import DEFAULT_BACKOFF, BackoffPolicy
 from sqs_workers.context import SQSContext
 from sqs_workers.utils import adv_validate_arguments
+
+if TYPE_CHECKING:
+    from sqs_workers.queue import SQSQueue
 
 logger = logging.getLogger(__name__)
 
@@ -33,16 +37,14 @@ class GenericProcessor(object):
 
     def __init__(
         self,
-        sqs_env,
-        queue_name,
-        job_name,
-        fn=None,
-        pass_context=False,
-        context_var=DEFAULT_CONTEXT_VAR,
-        backoff_policy=DEFAULT_BACKOFF,
+        queue,  # type: SQSQueue
+        job_name,  # type: str
+        fn=None,  # type: Callable
+        pass_context=False,  # type: bool
+        context_var=DEFAULT_CONTEXT_VAR,  # type: str
+        backoff_policy=DEFAULT_BACKOFF,  # type: BackoffPolicy
     ):
-        self.sqs_env = sqs_env
-        self.queue_name = queue_name
+        self.queue = queue
         self.job_name = job_name
         self.fn = fn
         self.pass_context = pass_context
@@ -55,7 +57,7 @@ class GenericProcessor(object):
         else:
             fn_name = ""
         return "{}({!r}, {!r}, {})".format(
-            self.__class__.__name__, self.queue_name, self.job_name, fn_name
+            self.__class__.__name__, self.queue.name, self.job_name, fn_name
         )
 
     def process_message(self, message):
@@ -71,8 +73,7 @@ class GenericProcessor(object):
         arguments of the constructor from update_kwargs
         """
         init_kwargs = {
-            "sqs_env": kwargs.get("sqq_env", self.sqs_env),
-            "queue_name": kwargs.get("queue_name", self.queue_name),
+            "queue": kwargs.get("queue", self.queue),
             "job_name": kwargs.get("job_name", self.job_name),
             "fn": kwargs.get("fn", self.fn),
             "pass_context": kwargs.get("pass_context", self.pass_context),
@@ -93,7 +94,7 @@ class Processor(GenericProcessor):
     def process_message(self, message):
         extra = {
             "message_id": message.message_id,
-            "queue_name": self.queue_name,
+            "queue_name": self.queue.name,
             "job_name": self.job_name,
         }
         logger.debug("Process {queue_name}.{job_name}".format(**extra), extra=extra)
@@ -129,7 +130,7 @@ class FallbackProcessor(GenericProcessor):
 
     def process_message(self, message):
         warnings.warn(
-            "Error while processing {}.{}".format(self.queue_name, self.job_name)
+            "Error while processing {}.{}".format(self.queue.name, self.job_name)
         )
         return False
 
@@ -166,9 +167,9 @@ class DeadLetterProcessor(GenericProcessor):
     """
 
     def process_message(self, message):
-        if not is_deadletter(self.queue_name):
+        if not is_deadletter(self.queue.name):
             warnings.warn(
-                "Error while processing {}.{}".format(self.queue_name, self.job_name)
+                "Error while processing {}.{}".format(self.queue.name, self.job_name)
             )
             return False
 
@@ -176,10 +177,12 @@ class DeadLetterProcessor(GenericProcessor):
         return True
 
     def push_back_message(self, message):
-        queue_name = get_deadletter_upstream_name(self.queue_name)
+        target_queue_name = get_deadletter_upstream_name(self.queue.name)
+        target_queue = self.queue.env.queue(target_queue_name)
+
         content_type = message.message_attributes["ContentType"]["StringValue"]
         job_context = message.message_attributes["JobContext"]["StringValue"]
-        if queue_name.endswith(".fifo"):
+        if target_queue_name.endswith(".fifo"):
             deduplication_id = message.attributes["MessageDeduplicationId"]
             group_id = message.attributes["MessageGroupId"]
             # FIFO queues don't allow to set delay_seconds
@@ -189,14 +192,14 @@ class DeadLetterProcessor(GenericProcessor):
             group_id = None
             delay_seconds = 1
         logger.debug(
-            "Push back dead letter job {}.{}".format(self.queue_name, self.job_name),
+            "Push back dead letter job {}.{}".format(self.queue.name, self.job_name),
             extra={
-                "target_queue_name": self.queue_name,
-                "queue_name": self.queue_name,
+                "target_queue_name": target_queue_name,
+                "queue_name": self.queue.name,
                 "job_name": self.job_name,
             },
         )
-        self.sqs_env.queue(queue_name).add_raw_job(
+        target_queue.add_raw_job(
             self.job_name,
             message.body,
             job_context,

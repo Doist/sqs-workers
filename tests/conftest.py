@@ -64,7 +64,7 @@ def queue_name_with_redrive(sqs_session, sqs, random_string):
 
 
 @pytest.fixture
-def fifo_queue(sqs_session, sqs, random_string):
+def fifo_queue_name(sqs_session, sqs, random_string):
     # type: (SQSEnv) -> string
     queue_name = random_string + ".fifo"
     create_fifo_queue(sqs, queue_name)

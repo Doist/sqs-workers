@@ -6,6 +6,7 @@ from sqs_workers import processors
 from sqs_workers.backoff_policies import DEFAULT_BACKOFF
 from sqs_workers.codecs import DEFAULT_CONTENT_TYPE
 from sqs_workers.processors import DEFAULT_CONTEXT_VAR
+from sqs_workers.queue import SQSQueue
 from sqs_workers.utils import adv_bind_arguments
 
 logger = logging.getLogger(__name__)
@@ -14,21 +15,18 @@ logger = logging.getLogger(__name__)
 class ProcessorManager(object):
     def __init__(
         self,
-        sqs_env,
         backoff_policy=DEFAULT_BACKOFF,
         processor_maker=processors.Processor,
         fallback_processor_maker=processors.FallbackProcessor,
     ):
-        self.sqs_env = sqs_env
         self.processors = defaultdict(lambda: {})
         self.backoff_policy = backoff_policy
         self.processor_maker = processor_maker
         self.fallback_processor_maker = fallback_processor_maker
-        self.processors = defaultdict(lambda: {})
 
     def connect(
         self,
-        queue_name,
+        queue,
         job_name,
         processor,
         pass_context=False,
@@ -40,7 +38,7 @@ class ProcessorManager(object):
         from the queue queue_name
         """
         extra = {
-            "queue_name": queue_name,
+            "queue_name": queue.name,
             "job_name": job_name,
             "processor_name": processor.__module__ + "." + processor.__name__,
         }
@@ -49,18 +47,18 @@ class ProcessorManager(object):
             "processor {processor_name}".format(**extra),
             extra=extra,
         )
-        self.processors[queue_name][job_name] = self.processor_maker(
-            self.sqs_env,
-            queue_name,
+        self.processors[queue.name][job_name] = self.processor_maker(
+            queue,
             job_name,
             processor,
             pass_context,
             context_var,
             backoff_policy or self.backoff_policy,
         )
-        return AsyncTask(self.sqs_env, queue_name, job_name, processor)
+        return AsyncTask(queue, job_name, processor)
 
     def copy(self, src_queue, dst_queue):
+        # type: (SQSQueue, SQSQueue) -> None
         """
         Copy processors from src_queue to dst_queue (both queues identified
         by their names). Can be helpful to process dead-letter queue with
@@ -76,26 +74,23 @@ class ProcessorManager(object):
         Here the queue "foo_dead" will be processed with processors from the
         queue "foo".
         """
-        for job_name, processor in self.processors[src_queue].items():
-            self.processors[dst_queue][job_name] = processor.copy(queue_name=dst_queue)
+        for job_name, processor in self.processors[src_queue.name].items():
+            self.processors[dst_queue.name][job_name] = processor.copy(queue=dst_queue)
 
-    def get(self, queue_name, job_name):
+    def get(self, queue, job_name):
         """
         Helper function to return a processor for the queue
         """
-        processor = self.processors[queue_name].get(job_name)
+        processor = self.processors[queue.name].get(job_name)
         if processor is None:
-            processor = self.fallback_processor_maker(
-                self.sqs_env, queue_name, job_name
-            )
-            self.processors[queue_name][job_name] = processor
+            processor = self.fallback_processor_maker(queue, job_name)
+            self.processors[queue.name][job_name] = processor
         return processor
 
 
 class AsyncTask(object):
-    def __init__(self, sqs_env, queue_name, job_name, processor):
-        self.sqs_env = sqs_env
-        self.queue_name = queue_name
+    def __init__(self, queue, job_name, processor):
+        self.queue = queue
         self.job_name = job_name
         self.processor = processor
         self.__doc__ = processor.__doc__
@@ -107,7 +102,7 @@ class AsyncTask(object):
         return self.processor(*args, **kwargs)
 
     def __repr__(self):
-        return "<%s %s.%s>" % (self.__class__.__name__, self.queue_name, self.job_name)
+        return "<%s %s.%s>" % (self.__class__.__name__, self.queue.name, self.job_name)
 
     def delay(self, *args, **kwargs):
         _content_type = kwargs.pop("_content_type", DEFAULT_CONTENT_TYPE)
@@ -115,7 +110,7 @@ class AsyncTask(object):
         _deduplication_id = kwargs.pop("_deduplication_id", None)
         _group_id = kwargs.pop("_group_id", None)
         kwargs = adv_bind_arguments(self.processor, args, kwargs)
-        return self.sqs_env.queue(self.queue_name).add_job(
+        return self.queue.add_job(
             self.job_name,
             _content_type=_content_type,
             _delay_seconds=_delay_seconds,
