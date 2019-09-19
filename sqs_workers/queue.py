@@ -1,10 +1,11 @@
 import logging
-from typing import TYPE_CHECKING, Dict
+from typing import TYPE_CHECKING, Any, Dict
 
 import attr
 
 from sqs_workers import codecs
 from sqs_workers.async_task import AsyncTask
+from sqs_workers.backoff_policies import BackoffPolicy
 from sqs_workers.core import BatchProcessingResult, get_job_name
 from sqs_workers.processors import DEFAULT_CONTEXT_VAR, GenericProcessor
 from sqs_workers.shutdown_policies import NEVER_SHUTDOWN
@@ -49,6 +50,94 @@ class GenericQueue(object):
                     },
                 )
                 break
+
+    def process_batch(self, wait_seconds=0):
+        # type: (int) -> BatchProcessingResult
+        """
+        Process a batch of messages from the queue (10 messages at most), return
+        the number of successfully processed messages, and exit
+        """
+        queue = self.get_queue()
+        messages = self.get_raw_messages(wait_seconds)
+        result = BatchProcessingResult(self.name)
+
+        for message in messages:
+            success = self.process_message(message)
+            result.update_with_message(message, success)
+            if success:
+                entry = {
+                    "Id": message.message_id,
+                    "ReceiptHandle": message.receipt_handle,
+                }
+                queue.delete_messages(Entries=[entry])
+            else:
+                timeout = self.get_backoff_policy(message).get_visibility_timeout(
+                    message
+                )
+                message.change_visibility(VisibilityTimeout=timeout)
+        return result
+
+    def process_message(self, message):
+        # type: (Any) -> bool
+        """
+        Process single message.
+
+        Return True if processing went successful
+        """
+        raise NotImplementedError()
+
+    def get_backoff_policy(self, message):
+        # type: (Any) -> BackoffPolicy
+        raise NotImplementedError()
+
+    def get_raw_messages(self, wait_seconds):
+        """
+        Return raw messages from the queue, addressed by its name
+        """
+        kwargs = {
+            "WaitTimeSeconds": wait_seconds,
+            "MaxNumberOfMessages": 10,
+            "MessageAttributeNames": ["All"],
+            "AttributeNames": ["All"],
+        }
+        queue = self.get_queue()
+        return queue.receive_messages(**kwargs)
+
+    def drain_queue(self, wait_seconds=0):
+        """
+        Delete all messages from the queue without calling purge().
+        """
+        queue = self.get_queue()
+        deleted_count = 0
+        while True:
+            messages = self.get_raw_messages(wait_seconds)
+            if not messages:
+                break
+            entries = [
+                {"Id": msg.message_id, "ReceiptHandle": msg.receipt_handle}
+                for msg in messages
+            ]
+            queue.delete_messages(Entries=entries)
+            deleted_count += len(messages)
+        return deleted_count
+
+    def get_sqs_queue_name(self):
+        """
+        Take "high-level" (user-visible) queue name and return SQS
+        ("low level") name by simply prefixing it. Used to create namespaces
+        for different environments (development, staging, production, etc)
+        """
+        return "{}{}".format(self.env.queue_prefix, self.name)
+
+    def get_queue(self):
+        """
+        Helper function to return queue object.
+        """
+        if self._queue is None:
+            self._queue = self.env.sqs_resource.get_queue_by_name(
+                QueueName=self.get_sqs_queue_name()
+            )
+        return self._queue
 
 
 @attr.s
@@ -200,80 +289,22 @@ class SQSQueue(GenericQueue):
         ret = queue.send_message(**kwargs)
         return ret["MessageId"]
 
-    def process_batch(self, wait_seconds=0):
-        # type: (int) -> BatchProcessingResult
+    def process_message(self, message):
+        # type: (Any) -> bool
         """
-        Process a batch of messages from the queue (10 messages at most), return
-        the number of successfully processed messages, and exit
-        """
-        queue = self.get_queue()
-        messages = self.get_raw_messages(wait_seconds)
-        result = BatchProcessingResult(self.name)
+        Process single message.
 
-        for message in messages:
-            job_name = get_job_name(message)
-            processor = self.get_processor(job_name)
-            success = processor.process_message(message)
-            result.update_with_message(message, success)
-            if success:
-                entry = {
-                    "Id": message.message_id,
-                    "ReceiptHandle": message.receipt_handle,
-                }
-                queue.delete_messages(Entries=[entry])
-            else:
-                timeout = processor.backoff_policy.get_visibility_timeout(message)
-                message.change_visibility(VisibilityTimeout=timeout)
-        return result
+        Return True if processing went successful
+        """
+        job_name = get_job_name(message)
+        processor = self.get_processor(job_name)
+        return processor.process_message(message)
 
-    def get_raw_messages(self, wait_seconds):
-        """
-        Return raw messages from the queue, addressed by its name
-        """
-        kwargs = {
-            "WaitTimeSeconds": wait_seconds,
-            "MaxNumberOfMessages": 10,
-            "MessageAttributeNames": ["All"],
-            "AttributeNames": ["All"],
-        }
-        queue = self.get_queue()
-        return queue.receive_messages(**kwargs)
-
-    def drain_queue(self, wait_seconds=0):
-        """
-        Delete all messages from the queue without calling purge().
-        """
-        queue = self.get_queue()
-        deleted_count = 0
-        while True:
-            messages = self.get_raw_messages(wait_seconds)
-            if not messages:
-                break
-            entries = [
-                {"Id": msg.message_id, "ReceiptHandle": msg.receipt_handle}
-                for msg in messages
-            ]
-            queue.delete_messages(Entries=entries)
-            deleted_count += len(messages)
-        return deleted_count
-
-    def get_sqs_queue_name(self):
-        """
-        Take "high-level" (user-visible) queue name and return SQS
-        ("low level") name by simply prefixing it. Used to create namespaces
-        for different environments (development, staging, production, etc)
-        """
-        return "{}{}".format(self.env.queue_prefix, self.name)
-
-    def get_queue(self):
-        """
-        Helper function to return queue object.
-        """
-        if self._queue is None:
-            self._queue = self.env.sqs_resource.get_queue_by_name(
-                QueueName=self.get_sqs_queue_name()
-            )
-        return self._queue
+    def get_backoff_policy(self, message):
+        # type: (Any) -> BackoffPolicy
+        job_name = get_job_name(message)
+        processor = self.get_processor(job_name)
+        return processor.backoff_policy
 
     def copy_processors(self, dst_queue):
         # type: (SQSQueue) -> None
