@@ -20,7 +20,7 @@ EMAIL = "dev@doist.com"
 AUTHOR = "Doist Developers"
 REQUIRES_PYTHON = ">=2.7"
 VERSION = None
-REQUIRED = ["boto3", "future", "pytest-runner", "attrs", "werkzeug"]
+REQUIRED = ["boto3", "future", "pytest-runner", "attrs", "typing", "werkzeug"]
 REQUIRED_TESTS = ["pytest", "pdbpp", "localstack-client"]
 
 here = os.path.abspath(os.path.dirname(__file__))
