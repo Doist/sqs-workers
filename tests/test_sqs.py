@@ -289,3 +289,17 @@ def test_raw_queue(sqs, queue_name):
     queue.add_raw_job("foo")
     assert queue.process_batch().succeeded_count() == 1
     assert message_body["body"] == "foo"
+
+
+def test_raw_queue_decorator(sqs, queue_name):
+    message_body = {}
+
+    queue = sqs.queue(queue_name, RawQueue)  # type: RawQueue
+
+    @queue.raw_processor()
+    def raw_processor(message):
+        message_body["body"] = message.body
+
+    queue.add_raw_job("foo")
+    assert queue.process_batch().succeeded_count() == 1
+    assert message_body["body"] == "foo"

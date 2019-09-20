@@ -233,6 +233,88 @@ sqs = SQSEnv(
 )
 ```
 
+Raw queues
+----------
+
+Raw queues can have only one processor, and this should be a function,
+accepting message as its only argument.
+
+Raw queues are helpful to process messages, added to SQS from external
+sources, such as CloudWatch events.
+
+You start very much the same way, creating a new standard queue if needed.
+
+```python
+from sqs_workers import SQSEnv, create_standard_queue
+sqs = SQSEnv()
+create_standard_queue(sqs, 'cron')
+```
+
+Then you get a queue, but provide a queue_maker parameter to it, to create a
+queue of the necessary type, and you define a processor for it.
+
+```python
+from sqs_workers import RawQueue
+
+cron = sqs.queue('cron', RawQueue)
+
+@cron.raw_processor()
+def processor(message):
+    print(message.body)
+```
+
+Then start processing your queue as usual:
+
+```python
+cron.process_queue()
+```
+
+You can also send raw messages to the queue, but this is probably less useful:
+
+```python
+cron.add_raw_job("Hello world")
+```
+
+
+Processing Messages from CloudWatch
+-----------------------------------
+
+By default message body by CloudWatch scheduler has following JSON structure.
+
+```json
+{
+  "version": "0",
+  "id": "a9a10406-9a1f-0ddc-51ae-08db551fac42",
+  "detail-type": "Scheduled Event",
+  "source": "aws.events",
+  "account": "NNNNNNNNNN",
+  "time": "2019-09-20T09:19:56Z",
+  "region": "eu-west-1",
+  "resources": [
+    "arn:aws:events:eu-west-1:NNNNNNNNNN:rule/Playground"
+  ],
+  "detail": {}
+}
+```
+
+Headers of the message:
+
+```python
+{
+    'SenderId': 'AIDAJ2E....',
+    'ApproximateFirstReceiveTimestamp': '1568971264367',
+    'ApproximateReceiveCount': '1',
+    'SentTimestamp': '1568971244845',
+}
+```
+
+You can pass any valid JSON as a message though, and it will be passed as
+is to the message body. Something like this:
+
+```json
+{"message": "Hello world"}
+```
+
 
 Dead-letter queues and redrive
 ------------------------------

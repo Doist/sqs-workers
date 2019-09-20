@@ -20,9 +20,9 @@ logger = logging.getLogger(__name__)
 
 @attr.s
 class GenericQueue(object):
-    env = attr.ib()  # type: SQSEnv
+    env = attr.ib(repr=False)  # type: SQSEnv
     name = attr.ib()  # type: str
-    _queue = attr.ib(default=None)
+    _queue = attr.ib(repr=False, default=None)
 
     def process_queue(self, shutdown_policy=NEVER_SHUTDOWN, wait_second=10):
         """
@@ -141,7 +141,25 @@ class GenericQueue(object):
 
 @attr.s
 class RawQueue(GenericQueue):
-    processor = attr.ib(default=None)  # type: GenericProcessor
+    processor = attr.ib(default=None)  # type: RawProcessor
+
+    def raw_processor(self, backoff_policy=None):
+        """
+        Decorator to assign processor to handle jobs from the raw queue
+
+        Usage example:
+
+        cron = sqs.queue('cron')
+
+        @cron.raw_processor()
+        def process(message):
+            print(message.body)
+        """
+
+        def fn(processor):
+            return self.connect_raw_processor(processor, backoff_policy)
+
+        return fn
 
     def connect_raw_processor(self, processor, backoff_policy=None):
         """
@@ -160,6 +178,7 @@ class RawQueue(GenericQueue):
             fn=processor,
             backoff_policy=backoff_policy or self.env.backoff_policy,
         )
+        return processor
 
     def add_raw_job(
         self,
