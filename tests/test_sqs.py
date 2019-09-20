@@ -12,6 +12,7 @@ from sqs_workers import (
 from sqs_workers.codecs import JSONCodec, PickleCodec
 from sqs_workers.memory_sqs import MemorySession
 from sqs_workers.processors import DeadLetterProcessor, Processor
+from sqs_workers.queue import RawQueue
 
 worker_results = {"say_hello": None}
 
@@ -275,3 +276,16 @@ def test_custom_processor(sqs, queue_name):
     say_hello_task.delay()
     assert queue.process_batch().succeeded_count() == 1
     assert worker_results["say_hello"] == "Foo"
+
+
+def test_raw_queue(sqs, queue_name):
+    message_body = {}
+
+    def raw_processor(message):
+        message_body["body"] = message.body
+
+    queue = sqs.queue(queue_name, RawQueue)  # type: RawQueue
+    queue.connect_raw_processor(raw_processor)
+    queue.add_raw_job("foo")
+    assert queue.process_batch().succeeded_count() == 1
+    assert message_body["body"] == "foo"

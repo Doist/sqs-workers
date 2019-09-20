@@ -7,14 +7,13 @@ from sqs_workers import codecs
 from sqs_workers.async_task import AsyncTask
 from sqs_workers.backoff_policies import BackoffPolicy
 from sqs_workers.core import BatchProcessingResult, get_job_name
-from sqs_workers.processors import DEFAULT_CONTEXT_VAR, GenericProcessor
+from sqs_workers.processors import DEFAULT_CONTEXT_VAR, GenericProcessor, RawProcessor
 from sqs_workers.shutdown_policies import NEVER_SHUTDOWN
 
 DEFAULT_MESSAGE_GROUP_ID = "default"
 
 if TYPE_CHECKING:
     from sqs_workers import SQSEnv
-
 
 logger = logging.getLogger(__name__)
 
@@ -127,7 +126,7 @@ class GenericQueue(object):
         ("low level") name by simply prefixing it. Used to create namespaces
         for different environments (development, staging, production, etc)
         """
-        return "{}{}".format(self.env.queue_prefix, self.name)
+        return self.env.get_sqs_queue_name(self.name)
 
     def get_queue(self):
         """
@@ -143,6 +142,63 @@ class GenericQueue(object):
 @attr.s
 class RawQueue(GenericQueue):
     processor = attr.ib(default=None)  # type: GenericProcessor
+
+    def connect_raw_processor(self, processor, backoff_policy=None):
+        """
+        Assign raw processor (a function) to handle jobs.
+        """
+        extra = {
+            "queue_name": self.name,
+            "processor_name": processor.__module__ + "." + processor.__name__,
+        }
+        logger.debug(
+            "Connect {queue_name} to " "processor {processor_name}".format(**extra),
+            extra=extra,
+        )
+        self.processor = RawProcessor(
+            queue=self,
+            fn=processor,
+            backoff_policy=backoff_policy or self.env.backoff_policy,
+        )
+
+    def add_raw_job(
+        self,
+        message_body,  # type: str
+        delay_seconds=0,  # type: int
+        deduplication_id=None,  # type: str
+        group_id=DEFAULT_MESSAGE_GROUP_ID,  # type: str
+    ):
+        """
+        Add raw message to the queue
+        """
+
+        kwargs = {
+            "MessageBody": message_body,
+            "DelaySeconds": delay_seconds,
+            "MessageAttributes": {},
+        }
+        if self.name.endswith(".fifo"):
+            # if queue name ends with .fifo, then according to the AWS specs,
+            # it's a FIFO queue, and requires group_id.
+            # Otherwise group_id can be set to None
+            if group_id is None:
+                group_id = DEFAULT_MESSAGE_GROUP_ID
+            if deduplication_id is not None:
+                kwargs["MessageDeduplicationId"] = str(deduplication_id)
+            if group_id is not None:
+                kwargs["MessageGroupId"] = str(group_id)
+
+        ret = self.get_queue().send_message(**kwargs)
+        return ret["MessageId"]
+
+    def process_message(self, message):
+        # type: (Any) -> bool
+        """
+        Process single message.
+
+        Return True if processing went successful
+        """
+        return self.processor.process_message(message)
 
 
 @attr.s

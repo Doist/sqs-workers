@@ -22,7 +22,7 @@ from typing import Any, Dict, List
 import attr
 
 
-@attr.s()
+@attr.s
 class MemoryAWS(object):
     """
     In-memory AWS as a whole.
@@ -47,7 +47,7 @@ class MemoryAWS(object):
         self.queues = [queue for queue in self.queues if queue.url != QueueUrl]
 
 
-@attr.s()
+@attr.s
 class MemorySession(object):
     """
     In memory AWS session.
@@ -64,7 +64,7 @@ class MemorySession(object):
         return self.aws.resource
 
 
-@attr.s()
+@attr.s
 class MemoryClient(object):
 
     aws = attr.ib(repr=False)
@@ -85,7 +85,7 @@ class MemoryClient(object):
         }
 
 
-@attr.s()
+@attr.s
 class ServiceResource(object):
 
     aws = attr.ib(repr=False)  # type: MemoryAWS
@@ -100,7 +100,7 @@ class ServiceResource(object):
         return None
 
 
-@attr.s()
+@attr.s
 class MemoryQueue(object):
     """
     In-memory queue which mimics the subset of SQS Queue object.

@@ -1,12 +1,13 @@
 import logging
 import multiprocessing
+from typing import Type
 
 import attr
 import boto3
 
 from sqs_workers import DEFAULT_BACKOFF, context, processors
 from sqs_workers.core import RedrivePolicy
-from sqs_workers.queue import SQSQueue
+from sqs_workers.queue import GenericQueue, SQSQueue
 from sqs_workers.shutdown_policies import NeverShutdown
 
 logger = logging.getLogger(__name__)
@@ -33,9 +34,10 @@ class SQSEnv(object):
         self.sqs_client = self.session.client("sqs")
         self.sqs_resource = self.session.resource("sqs")
 
-    def queue(self, queue_name):
+    def queue(self, queue_name, queue_maker=SQSQueue):
+        # type: (str, Type[GenericQueue]) -> GenericQueue
         if queue_name not in self.queues:
-            self.queues[queue_name] = SQSQueue(self, queue_name)
+            self.queues[queue_name] = queue_maker(self, queue_name)
         return self.queues[queue_name]
 
     def process_queues(self, queue_names=None, shutdown_policy_maker=NeverShutdown):
@@ -82,7 +84,7 @@ class SQSEnv(object):
         ("low level") name by simply prefixing it. Used to create namespaces
         for different environments (development, staging, production, etc)
         """
-        return self.queue(queue_name).get_sqs_queue_name()
+        return "{}{}".format(self.queue_prefix, queue_name)
 
     def redrive_policy(self, dead_letter_queue_name, max_receive_count):
         return RedrivePolicy(self, dead_letter_queue_name, max_receive_count)
