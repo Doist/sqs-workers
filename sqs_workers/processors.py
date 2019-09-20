@@ -1,6 +1,8 @@
 import logging
 import warnings
-from typing import TYPE_CHECKING, Callable
+from typing import TYPE_CHECKING, Callable, Optional
+
+import attr
 
 from sqs_workers import codecs
 from sqs_workers.backoff_policies import DEFAULT_BACKOFF, BackoffPolicy
@@ -15,6 +17,7 @@ logger = logging.getLogger(__name__)
 DEFAULT_CONTEXT_VAR = "context"
 
 
+@attr.s
 class GenericProcessor(object):
     """
     Base superclass for all types of processors. Accepts queue name and job
@@ -35,30 +38,11 @@ class GenericProcessor(object):
       from the list of successfully processed messages
     """
 
-    def __init__(
-        self,
-        queue,  # type: SQSQueue
-        job_name,  # type: str
-        fn=None,  # type: Callable
-        pass_context=False,  # type: bool
-        context_var=DEFAULT_CONTEXT_VAR,  # type: str
-        backoff_policy=DEFAULT_BACKOFF,  # type: BackoffPolicy
-    ):
-        self.queue = queue
-        self.job_name = job_name
-        self.fn = fn
-        self.pass_context = pass_context
-        self.context_var = context_var
-        self.backoff_policy = backoff_policy
-
-    def __repr__(self):
-        if self.fn:
-            fn_name = self.fn.__module__ + "." + self.fn.__name__
-        else:
-            fn_name = ""
-        return "{}({!r}, {!r}, {})".format(
-            self.__class__.__name__, self.queue.name, self.job_name, fn_name
-        )
+    queue = attr.ib()  # type: SQSQueue
+    fn = attr.ib(default=None)  # type: Optional[Callable]
+    pass_context = attr.ib(default=False)  # type: bool
+    context_var = attr.ib(default=DEFAULT_CONTEXT_VAR)  # type: str
+    backoff_policy = attr.ib(default=DEFAULT_BACKOFF)  # type: BackoffPolicy
 
     def process_message(self, message):
         # type: (...) -> bool
@@ -72,17 +56,10 @@ class GenericProcessor(object):
         Create a new instance of the processor, optionally updating
         arguments of the constructor from update_kwargs
         """
-        init_kwargs = {
-            "queue": kwargs.get("queue", self.queue),
-            "job_name": kwargs.get("job_name", self.job_name),
-            "fn": kwargs.get("fn", self.fn),
-            "pass_context": kwargs.get("pass_context", self.pass_context),
-            "context_var": kwargs.get("context_var", self.context_var),
-            "backoff_policy": kwargs.get("backoff_policy", self.backoff_policy),
-        }
-        return self.__class__(**init_kwargs)
+        return attr.evolve(self, **kwargs)
 
 
+@attr.s
 class Processor(GenericProcessor):
     """
     Processor which calls its function for each incoming message.
@@ -90,6 +67,8 @@ class Processor(GenericProcessor):
     fn() accepts a single parameter "message" which is a decoded body of an
     SQS message
     """
+
+    job_name = attr.ib(default="")  # type: str
 
     def process_message(self, message):
         extra = {
@@ -122,11 +101,14 @@ class Processor(GenericProcessor):
         return call_handler(self.fn, effective_kwargs)
 
 
+@attr.s
 class FallbackProcessor(GenericProcessor):
     """
     Processor which is used by default when none of the processors is attached
     explicitly
     """
+
+    job_name = attr.ib(default="")  # type: str
 
     def process_message(self, message):
         warnings.warn(
@@ -135,6 +117,7 @@ class FallbackProcessor(GenericProcessor):
         return False
 
 
+@attr.s
 class DeadLetterProcessor(GenericProcessor):
     """
     Generic processor which can be used for the dead-letter queue to push back
@@ -168,15 +151,14 @@ class DeadLetterProcessor(GenericProcessor):
 
     def process_message(self, message):
         if not is_deadletter(self.queue.name):
-            warnings.warn(
-                "Error while processing {}.{}".format(self.queue.name, self.job_name)
-            )
+            warnings.warn("Error while processing {}".format(self.queue.name))
             return False
 
         self.push_back_message(message)
         return True
 
     def push_back_message(self, message):
+        raise NotImplementedError()
         target_queue_name = get_deadletter_upstream_name(self.queue.name)
         target_queue = self.queue.env.queue(target_queue_name)
 

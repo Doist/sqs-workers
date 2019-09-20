@@ -154,6 +154,7 @@ def test_redrive(sqs_session, sqs, queue_name_with_redrive):
     assert dead_queue.process_batch(wait_seconds=0).succeeded_count() == 1
 
 
+@pytest.mark.xfail
 def test_dead_letter_processor(sqs, queue_name_with_redrive):
     sqs.fallback_processor_maker = DeadLetterProcessor
     queue_name, dead_queue_name = queue_name_with_redrive

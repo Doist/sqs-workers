@@ -141,6 +141,11 @@ class GenericQueue(object):
 
 
 @attr.s
+class RawQueue(GenericQueue):
+    processor = attr.ib(default=None)  # type: GenericProcessor
+
+
+@attr.s
 class SQSQueue(GenericQueue):
 
     processors = attr.ib(factory=dict)  # type: Dict[str, GenericProcessor]
@@ -207,12 +212,12 @@ class SQSQueue(GenericQueue):
             extra=extra,
         )
         self.processors[job_name] = self.env.processor_maker(
-            self,
-            job_name,
-            processor,
-            pass_context,
-            context_var,
-            backoff_policy or self.env.backoff_policy,
+            queue=self,
+            fn=processor,
+            pass_context=pass_context,
+            context_var=context_var,
+            backoff_policy=backoff_policy or self.env.backoff_policy,
+            job_name=job_name,
         )
         return AsyncTask(self, job_name, processor)
 
@@ -222,7 +227,7 @@ class SQSQueue(GenericQueue):
         """
         processor = self.processors.get(job_name)
         if processor is None:
-            processor = self.env.fallback_processor_maker(self, job_name)
+            processor = self.env.fallback_processor_maker(queue=self, job_name=job_name)
             self.processors[job_name] = processor
         return processor
 
