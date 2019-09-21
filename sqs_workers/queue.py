@@ -219,6 +219,10 @@ class RawQueue(GenericQueue):
         """
         return self.processor.process_message(message)
 
+    def get_backoff_policy(self, message):
+        # type: (Any) -> BackoffPolicy
+        return self.env.backoff_policy
+
 
 @attr.s
 class SQSQueue(GenericQueue):
