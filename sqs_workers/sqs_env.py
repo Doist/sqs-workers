@@ -20,7 +20,6 @@ class SQSEnv(object):
     queue_prefix = attr.ib(default="")
     backoff_policy = attr.ib(default=DEFAULT_BACKOFF)
     processor_maker = attr.ib(default=processors.Processor)
-    fallback_processor_maker = attr.ib(default=processors.FallbackProcessor)
     context_maker = attr.ib(default=context.SQSContext)
 
     # internal attributes

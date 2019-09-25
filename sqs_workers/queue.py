@@ -1,4 +1,5 @@
 import logging
+import warnings
 from typing import TYPE_CHECKING, Any, Callable, Dict, Optional
 
 import attr
@@ -295,11 +296,7 @@ class SQSQueue(GenericQueue):
         """
         Helper function to return a processor for the queue
         """
-        processor = self.processors.get(job_name)
-        if processor is None:
-            processor = self.env.fallback_processor_maker(queue=self, job_name=job_name)
-            self.processors[job_name] = processor
-        return processor
+        return self.processors.get(job_name)
 
     def add_job(
         self,
@@ -373,7 +370,16 @@ class SQSQueue(GenericQueue):
         """
         job_name = get_job_name(message)
         processor = self.get_processor(job_name)
-        return processor.process_message(message)
+        if processor:
+            return processor.process_message(message)
+        else:
+            return self.process_message_fallback(message)
+
+    def process_message_fallback(self, message):
+        warnings.warn(
+            "Error while processing {}.{}".format(self.name, get_job_name(message))
+        )
+        return False
 
     def copy_processors(self, dst_queue):
         # type: (SQSQueue) -> None
