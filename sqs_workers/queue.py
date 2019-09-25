@@ -229,7 +229,7 @@ class RawQueue(GenericQueue):
 
 
 @attr.s
-class SQSQueue(GenericQueue):
+class JobQueue(GenericQueue):
 
     processors = attr.ib(factory=dict)  # type: Dict[str, Processor]
 
@@ -382,7 +382,7 @@ class SQSQueue(GenericQueue):
         return False
 
     def copy_processors(self, dst_queue):
-        # type: (SQSQueue) -> None
+        # type: (JobQueue) -> None
         """
         Copy processors from self to dst_queue. Can be helpful to process d
         ead-letter queue with processors from the main queue.

@@ -22,7 +22,7 @@ class DeadLetterQueue(RawQueue):
 
     Usage example:
 
-    >>> from sqs_workers import SQSQueue
+    >>> from sqs_workers import JobQueue
     >>> from sqs_workers.shutdown_policies IdleShutdown
     >>> from sqs_workers.deadletter_queue import DeadLetterQueue
     >>> env = SQSEnv()
