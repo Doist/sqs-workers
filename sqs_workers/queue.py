@@ -71,8 +71,7 @@ class GenericQueue(object):
                 }
                 queue.delete_messages(Entries=[entry])
             else:
-                bp = self.get_backoff_policy(message)
-                timeout = bp.get_visibility_timeout(message)
+                timeout = self.backoff_policy.get_visibility_timeout(message)
                 message.change_visibility(VisibilityTimeout=timeout)
         return result
 
@@ -84,10 +83,6 @@ class GenericQueue(object):
         Return True if processing went successful
         """
         raise NotImplementedError()
-
-    def get_backoff_policy(self, message):
-        # type: (Any) -> BackoffPolicy
-        return self.backoff_policy
 
     def get_raw_messages(self, wait_seconds):
         """
@@ -231,23 +226,13 @@ class RawQueue(GenericQueue):
         else:
             return True
 
-    def get_backoff_policy(self, message):
-        # type: (Any) -> BackoffPolicy
-        return self.env.backoff_policy
-
 
 @attr.s
 class SQSQueue(GenericQueue):
 
     processors = attr.ib(factory=dict)  # type: Dict[str, GenericProcessor]
 
-    def processor(
-        self,
-        job_name,
-        pass_context=False,
-        context_var=DEFAULT_CONTEXT_VAR,
-        backoff_policy=None,
-    ):
+    def processor(self, job_name, pass_context=False, context_var=DEFAULT_CONTEXT_VAR):
         """
         Decorator to assign processor to handle jobs with the name job_name
         from the queue queue_name
@@ -275,18 +260,13 @@ class SQSQueue(GenericQueue):
 
         def fn(processor):
             return self.connect_processor(
-                job_name, processor, pass_context, context_var, backoff_policy
+                job_name, processor, pass_context, context_var
             )
 
         return fn
 
     def connect_processor(
-        self,
-        job_name,
-        processor,
-        pass_context=False,
-        context_var=DEFAULT_CONTEXT_VAR,
-        backoff_policy=None,
+        self, job_name, processor, pass_context=False, context_var=DEFAULT_CONTEXT_VAR
     ):
         """
         Assign processor (a function) to handle jobs with the name job_name
@@ -307,7 +287,6 @@ class SQSQueue(GenericQueue):
             fn=processor,
             pass_context=pass_context,
             context_var=context_var,
-            backoff_policy=backoff_policy or self.env.backoff_policy,
             job_name=job_name,
         )
         return AsyncTask(self, job_name, processor)
@@ -395,12 +374,6 @@ class SQSQueue(GenericQueue):
         job_name = get_job_name(message)
         processor = self.get_processor(job_name)
         return processor.process_message(message)
-
-    def get_backoff_policy(self, message):
-        # type: (Any) -> BackoffPolicy
-        job_name = get_job_name(message)
-        processor = self.get_processor(job_name)
-        return processor.backoff_policy
 
     def copy_processors(self, dst_queue):
         # type: (SQSQueue) -> None

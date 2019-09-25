@@ -5,7 +5,6 @@ from typing import TYPE_CHECKING, Callable, Optional
 import attr
 
 from sqs_workers import codecs
-from sqs_workers.backoff_policies import DEFAULT_BACKOFF, BackoffPolicy
 from sqs_workers.context import SQSContext
 from sqs_workers.utils import adv_validate_arguments
 
@@ -40,7 +39,6 @@ class GenericProcessor(object):
 
     queue = attr.ib()  # type: GenericQueue
     fn = attr.ib(default=None)  # type: Optional[Callable]
-    backoff_policy = attr.ib(default=DEFAULT_BACKOFF)  # type: BackoffPolicy
 
     def process_message(self, message):
         # type: (...) -> bool

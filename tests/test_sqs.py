@@ -120,10 +120,8 @@ def test_delay_accepts_converts_args_to_kwargs(sqs, queue_name):
 
 
 def test_exception_returns_task_to_the_queue(sqs, queue_name):
-    queue = sqs.queue(queue_name)
-    task = queue.connect_processor(
-        "say_hello", raise_exception, backoff_policy=IMMEDIATE_RETURN
-    )
+    queue = sqs.queue(queue_name, backoff_policy=IMMEDIATE_RETURN)
+    task = queue.connect_processor("say_hello", raise_exception)
     task.delay(username="Homer")
     assert queue.process_batch(wait_seconds=0).failed_count() == 1
 
@@ -137,13 +135,11 @@ def test_redrive(sqs_session, sqs, queue_name_with_redrive):
         pytest.skip("Redrive not implemented with MemorySession")
 
     queue_name, dead_queue_name = queue_name_with_redrive
-    queue = sqs.queue(queue_name)
+    queue = sqs.queue(queue_name, backoff_policy=IMMEDIATE_RETURN)
     dead_queue = sqs.queue(dead_queue_name)
 
     # add processor which fails to the standard queue_name
-    task = queue.connect_processor(
-        "say_hello", raise_exception, backoff_policy=IMMEDIATE_RETURN
-    )
+    task = queue.connect_processor("say_hello", raise_exception)
 
     # add message to the queue_name and process it twice
     # the message has to be moved to dead letter queue_name
@@ -178,12 +174,10 @@ def test_deadletter_processor(sqs, queue_name_with_redrive):
 
 
 def test_exponential_backoff_works(sqs, queue_name):
-    queue = sqs.queue(queue_name)
-    task = queue.connect_processor(
-        "say_hello",
-        raise_exception,
-        backoff_policy=ExponentialBackoff(0.1, max_visbility_timeout=0.1),
+    queue = sqs.queue(
+        queue_name, backoff_policy=ExponentialBackoff(0.1, max_visbility_timeout=0.1)
     )
+    task = queue.connect_processor("say_hello", raise_exception)
     task.delay(username="Homer")
     assert queue.process_batch(wait_seconds=0).failed_count() == 1
 
