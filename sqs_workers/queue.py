@@ -8,7 +8,7 @@ from sqs_workers import codecs
 from sqs_workers.async_task import AsyncTask
 from sqs_workers.backoff_policies import BackoffPolicy
 from sqs_workers.core import BatchProcessingResult, get_job_name
-from sqs_workers.processors import DEFAULT_CONTEXT_VAR, GenericProcessor
+from sqs_workers.processors import DEFAULT_CONTEXT_VAR, Processor
 from sqs_workers.shutdown_policies import NEVER_SHUTDOWN
 
 DEFAULT_MESSAGE_GROUP_ID = "default"
@@ -231,7 +231,7 @@ class RawQueue(GenericQueue):
 @attr.s
 class SQSQueue(GenericQueue):
 
-    processors = attr.ib(factory=dict)  # type: Dict[str, GenericProcessor]
+    processors = attr.ib(factory=dict)  # type: Dict[str, Processor]
 
     def processor(self, job_name, pass_context=False, context_var=DEFAULT_CONTEXT_VAR):
         """
