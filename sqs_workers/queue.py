@@ -1,5 +1,5 @@
 import logging
-from typing import TYPE_CHECKING, Any, Dict
+from typing import TYPE_CHECKING, Any, Callable, Dict, Optional
 
 import attr
 
@@ -7,7 +7,7 @@ from sqs_workers import codecs
 from sqs_workers.async_task import AsyncTask
 from sqs_workers.backoff_policies import BackoffPolicy
 from sqs_workers.core import BatchProcessingResult, get_job_name
-from sqs_workers.processors import DEFAULT_CONTEXT_VAR, GenericProcessor, RawProcessor
+from sqs_workers.processors import DEFAULT_CONTEXT_VAR, GenericProcessor
 from sqs_workers.shutdown_policies import NEVER_SHUTDOWN
 
 DEFAULT_MESSAGE_GROUP_ID = "default"
@@ -22,6 +22,7 @@ logger = logging.getLogger(__name__)
 class GenericQueue(object):
     env = attr.ib(repr=False)  # type: SQSEnv
     name = attr.ib()  # type: str
+    backoff_policy = attr.ib()  # type: BackoffPolicy
     _queue = attr.ib(repr=False, default=None)
 
     def process_queue(self, shutdown_policy=NEVER_SHUTDOWN, wait_second=10):
@@ -70,9 +71,8 @@ class GenericQueue(object):
                 }
                 queue.delete_messages(Entries=[entry])
             else:
-                timeout = self.get_backoff_policy(message).get_visibility_timeout(
-                    message
-                )
+                bp = self.get_backoff_policy(message)
+                timeout = bp.get_visibility_timeout(message)
                 message.change_visibility(VisibilityTimeout=timeout)
         return result
 
@@ -87,7 +87,7 @@ class GenericQueue(object):
 
     def get_backoff_policy(self, message):
         # type: (Any) -> BackoffPolicy
-        raise NotImplementedError()
+        return self.backoff_policy
 
     def get_raw_messages(self, wait_seconds):
         """
@@ -141,9 +141,9 @@ class GenericQueue(object):
 
 @attr.s
 class RawQueue(GenericQueue):
-    processor = attr.ib(default=None)  # type: RawProcessor
+    processor = attr.ib(default=None)  # type: Optional[Callable]
 
-    def raw_processor(self, backoff_policy=None):
+    def raw_processor(self):
         """
         Decorator to assign processor to handle jobs from the raw queue
 
@@ -156,12 +156,12 @@ class RawQueue(GenericQueue):
             print(message.body)
         """
 
-        def fn(processor):
-            return self.connect_raw_processor(processor, backoff_policy)
+        def func(processor):
+            return self.connect_raw_processor(processor)
 
-        return fn
+        return func
 
-    def connect_raw_processor(self, processor, backoff_policy=None):
+    def connect_raw_processor(self, processor):
         """
         Assign raw processor (a function) to handle jobs.
         """
@@ -173,12 +173,7 @@ class RawQueue(GenericQueue):
             "Connect {queue_name} to " "processor {processor_name}".format(**extra),
             extra=extra,
         )
-        self.processor = RawProcessor(
-            queue=self,
-            fn=processor,
-            backoff_policy=backoff_policy or self.env.backoff_policy,
-        )
-        return processor
+        self.processor = processor
 
     def add_raw_job(
         self,
@@ -217,7 +212,24 @@ class RawQueue(GenericQueue):
 
         Return True if processing went successful
         """
-        return self.processor.process_message(message)
+        extra = {"message_id": message.message_id, "queue_name": self.name}
+        if not self.processor:
+            logger.warning(
+                "No processor set for {queue_name}".format(**extra), extra=extra
+            )
+
+        logger.debug("Process {queue_name}.{message_id}".format(**extra), extra=extra)
+
+        try:
+            self.processor(message)
+        except Exception:
+            logger.exception(
+                "Error while processing {queue_name}.{message_id}".format(**extra),
+                extra=extra,
+            )
+            return False
+        else:
+            return True
 
     def get_backoff_policy(self, message):
         # type: (Any) -> BackoffPolicy

@@ -10,8 +10,9 @@ from sqs_workers import (
     delete_queue,
 )
 from sqs_workers.codecs import JSONCodec, PickleCodec
+from sqs_workers.deadletter_queue import DeadLetterQueue
 from sqs_workers.memory_sqs import MemorySession
-from sqs_workers.processors import DeadLetterProcessor, Processor
+from sqs_workers.processors import Processor
 from sqs_workers.queue import RawQueue
 
 worker_results = {"say_hello": None}
@@ -155,21 +156,24 @@ def test_redrive(sqs_session, sqs, queue_name_with_redrive):
     assert dead_queue.process_batch(wait_seconds=0).succeeded_count() == 1
 
 
-@pytest.mark.xfail
-def test_dead_letter_processor(sqs, queue_name_with_redrive):
-    sqs.fallback_processor_maker = DeadLetterProcessor
+def test_deadletter_processor(sqs, queue_name_with_redrive):
     queue_name, dead_queue_name = queue_name_with_redrive
-    queue = sqs.queue(queue_name)
-    dead_queue = sqs.queue(dead_queue_name)
+    queue = sqs.queue(queue_name, RawQueue)
+    dead_queue = sqs.queue(
+        dead_queue_name, DeadLetterQueue.maker(queue)
+    )  # type: DeadLetterQueue
 
-    # dead queue_name doesn't have a processor, so a dead letter processor
-    # will be fired, and it will mark the task as successful
-    dead_queue.add_job("say_hello")
+    dead_queue.add_raw_job("say_hello")
     assert dead_queue.process_batch(wait_seconds=0).succeeded_count() == 1
 
     # queue_name has processor which succeeds (but we need to wait at least
     # 1 second for this task to appear here)
-    queue.connect_processor("say_hello", say_hello)
+    message_body = {}
+
+    def raw_processor(message):
+        message_body["body"] = message.body
+
+    queue.connect_raw_processor(raw_processor)
     assert queue.process_batch(wait_seconds=2).succeeded_count() == 1
 
 

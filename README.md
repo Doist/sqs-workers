@@ -402,58 +402,23 @@ causing messages to appear there in the first place, and then to re-process
 these messages again.
 
 With sqs-workers in can be done by putting back all the messages from a
-dead-letter queue back to the main one. It can be performed with a special
-fallback processor called DeadLetterProcessor.
-
-The dead-letter processor has opinion on how queues are organized and uses some
-hard-coded options.
-
-It is supposed to process queues "something_dead" which is supposed to be
-a configured dead-letter queue for "something". While processing the queue,
-the processor takes every message and push it back to the queue "something"
-with a hard-coded delay of 1 second.
-
-If the queue name does't end with "_dead", the DeadLetterProcessor behaves
-like generic FallbackProcessor: shows the error message and keep message in
-the queue. It's made to prevent from creating infinite loops when the
-message from the dead letter queue is pushed back to the same queue, then
-immediately processed by the same processor again, etc.
+dead-letter queue back to the main one. While processing the queue, the
+processor takes every message and push it back to the upstream queue with a
+hard-coded delay of 1 second.
 
 Usage example:
 
-```python
-from sqs_workers import SQSEnv
-from sqs_workers.processors import DeadLetterProcessor
-from sqs_workers.shutdown_policies import IdleShutdown
-
-sqs = SQSEnv(fallback_processor_maker=DeadLetterProcessor)
-sqs.queue("foo_dead").process_queue(shutdown_policy=IdleShutdown(10))
-```
+    >>> from sqs_workers import SQSQueue
+    >>> from sqs_workers.shutdown_policies IdleShutdown
+    >>> from sqs_workers.deadletter_queue import DeadLetterQueue
+    >>> env = SQSEnv()
+    >>> foo = env.queue("foo")
+    >>> foo_dead = env.queue("foo_dead", DeadLetterQueue.maker(foo))
+    >>> foo_dead.process_queue(shutdown_policy=IdleShutdown(10))
 
 This code takes all the messages in foo_dead queue and push them back to
 the foo queue. Then it waits 10 seconds to ensure no new messages appear,
 and quit.
-
-
-Processing dead-letter with processors from the main queue
-----------------------------------------------------------
-
-Instead of pushing back tasks to the main queue you can copy processors
-from the main queue to dead-letter and process all tasks in place.
-
-Usage example:
-
-```python
-from sqs_workers import SQSEnv
-from sqs_workers.shutdown_policies import IdleShutdown
-
-sqs = SQSEnv()
-...
-foo = sqs.queue("foo")
-foo_dead = sqs.queue("foo_dead")
-foo.copy_processors(foo_dead)
-foo_dead.process_queue(shutdown_policy=IdleShutdown(10))
-```
 
 
 Using in unit tests with MemorySession

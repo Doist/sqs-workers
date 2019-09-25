@@ -37,7 +37,9 @@ class SQSEnv(object):
     def queue(self, queue_name, queue_maker=SQSQueue):
         # type: (str, Type[GenericQueue]) -> GenericQueue
         if queue_name not in self.queues:
-            self.queues[queue_name] = queue_maker(self, queue_name)
+            self.queues[queue_name] = queue_maker(
+                env=self, name=queue_name, backoff_policy=self.backoff_policy
+            )
         return self.queues[queue_name]
 
     def process_queues(self, queue_names=None, shutdown_policy_maker=NeverShutdown):
