@@ -119,8 +119,7 @@ FIFO queues
 -----------
 
 Fifo queues can be created with `create_fifo_queue` and has to have the name
-which ends with ".fifo". The dead-letter queue has to have a name
-`something_dead.fifo`.
+which ends with ".fifo".
 
 ```python
 from sqs_workers import SQSEnv, create_fifo_queue
@@ -340,13 +339,13 @@ Backoff policies
 ----------------
 
 You can define the backoff policy for the entire environment or for specific
-processor.
+queue.
 
 
 ```python
-queue = sqs.queue("emails")
+queue = sqs.queue("emails", backoff_policy=DEFAULT_BACKOFF)
 
-@queue.processor('send_email', backoff_policy=DEFAULT_BACKOFF)
+@queue.processor('send_email')
 def send_email(to, subject, body):
     print(f"Sending email {subject} to {to}")
 ```
@@ -359,9 +358,9 @@ Alternatively you can set the backoff to IMMEDIATE_RETURN to re-execute
 failed task immediately.
 
 ```python
-queue = sqs.queue("emails")
+queue = sqs.queue("emails", backoff_policy=IMMEDIATE_RETURN)
 
-@queue.processor('send_email', backoff_policy=IMMEDIATE_RETURN)
+@queue.processor('send_email')
 def send_email(to, subject, body):
     print(f"Sending email {subject} to {to}")
 ```
@@ -375,7 +374,7 @@ to optionally set when it has to be stopped.
 Following shutdown policies are supported:
 
 - IdleShutdown(idle_seconds): return from function when no new tasks
-  are seend for specific period of time
+  are sent for specific period of time
 
 - MaxTasksShutdown(max_tasks): return from function after processing at
   least max_task jobs. Can be helpful to prevent memory leaks
