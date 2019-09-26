@@ -1,10 +1,11 @@
 import logging
 import warnings
+from functools import partial
 from typing import TYPE_CHECKING, Any, Callable, Dict, Optional
 
 import attr
 
-from sqs_workers import codecs
+from sqs_workers import DEFAULT_BACKOFF, codecs
 from sqs_workers.async_task import AsyncTask
 from sqs_workers.backoff_policies import BackoffPolicy
 from sqs_workers.core import BatchProcessingResult, get_job_name
@@ -23,8 +24,12 @@ logger = logging.getLogger(__name__)
 class GenericQueue(object):
     env = attr.ib(repr=False)  # type: SQSEnv
     name = attr.ib()  # type: str
-    backoff_policy = attr.ib()  # type: BackoffPolicy
+    backoff_policy = attr.ib(default=DEFAULT_BACKOFF)  # type: BackoffPolicy
     _queue = attr.ib(repr=False, default=None)
+
+    @classmethod
+    def maker(cls, **kwargs):
+        return partial(cls, **kwargs)
 
     def process_queue(self, shutdown_policy=NEVER_SHUTDOWN, wait_second=10):
         """

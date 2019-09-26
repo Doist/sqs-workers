@@ -1,4 +1,5 @@
 import logging
+from functools import partial
 from typing import TYPE_CHECKING, Callable, Optional
 
 import attr
@@ -29,6 +30,10 @@ class Processor(object):
     job_name = attr.ib(default="")  # type: str
     pass_context = attr.ib(default=False)  # type: bool
     context_var = attr.ib(default=DEFAULT_CONTEXT_VAR)  # type: str
+
+    @classmethod
+    def maker(cls, **kwargs):
+        return partial(cls, **kwargs)
 
     def process_message(self, message):
         extra = {

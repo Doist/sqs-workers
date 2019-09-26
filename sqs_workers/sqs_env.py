@@ -34,6 +34,9 @@ class SQSEnv(object):
         self.sqs_resource = self.session.resource("sqs")
 
     def queue(self, queue_name, queue_maker=JobQueue, backoff_policy=None):
+        """
+        Get a queue object, initializing it with queue_maker if necessary.
+        """
         # type: (str, Type[GenericQueue]) -> GenericQueue
         if queue_name not in self.queues:
             backoff_policy = backoff_policy or self.backoff_policy

@@ -156,7 +156,7 @@ def test_deadletter_processor(sqs, queue_name_with_redrive):
     queue_name, dead_queue_name = queue_name_with_redrive
     queue = sqs.queue(queue_name, RawQueue)
     dead_queue = sqs.queue(
-        dead_queue_name, DeadLetterQueue.maker(queue)
+        dead_queue_name, DeadLetterQueue.maker(upstream_queue=queue)
     )  # type: DeadLetterQueue
 
     dead_queue.add_raw_job("say_hello")

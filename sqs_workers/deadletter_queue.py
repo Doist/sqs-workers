@@ -1,4 +1,5 @@
 import logging
+from functools import partial
 from typing import TYPE_CHECKING
 
 import attr
@@ -38,17 +39,11 @@ class DeadLetterQueue(RawQueue):
     upstream_queue = attr.ib(default=None)  # type: GenericQueue
 
     @classmethod
-    def maker(cls, upstream_queue):
-        def func(env, name, backoff_policy):
-            return DeadLetterQueue(
-                env,
-                name=name,
-                backoff_policy=backoff_policy,
-                processor=PushBackSender(upstream_queue),
-                upstream_queue=upstream_queue,
-            )
-
-        return func
+    def maker(cls, upstream_queue, **kwargs):
+        processor = PushBackSender(upstream_queue)
+        return partial(
+            cls, processor=processor, upstream_queue=upstream_queue, **kwargs
+        )
 
 
 @attr.s
