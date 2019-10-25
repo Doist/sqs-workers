@@ -18,7 +18,11 @@ class SQSEnv(object):
 
     session = attr.ib(default=boto3)
     queue_prefix = attr.ib(default="")
+
+    # queue-specific settings
     backoff_policy = attr.ib(default=DEFAULT_BACKOFF)
+
+    # jobqueue-specific settings
     processor_maker = attr.ib(default=processors.Processor)
     context_maker = attr.ib(default=context.SQSContext)
 
