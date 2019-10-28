@@ -1,11 +1,12 @@
 import logging
 import multiprocessing
+import warnings
 from typing import Type
 
 import attr
 import boto3
 
-from sqs_workers import DEFAULT_BACKOFF, RawQueue, context, processors
+from sqs_workers import DEFAULT_BACKOFF, RawQueue, codecs, context, processors
 from sqs_workers.core import RedrivePolicy
 from sqs_workers.processors import DEFAULT_CONTEXT_VAR
 from sqs_workers.queue import GenericQueue, JobQueue
@@ -53,14 +54,47 @@ class SQSEnv(object):
     def processor(
         self, queue_name, job_name, pass_context=False, context_var=DEFAULT_CONTEXT_VAR
     ):
+        """
+        Decorator to attach processor to all jobs "job_name" of the queue "queue_name".
+        """
         q = self.queue(queue_name, queue_maker=JobQueue)  # type: JobQueue
         return q.processor(
             job_name=job_name, pass_context=pass_context, context_var=context_var
         )
 
     def raw_processor(self, queue_name):
+        """
+        Decorator to attach raw processor to all jobs of the queue "queue_name".
+        """
         q = self.queue(queue_name, queue_maker=RawQueue)  # type: RawQueue
         return q.raw_processor()
+
+    def add_job(
+        self,
+        queue_name,
+        job_name,
+        _content_type=codecs.DEFAULT_CONTENT_TYPE,
+        _delay_seconds=None,
+        _deduplication_id=None,
+        _group_id=None,
+        **job_kwargs
+    ):
+        """
+        Add job to the queue.
+        """
+        warnings.warn(
+            "sqs.add_job() is deprecated. Use sqs.queue(...).add_job() instead",
+            DeprecationWarning,
+        )
+        q = self.queue(queue_name, queue_maker=JobQueue)  # type: JobQueue
+        return q.add_job(
+            job_name,
+            _content_type=_content_type,
+            _delay_seconds=_delay_seconds,
+            _deduplication_id=_deduplication_id,
+            _group_id=_group_id,
+            **job_kwargs
+        )
 
     def process_queues(self, queue_names=None, shutdown_policy_maker=NeverShutdown):
         """

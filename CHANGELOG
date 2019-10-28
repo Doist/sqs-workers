@@ -3,12 +3,10 @@
 ### Changed
 
 - Removed support for batched processors
-- Changed the way handlers are defined: instead of @sqs.processor("q1", "handler")
-  you should use queue = sqs.queue("q1") and then @queue.handler
+- On top of existing @sqs.processor("queue", "job_name") added
+  @sqs.raw_processor("queue") to process unstructured messages from the qeueue
 - Extracted functions to create and delete queues for SQSEnv to a separate module
-- Remove SQSEnv.add_job() and SQSEnv.add_raw_job(). SQSEnv.queue().add_job()
-  has to be used instead
-- Remove the rest of the "proxy methods" for SQSEnv: purge_queue, drain_queue,
+- Remove most of the "proxy methods" for SQSEnv: purge_queue, drain_queue,
   process_queue, process_batch, get_raw_messages. SQSEnv.queue() has to be used
   instead.
 
