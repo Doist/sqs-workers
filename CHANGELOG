@@ -1,5 +1,15 @@
 ## Unreleased
 
+### Changed
+
+- Removed support for batched processors
+- On top of existing @sqs.processor("queue", "job_name") added
+  @sqs.raw_processor("queue") to process unstructured messages from the qeueue
+- Extracted functions to create and delete queues for SQSEnv to a separate module
+- Remove most of the "proxy methods" for SQSEnv: purge_queue, drain_queue,
+  process_queue, process_batch, get_raw_messages. SQSEnv.queue() has to be used
+  instead.
+
 ### Added
 
 - Added support for baked async tasks (async tasks + arguments)
