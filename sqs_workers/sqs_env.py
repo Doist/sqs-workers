@@ -5,8 +5,9 @@ from typing import Type
 import attr
 import boto3
 
-from sqs_workers import DEFAULT_BACKOFF, context, processors
+from sqs_workers import DEFAULT_BACKOFF, RawQueue, context, processors
 from sqs_workers.core import RedrivePolicy
+from sqs_workers.processors import DEFAULT_CONTEXT_VAR
 from sqs_workers.queue import GenericQueue, JobQueue
 from sqs_workers.shutdown_policies import NeverShutdown
 
@@ -38,16 +39,28 @@ class SQSEnv(object):
         self.sqs_resource = self.session.resource("sqs")
 
     def queue(self, queue_name, queue_maker=JobQueue, backoff_policy=None):
+        # type: (str, Type[GenericQueue]) -> GenericQueue
         """
         Get a queue object, initializing it with queue_maker if necessary.
         """
-        # type: (str, Type[GenericQueue]) -> GenericQueue
         if queue_name not in self.queues:
             backoff_policy = backoff_policy or self.backoff_policy
             self.queues[queue_name] = queue_maker(
                 env=self, name=queue_name, backoff_policy=backoff_policy
             )
         return self.queues[queue_name]
+
+    def processor(
+        self, queue_name, job_name, pass_context=False, context_var=DEFAULT_CONTEXT_VAR
+    ):
+        q = self.queue(queue_name, queue_maker=JobQueue)  # type: JobQueue
+        return q.processor(
+            job_name=job_name, pass_context=pass_context, context_var=context_var
+        )
+
+    def raw_processor(self, queue_name):
+        q = self.queue(queue_name, queue_maker=RawQueue)  # type: RawQueue
+        return q.raw_processor()
 
     def process_queues(self, queue_names=None, shutdown_policy_maker=NeverShutdown):
         """
