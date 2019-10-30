@@ -70,6 +70,20 @@ def test_baked_tasks(sqs, queue_name):
     assert worker_results["say_hello"] == "Homer"
 
 
+def test_call_raises_exception(sqs, queue_name):
+    queue = sqs.queue(queue_name)
+    say_hello_task = queue.connect_processor("say_hello", say_hello)
+    with pytest.raises(RuntimeError):
+        say_hello_task(username="Homer")
+
+
+def test_run_executes_task_immediately(sqs, queue_name):
+    queue = sqs.queue(queue_name)
+    say_hello_task = queue.connect_processor("say_hello", say_hello)
+    say_hello_task.run(username="Homer")
+    assert worker_results["say_hello"] == "Homer"
+
+
 def test_process_messages_once(sqs, queue_name):
     queue = sqs.queue(queue_name)
     say_hello_task = queue.connect_processor("say_hello", say_hello)
