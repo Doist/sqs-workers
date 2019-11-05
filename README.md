@@ -58,14 +58,14 @@ def send_email(to, subject, body):
 Then there are two ways of adding tasks to the queue. Classic (aka "explicit"):
 
 ```python
-queue.add_job("send_email", to="user@examile.com", subject="Hello world", body="hello world")
+queue.add_job("send_email", to="user@example.com", subject="Hello world", body="hello world")
 ```
 
 
 And the "Celery way" (we mimic the Celery API to some extent)
 
 ```python
-send_email.delay(to="user@examile.com", subject="Hello world", body="hello world")
+send_email.delay(to="user@example.com", subject="Hello world", body="hello world")
 ```
 
 To process the queue you have to run workers manually. Create a new file which
@@ -104,14 +104,34 @@ Think of baked tasks as of light version of
 
 
 ```python
-task = send_email.bake(to='user@examile.com', subject='Hello world', body='hello world')
+task = send_email.bake(to='user@example.com', subject='Hello world', body='hello world')
 task.delay()
 ```
 
 Is the same as
 
 ```python
-send_email.delay(to='user@examile.com', subject='Hello world', body='hello world')
+send_email.delay(to='user@example.com', subject='Hello world', body='hello world')
+```
+
+Synchronous task execution
+--------------------------
+
+In Celery you can run any task synchronously if you just call it as a function
+with arguments. Our AsyncTask raises a RuntimeError for this case.
+
+```python
+send_email(to='user@example.com', subject='Hello world', body='hello world')
+...
+RuntimeError: Async task email.send_email called synchronously (probably,
+by mistake). Use either AsyncTask.run(...) to run the task synchronously
+or AsyncTask.delay(...) to add it to the queue
+```
+
+If you want to run a task synchronously, use `run()` method of the task.
+
+```
+send_email.run(to='user@example.com', subject='Hello world', body='hello world')
 ```
 
 
