@@ -516,6 +516,14 @@ or
 tox -- -k localstack
 ```
 
+Releasing new versions
+----------------------
+
+- Bump version in `sqs_workers/__version__.py`
+- Update the CHANGELOG
+- Commit the changes with a commit message "Version X.X.X"
+- Push the changes to GitHub and PyPI with a single command `make upload`
+
 
 Why it depends on werkzeug? 😱
 ------------------------------
