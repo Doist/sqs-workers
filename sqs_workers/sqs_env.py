@@ -35,7 +35,7 @@ class SQSEnv(object):
     queues = attr.ib(init=False, factory=dict)  # type: dict[str, JobQueue]
 
     # runs all tasks synchronously without SQS
-    debug_mode = attr.ib(default=False)  # type: bool
+    eager_mode = attr.ib(default=False)  # type: bool
 
     def __attrs_post_init__(self):
         self.context = self.context_maker()

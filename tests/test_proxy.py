@@ -13,10 +13,10 @@ def test_add_pickle_job(sqs, queue_name):
     assert messages == ["Homer"]
 
 
-def test_debug_mode(sqs, queue_name):
+def test_eager_mode(sqs, queue_name):
     messages = []
 
-    sqs.debug_mode = True
+    sqs.eager_mode = True
     _queue = sqs.queue(queue_name)
 
     @_queue.processor("say_hello")

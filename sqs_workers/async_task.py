@@ -41,8 +41,8 @@ class AsyncTask(object):
         _group_id = kwargs.pop("_group_id", None)
         kwargs = adv_bind_arguments(self.processor, args, kwargs)
 
-        # In case when SQS env in debug mode, we want to run task synchronously.
-        if self.queue.env.debug_mode:
+        # In case when SQS env in eager mode, we want to run task synchronously.
+        if self.queue.env.eager_mode:
             return self.run(*args, **kwargs)
 
         return self.queue.add_job(
