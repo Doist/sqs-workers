@@ -35,6 +35,10 @@ class AsyncTask(object):
         """
         Run the task asynchronously.
         """
+        # In case when SQS env in debug mode, we want to run task synchronously.
+        if self.queue.env.debug_mode:
+            return self.run(*args, **kwargs)
+
         _content_type = kwargs.pop("_content_type", DEFAULT_CONTENT_TYPE)
         _delay_seconds = kwargs.pop("_delay_seconds", None)
         _deduplication_id = kwargs.pop("_deduplication_id", None)
