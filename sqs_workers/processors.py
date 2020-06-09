@@ -55,6 +55,8 @@ class Processor(object):
                 "Error while processing {queue_name}.{job_name}".format(**extra),
                 extra=extra,
             )
+            if self.queue.env.eager_mode:
+                raise
             return False
         else:
             return True

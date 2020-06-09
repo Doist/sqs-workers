@@ -228,6 +228,8 @@ class RawQueue(GenericQueue):
                 "Error while processing {queue_name}.{message_id}".format(**extra),
                 extra=extra,
             )
+            if self.queue.env.eager_mode:
+                raise
             return False
         else:
             return True
