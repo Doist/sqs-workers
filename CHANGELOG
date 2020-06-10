@@ -1,3 +1,10 @@
+## [0.5.2] - 2020-06-10
+
+### Changed
+
+- Declared support for Python3.8
+- Made sqs-workers work better in Python2 / Python3 mixed environment
+
 ## [0.5.1] - 2019-11-05
 
 ### Changed
