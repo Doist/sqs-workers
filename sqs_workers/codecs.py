@@ -5,6 +5,9 @@ import zlib
 
 DEFAULT_CONTENT_TYPE = "pickle"
 
+# Highest version of the protocol, understood by Python2.
+PICKLE_PY2_COMPAT_PROTO = 2
+
 
 class JSONCodec(object):
     @staticmethod
@@ -19,7 +22,7 @@ class JSONCodec(object):
 class PickleCodec(object):
     @staticmethod
     def serialize(message):
-        binary_data = pickle.dumps(message, protocol=pickle.HIGHEST_PROTOCOL)
+        binary_data = pickle.dumps(message, protocol=PICKLE_PY2_COMPAT_PROTO)
         compressed_data = zlib.compress(binary_data)
         return base64.urlsafe_b64encode(compressed_data).decode("latin1")
 

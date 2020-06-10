@@ -29,7 +29,8 @@ class AsyncTask(object):
         """
         Run the task synchronously.
         """
-        return self.processor(*args, **kwargs)
+        kwargs = adv_bind_arguments(self.processor, args, kwargs)
+        return self.processor(**kwargs)
 
     def delay(self, *args, **kwargs):
         """
