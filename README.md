@@ -2,7 +2,7 @@
 
 ## How can I use it?
 
-Unless you are the part of the [Doist development team](https://github.com/orgs/Doist/people), you most likely don't need it. It's something opinionated, built out of our own internal needs and probably provides little value for outside developers.
+Unless you are the part of the [Doist development team](https://github.com/orgs/Doist/people), you most likely don't need it. It's something opinionated, built out of our own internal needs, and probably provides little value for outside developers.
 
 Queue processors are in abundance (see http://queues.io/ for examples), and there is no shortage of SQS queue processors on [PyPI](https://pypi.org/search/?q=SQS), so please don't put your high hopes on this particular implementation
 
@@ -22,7 +22,7 @@ aws configure
 
 Don't forget to set your preferred AWS region.
 
-Then you will start managing two systems (most likely, from the same codebase): one of them adds messages to the queue and another one executes them.
+Then you will start managing two systems (most likely, from the same codebase): one of them adds messages to the queue, and another one executes them.
 
 ```python
 from sqs_workers import SQSEnv, create_standard_queue
@@ -31,7 +31,7 @@ from sqs_workers import SQSEnv, create_standard_queue
 sqs = SQSEnv()
 
 # Create a new queue.
-# Note that you can use AWS web interface for the same action as well, the
+# Note that you can use the AWS web interface for the same action as well, the
 # web interface provides more options. You only need to do it once.
 create_standard_queue(sqs, "emails")
 
@@ -56,7 +56,7 @@ And the "Celery way" (we mimic the Celery API to some extent)
 send_email.delay(to="user@example.com", subject="Hello world", body="hello world")
 ```
 
-To process the queue you have to run workers manually. Create a new file which will contain the definition of the sqs object and register all processors (most likely, by importing necessary modules from your project), and then run SQS
+To process the queue, you have to run workers manually. Create a new file which will contain the definition of the sqs object and register all processors (most likely, by importing necessary modules from your project), and then run SQS
 
 ```python
 from sqs_workers import SQSEnv
@@ -65,7 +65,7 @@ sqs = SQSEnv()
 sqs.queue('emails').process_queue()
 ```
 
-In production we usually don't handle multiple queues in the same process, but for the development environment it's easier to tackle with all the queues at once with
+In production, we usually don't handle multiple queues in the same process, but for the development environment it's easier to tackle with all the queues at once with
 
 ```python
 sqs.process_queues()
@@ -73,11 +73,11 @@ sqs.process_queues()
 
 ## Serialization
 
-There are two serializers: json and pickle.
+There are two serializers: JSON and pickle.
 
 ## Baked tasks
 
-You can create so-called "baked async tasks", entities which besides the task itself, contain arguments which have to be used to call the task.
+You can create so-called "baked async tasks," entities which, besides the task itself, contain arguments which have to be used to call the task.
 
 Think of baked tasks as of light version of [Celery signatures](http://docs.celeryproject.org/en/latest/userguide/canvas.html#signatures)
 
@@ -94,14 +94,14 @@ send_email.delay(to='user@example.com', subject='Hello world', body='hello world
 
 ## Synchronous task execution
 
-In Celery you can run any task synchronously if you just call it as a function with arguments. Our AsyncTask raises a RuntimeError for this case.
+In Celery, you can run any task synchronously if you just call it as a function with arguments. Our AsyncTask raises a RuntimeError for this case.
 
 ```python
 send_email(to='user@example.com', subject='Hello world', body='hello world')
 ...
 RuntimeError: Async task email.send_email called synchronously (probably,
 by mistake). Use either AsyncTask.run(...) to run the task synchronously
-or AsyncTask.delay(...) to add it to the queue
+or AsyncTask.delay(...) to add it to the queue.
 ```
 
 If you want to run a task synchronously, use `run()` method of the task.
@@ -112,7 +112,7 @@ send_email.run(to='user@example.com', subject='Hello world', body='hello world')
 
 ## FIFO queues
 
-Fifo queues can be created with `create_fifo_queue` and has to have the name which ends with ".fifo".
+Fifo queues can be created with `create_fifo_queue` and have to have the name, which ends with ".fifo".
 
 ```python
 from sqs_workers import SQSEnv, create_fifo_queue
@@ -124,7 +124,7 @@ create_fifo_queue(sqs, 'emails.fifo',
 )
 ```
 
-Unless the flag `content_based_deduplication` is set, every message has to be sent with an attribute `_deduplication_id`. By default all messages have the same message group `default`, but you can change it with `_group_id`.
+Unless the flag `content_based_deduplication` is set, every message has to be sent with an attribute `_deduplication_id`. By default, all messages have the same message group `default`, but you can change it with `_group_id`.
 
 ```python
 sqs.queue("emails.fifo").add_job(
@@ -135,11 +135,11 @@ sqs.queue("emails.fifo").add_job(
 
 ## Exception processing
 
-If task processing ended up with an exception, the error is logged and the task is returned back to the queue after a while. The exact behavior is defined by queue settings.
+If task processing ended up with an exception, the error is logged, and the task is returned back to the queue after a while. The exact behavior is defined by queue settings.
 
 ## Custom processors
 
-You can define your own processor if you need to perform some specific actions before of after executing a specific task.
+You can define your own processor if you need to perform some specific actions before of after executing a particular task.
 
 Example for the custom processor
 
@@ -157,7 +157,7 @@ sqs = SQSEnv(processor_maker=CustomProcessor)
 
 ## Working with contexts
 
-Context which is implicitly passed to the worker via the job message. Can be used there for logging or profiling purposes, for example.
+Context is implicitly passed to the worker via the job message and can be used for logging or profiling purposes.
 
 Usage example.
 
@@ -174,7 +174,7 @@ with sqs.context(remote_addr='127.0.0.1'):
 queue.process_batch()
 ```
 
-Alternatively, you can set the context like this.
+Alternatively, you can set a context like this.
 
 ```python
 sqs.context['remote_addr'] = '127.0.0.1'
@@ -187,7 +187,7 @@ And then, when the context needs to be cleared:
 sqs.context.clear()
 ```
 
-In a web application you usually call it at the end of the processing of the web request.
+In a web application, you usually call it at the end of the processing of the web request.
 
 ## Automatic applying of the context for all tasks
 
@@ -211,11 +211,11 @@ sqs = SQSEnv(
 
 ## Raw queues
 
-Raw queues can have only one processor, and this should be a function, accepting message as its only argument.
+Raw queues can have only one processor, which should be a function, accepting the message as its only argument.
 
 Raw queues are helpful to process messages, added to SQS from external sources, such as CloudWatch events.
 
-You start very much the same way, creating a new standard queue if needed.
+You start the processor the same way, creating a new standard queue if needed.
 
 ```python
 from sqs_workers import SQSEnv, create_standard_queue
@@ -223,7 +223,7 @@ sqs = SQSEnv()
 create_standard_queue(sqs, 'cron')
 ```
 
-Then you get a queue, but provide a queue_maker parameter to it, to create a queue of the necessary type, and you define a processor for it.
+Then you get a queue, but provide a queue_maker parameter to it, to create a queue of the necessary type, and define a processor for it.
 
 ```python
 from sqs_workers import RawQueue
@@ -276,7 +276,7 @@ Headers of the message:
 }
 ```
 
-You can pass any valid JSON as a message though, and it will be passed as is to the message body. Something like this:
+You can pass any valid JSON as a message, though, and it will be passed as-is to the message body. Something like this:
 
 ```json
 { "message": "Hello world" }
@@ -284,7 +284,7 @@ You can pass any valid JSON as a message though, and it will be passed as is to 
 
 ## Dead-letter queues and redrive
 
-On creating the queue you can set the fallback dead-letter queue and redrive policy, which can look like this
+On creating the queue, you can set the fallback dead-letter queue and redrive policy, which can look like this.
 
 ```python
 from sqs_workers import SQSEnv, create_standard_queue
@@ -296,11 +296,11 @@ create_standard_queue(sqs, 'emails',
 )
 ```
 
-This means "move the message to the email_deadletters queue after four (3 + 1) failed attempts to send it to the recipient"
+It means "move the message to the email_deadletters queue after four (3 + 1) failed attempts to send it to the recipient."
 
 ## Backoff policies
 
-You can define the backoff policy for the entire environment or for specific queue.
+You can define the backoff policy for the entire environment or specific queue.
 
 ```python
 queue = sqs.queue("emails", backoff_policy=DEFAULT_BACKOFF)
@@ -310,9 +310,9 @@ def send_email(to, subject, body):
     print(f"Sending email {subject} to {to}")
 ```
 
-Default policy is the exponential backoff. It's recommended to always set both backoff policy and dead-letter queue to limit the maximum number of execution attempts.
+The default policy is the exponential backoff. We recommend setting both the backoff policy and the dead-letter queue to limit the maximum number of execution attempts.
 
-Alternatively you can set the backoff to IMMEDIATE_RETURN to re-execute failed task immediately.
+Alternatively, you can set the backoff to IMMEDIATE_RETURN to re-execute the failed task immediately.
 
 ```python
 queue = sqs.queue("emails", backoff_policy=IMMEDIATE_RETURN)
@@ -328,11 +328,11 @@ When launching the queue processor with process_queue(), it's possible to option
 
 Following shutdown policies are supported:
 
--   IdleShutdown(idle_seconds): return from function when no new tasks are sent for specific period of time
+-   IdleShutdown(idle_seconds): return from function when no new tasks are sent for a specific period.
 
--   MaxTasksShutdown(max_tasks): return from function after processing at least max_task jobs. Can be helpful to prevent memory leaks
+-   MaxTasksShutdown(max_tasks): return from function after processing at least max_task jobs. It can be helpful to prevent memory leaks.
 
-Default policy is NeverShutdown. It's also possible to combine two previous policies with OrShutdown or AndShutdown policies, or create custom classes for specific behavior.
+The default policy is NeverShutdown. It's also possible to combine two previous policies with OrShutdown or AndShutdown policies or create custom classes for specific behavior.
 
 Example of stopping processing the queue after 5 minutes of inactivity:
 
@@ -346,9 +346,9 @@ sqs.queue("foo").process_queue(shutdown_policy=IdleShutdown(idle_seconds=300))
 
 ## Processing dead-letter queue by pushing back failed messages
 
-The most common way to process a dead-letter queue is to fix the main bug causing messages to appear there in the first place, and then to re-process these messages again.
+The most common way to process a dead-letter queue is to fix the main bug causing messages to appear there in the first place and then to re-process these messages again.
 
-With sqs-workers in can be done by putting back all the messages from a dead-letter queue back to the main one. While processing the queue, the processor takes every message and push it back to the upstream queue with a hard-coded delay of 1 second.
+With sqs-workers, in can be done by putting back all the messages from a dead-letter queue back to the main one. While processing the queue, the processor takes every message and pushes it back to the upstream queue with a hard-coded delay of 1 second.
 
 Usage example:
 
@@ -360,11 +360,11 @@ Usage example:
     >>> foo_dead = env.queue("foo_dead", DeadLetterQueue.maker(foo))
     >>> foo_dead.process_queue(shutdown_policy=IdleShutdown(10))
 
-This code takes all the messages in foo_dead queue and push them back to the foo queue. Then it waits 10 seconds to ensure no new messages appear, and quit.
+This code takes all the messages in the foo_dead queue and pushes them back to the foo queue. Then it waits 10 seconds to ensure no new messages appear, and quit.
 
 ## Using in unit tests with MemorySession
 
-There is a special MemorySession which can be used as a quick'n'dirty replacement for real queues in unit tests. If you have a function `create_task` which adds some tasks to the queue and you want to test how it works, you ca technically write your tests like this:
+There is a special MemorySession, which can be used as a quick and dirty replacement for real queues in unit tests. If you have a function `create_task` which adds some tasks to the queue and you want to test how it works, you can technically write your tests like this:
 
 ```python
 from sqs_workers import SQSEnv
@@ -388,7 +388,7 @@ Please note that MemorySession has some serious limitations, and may not fit wel
 -   Redrive policy doesn't work
 -   There is no differences between standard and FIFO queues
 -   FIFO queues don't support content-based deduplication
--   Delayed tasks executed ineffectively: the task is gotten from the queue, and if the time hasn't come yet, the task is put back.
+-   Delayed tasks are executed ineffectively: the task is gotten from the queue, and if the time hasn't come, the task is put back.
 -   API can return slightly different results
 
 ## Testing with AWS
@@ -432,4 +432,4 @@ tox -- -k localstack
 
 ## Why it depends on werkzeug? 😱
 
-The only reason is [werkzeug.utils.validate_arguments](http://werkzeug.pocoo.org/docs/dev/utils/#werkzeug.utils.validate_arguments) which we love and we are lazy enough to move it to this codebase.
+The only reason is [werkzeug.utils.validate_arguments](http://werkzeug.pocoo.org/docs/dev/utils/#werkzeug.utils.validate_arguments) which we love, and we are lazy enough to move it to this codebase.

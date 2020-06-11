@@ -32,3 +32,4 @@ repos:
     rev: 4.3.21-2
     hooks:
       - id: isort
+        files: '.*\.py$'
