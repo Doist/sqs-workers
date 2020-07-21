@@ -1,7 +1,7 @@
 import logging
 import multiprocessing
 import warnings
-from typing import Type
+from typing import TYPE_CHECKING, Dict, Optional, Type, Union
 
 import attr
 import boto3
@@ -12,7 +12,14 @@ from sqs_workers.processors import DEFAULT_CONTEXT_VAR
 from sqs_workers.queue import GenericQueue, JobQueue
 from sqs_workers.shutdown_policies import NeverShutdown
 
+if TYPE_CHECKING:
+    from sqs_workers.backoff_policies import BackoffPolicy
+
+
 logger = logging.getLogger(__name__)
+
+
+AnyQueue = Union[GenericQueue, JobQueue]
 
 
 @attr.s
@@ -32,15 +39,20 @@ class SQSEnv(object):
     context = attr.ib(default=None)
     sqs_client = attr.ib(default=None)
     sqs_resource = attr.ib(default=None)
-    queues = attr.ib(init=False, factory=dict)  # type: dict[str, JobQueue]
+    queues = attr.ib(init=False, factory=dict)  # type: Dict[str, AnyQueue]
 
     def __attrs_post_init__(self):
         self.context = self.context_maker()
         self.sqs_client = self.session.client("sqs")
         self.sqs_resource = self.session.resource("sqs")
 
-    def queue(self, queue_name, queue_maker=JobQueue, backoff_policy=None):
-        # type: (str, Type[GenericQueue]) -> GenericQueue
+    def queue(
+        self,
+        queue_name,  # type: str
+        queue_maker=JobQueue,  # type: Type[AnyQueue]
+        backoff_policy=None,  # type: Optional[BackoffPolicy]
+    ):
+        # type: (...) -> GenericQueue
         """
         Get a queue object, initializing it with queue_maker if necessary.
         """

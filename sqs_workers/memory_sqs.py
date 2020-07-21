@@ -31,12 +31,12 @@ class MemoryAWS(object):
     client = attr.ib(
         repr=False,
         default=attr.Factory(lambda self: MemoryClient(self), takes_self=True),
-    )  # type: "Client"
+    )  # type: "MemoryClient"
     resource = attr.ib(
         repr=False,
         default=attr.Factory(lambda self: ServiceResource(self), takes_self=True),
     )  # type: "ServiceResource"
-    queues = attr.ib(factory=list)  # type: List["MemoryQueueImpl"]
+    queues = attr.ib(factory=list)  # type: List["MemoryQueue"]
 
     def create_queue(self, QueueName, Attributes):
         queue = MemoryQueue(self, QueueName, Attributes)

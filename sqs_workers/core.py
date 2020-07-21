@@ -6,9 +6,6 @@ logger = logging.getLogger(__name__)
 
 
 class BatchProcessingResult(object):
-    succeeded = None
-    failed = None
-
     def __init__(self, queue_name, succeeded=None, failed=None):
         self.queue_name = queue_name
         self.succeeded = succeeded or []
