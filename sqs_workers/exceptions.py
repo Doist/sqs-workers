@@ -1,0 +1,2 @@
+class SQSError(Exception):
+    pass
