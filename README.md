@@ -92,6 +92,27 @@ Is the same as
 send_email.delay(to='user@example.com', subject='Hello world', body='hello world')
 ```
 
+## Batching
+
+If you have many tasks to enqueue, it may be more efficient to use batching when adding them:
+
+```python
+# Classic ("explicit") API
+with queue.add_batch():
+    queue.add_job("send_email", to="user1@example.com", subject="Hello world", body="hello world")
+    queue.add_job("send_email", to="user2@example.com", subject="Hello world", body="hello world")
+
+# "Celery way"
+with send_email.batch():
+    send_email.delay(to="user1@example.com", subject="Hello world", body="hello world")
+    send_email.delay(to="user2@example.com", subject="Hello world", body="hello world")
+```
+
+When batching is enabled:
+- tasks are added to SQS by batches of 10, reducing the number of AWS operations
+- it is not possible to get the task `MessageId`, as it is not known until the batch is sent
+- care has to be taken about message size, as SQS limits both the individual message size and the maximum total payload size to 256 kB.
+
 ## Synchronous task execution
 
 In Celery, you can run any task synchronously if you just call it as a function with arguments. Our AsyncTask raises a RuntimeError for this case.
