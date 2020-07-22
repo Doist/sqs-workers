@@ -2,7 +2,7 @@ import random
 
 
 class BackoffPolicy(object):
-    def get_visibility_timeout(self):
+    def get_visibility_timeout(self, message):
         raise NotImplementedError()
 
 

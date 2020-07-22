@@ -180,7 +180,7 @@ class RawQueue(GenericQueue):
         self,
         message_body,  # type: str
         delay_seconds=0,  # type: int
-        deduplication_id=None,  # type: str
+        deduplication_id=None,  # type: Optional[str]
         group_id=DEFAULT_MESSAGE_GROUP_ID,  # type: str
     ):
         """
@@ -218,6 +218,7 @@ class RawQueue(GenericQueue):
             logger.warning(
                 "No processor set for {queue_name}".format(**extra), extra=extra
             )
+            return False
 
         logger.debug("Process {queue_name}.{message_id}".format(**extra), extra=extra)
 
