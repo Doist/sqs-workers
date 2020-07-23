@@ -4,6 +4,7 @@ from sqs_workers.backoff_policies import (  # noqa: F401
     ConstantBackoff,
     ExponentialBackoff,
 )
+from sqs_workers.exceptions import SQSError  # noaq: F401
 from sqs_workers.memory_sqs import MemorySession  # noqa: F401
 from sqs_workers.queue import JobQueue, RawQueue  # noqa: F401
 from sqs_workers.sqs_env import SQSEnv  # noqa: F401

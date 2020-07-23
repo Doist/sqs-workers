@@ -70,6 +70,21 @@ def test_baked_tasks(sqs, queue_name):
     assert worker_results["say_hello"] == "Homer"
 
 
+def test_batch_tasks(sqs, queue_name):
+    queue = sqs.queue(queue_name)
+    say_hello_task = queue.connect_processor("say_hello", say_hello)
+    # add task immediately
+    say_hello_task.delay(username="Homer")
+    assert len(queue.get_raw_messages(0)) == 1
+    # with batching, only add at the end
+    with say_hello_task.batch():
+        say_hello_task.delay(username="Lisa")
+        assert len(queue.get_raw_messages(0)) == 0
+        say_hello_task.delay(username="Bart")
+        assert len(queue.get_raw_messages(0)) == 0
+    assert len(queue.get_raw_messages(0)) == 2
+
+
 def test_call_raises_exception(sqs, queue_name):
     queue = sqs.queue(queue_name)
     say_hello_task = queue.connect_processor("say_hello", say_hello)

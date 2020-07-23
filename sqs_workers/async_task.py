@@ -1,3 +1,4 @@
+from contextlib import contextmanager
 from typing import TYPE_CHECKING, Callable
 
 from sqs_workers.codecs import DEFAULT_CONTENT_TYPE
@@ -31,6 +32,14 @@ class AsyncTask(object):
         """
         kwargs = adv_bind_arguments(self.processor, args, kwargs)
         return self.processor(**kwargs)
+
+    @contextmanager
+    def batch(self):
+        """
+        Context manager to add jobs in batch.
+        """
+        with self.queue.add_batch():
+            yield
 
     def delay(self, *args, **kwargs):
         """

@@ -126,6 +126,12 @@ class MemoryQueue(object):
         self.messages.append(message)
         return {"MessageId": message.message_id, "SequenceNumber": 0}
 
+    def send_messages(self, Entries):
+        res = []
+        for message in Entries:
+            res.append(self.send_message(**message))
+        return {"Successful": res, "Failed": []}
+
     def receive_messages(self, WaitTimeSeconds="0", MaxNumberOfMessages="10", **kwargs):
         """
         Helper function which returns at most max_messages from the

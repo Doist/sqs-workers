@@ -1,7 +1,9 @@
 import logging
+import uuid
 import warnings
+from contextlib import contextmanager
 from functools import partial
-from typing import TYPE_CHECKING, Any, Callable, Dict, Optional
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional
 
 import attr
 
@@ -9,15 +11,22 @@ from sqs_workers import DEFAULT_BACKOFF, codecs
 from sqs_workers.async_task import AsyncTask
 from sqs_workers.backoff_policies import BackoffPolicy
 from sqs_workers.core import BatchProcessingResult, get_job_name
+from sqs_workers.exceptions import SQSError
 from sqs_workers.processors import DEFAULT_CONTEXT_VAR, Processor
 from sqs_workers.shutdown_policies import NEVER_SHUTDOWN
 
 DEFAULT_MESSAGE_GROUP_ID = "default"
+SEND_BATCH_SIZE = 10
 
 if TYPE_CHECKING:
     from sqs_workers import SQSEnv
 
 logger = logging.getLogger(__name__)
+
+
+class SQSBatchError(SQSError):
+    def __init__(self, errors):
+        self.errors = errors
 
 
 @attr.s
@@ -180,7 +189,7 @@ class RawQueue(GenericQueue):
         self,
         message_body,  # type: str
         delay_seconds=0,  # type: int
-        deduplication_id=None,  # type: str
+        deduplication_id=None,  # type: Optional[str]
         group_id=DEFAULT_MESSAGE_GROUP_ID,  # type: str
     ):
         """
@@ -218,6 +227,7 @@ class RawQueue(GenericQueue):
             logger.warning(
                 "No processor set for {queue_name}".format(**extra), extra=extra
             )
+            return False
 
         logger.debug("Process {queue_name}.{message_id}".format(**extra), extra=extra)
 
@@ -237,6 +247,9 @@ class RawQueue(GenericQueue):
 class JobQueue(GenericQueue):
 
     processors = attr.ib(factory=dict)  # type: Dict[str, Processor]
+
+    _batch_level = attr.ib(default=0, repr=False)  # type: int
+    _batched_messages = attr.ib(factory=list, repr=False)  # type: List[Dict]
 
     def processor(self, job_name, pass_context=False, context_var=DEFAULT_CONTEXT_VAR):
         """
@@ -303,6 +316,59 @@ class JobQueue(GenericQueue):
         """
         return self.processors.get(job_name)
 
+    def open_add_batch(self):
+        """
+        Open an add batch.
+        """
+        self._batch_level += 1
+
+    def close_add_batch(self):
+        """
+        Close an add batch.
+        """
+        self._batch_level = max(0, self._batch_level - 1)
+        self._flush_batch_if_needed()
+
+    @contextmanager
+    def add_batch(self):
+        """
+        Context manager to add jobs in batch.
+
+        Inside this context manager, jobs won't be added to the queue immediately, but grouped by batches of 10.
+        Once open, new jobs won't be added immediately, but either
+        """
+        self.open_add_batch()
+        try:
+            yield
+        finally:
+            self.close_add_batch()
+
+    def _flush_batch_if_needed(self):
+        queue = self.get_queue()
+
+        # There should be at most 1 batch to send. But just in case, prepare to
+        # send more than that.
+        max_size = SEND_BATCH_SIZE if self._batch_level > 0 else 1
+        while len(self._batched_messages) >= max_size:
+            msgs = self._batched_messages[:SEND_BATCH_SIZE]
+            self._batched_messages = self._batched_messages[SEND_BATCH_SIZE:]
+
+            # Add Ids
+            msg_by_id = {}
+            for msg in msgs:
+                id_ = uuid.uuid4().hex
+                msg["Id"] = id_
+                msg_by_id[id_] = msg
+
+            res = queue.send_messages(Entries=msgs)
+
+            # Handle errors
+            if res.get("Failed", []):
+                errors = res["Failed"]
+                for error in errors:
+                    error["_message"] = msg_by_id[err["Id"]]
+                raise SQSBatchError(errors)
+
     def add_job(
         self,
         job_name,
@@ -363,8 +429,13 @@ class JobQueue(GenericQueue):
             kwargs["MessageDeduplicationId"] = str(deduplication_id)
         if group_id is not None:
             kwargs["MessageGroupId"] = str(group_id)
-        ret = queue.send_message(**kwargs)
-        return ret["MessageId"]
+
+        if self._batch_level > 0:
+            self._batched_messages.append(kwargs)
+            return None
+        else:
+            ret = queue.send_message(**kwargs)
+            return ret["MessageId"]
 
     def process_message(self, message):
         # type: (Any) -> bool
