@@ -94,4 +94,4 @@ def call_handler(fn, kwargs):
         # it may happen, if "fn" is not a function (but
         # a mock object, for example)
         handler_args, handler_kwargs = [], kwargs
-    fn(*handler_args, **handler_kwargs)
+    return fn(*handler_args, **handler_kwargs)
