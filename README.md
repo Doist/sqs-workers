@@ -431,7 +431,28 @@ Please note that MemorySession has some serious limitations, and may not fit wel
 -   Delayed tasks are executed ineffectively: the task is gotten from the queue, and if the time hasn't come, the task is put back.
 -   API can return slightly different results
 
-## Testing with AWS
+
+## Contributing
+
+Any help is welcome!
+
+Please feel free to [report any issue](https://github.com/Doist/sqs-workers/issues/new/choose) you may have.
+
+If you want to contribute with code, please open a Pull Request. A few things to keep in mind:
+
+-   sqs-workers is released under the [MIT license](./LICENSE)
+-   please use [pre-commit](https://pre-commit.com/) to ensure some formatting rules and basic consistency checks are applied before each Git commit
+-   please add tests for your changes!
+
+
+### Testing
+
+We use pytest to run unittests, and tox to run them for all supported Python versions.
+
+If you just run `pytest` or `tox`, all tests will be run against AWS, localstack, and MemorySession. You can disable those you don't want to use using the pytest `-k` flag, for instance using `-k localstack` or `-k 'not aws'`.
+
+
+### Testing with AWS
 
 Make sure you have all dependencies installed, and boto3 client configured ([ref](https://boto3.readthedocs.io/en/latest/guide/quickstart.html#configuration)) and then run
 
@@ -445,7 +466,7 @@ Alternatively, to test all supported versions, run
 tox -- -k aws
 ```
 
-## Testing with localstack
+### Testing with localstack
 
 Localstack tests should perform faster than testing against AWS, and besides, they work well in offline.
 
@@ -463,6 +484,22 @@ or
 tox -- -k localstack
 ```
 
+### Testing with MemorySession
+
+MemorySession should be even faster, but has all the limitations documented above. But it can still be useful to test some logic changes.
+
+Simply run
+
+```bash
+pytest -k memory
+```
+
+or
+
+```bash
+tox -- -k memory
+```
+
 ## Releasing new versions
 
 -   Bump version in `sqs_workers/__version__.py`
@@ -470,6 +507,6 @@ tox -- -k localstack
 -   Commit the changes with a commit message "Version X.X.X"
 -   Push the changes to GitHub and PyPI with a single command `make upload`
 
-## Why it depends on werkzeug? 😱
+## Why does it depend on werkzeug? 😱
 
 The only reason is [werkzeug.utils.validate_arguments](http://werkzeug.pocoo.org/docs/dev/utils/#werkzeug.utils.validate_arguments) which we love, and we are lazy enough to move it to this codebase.
