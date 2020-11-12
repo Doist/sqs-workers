@@ -1,3 +1,16 @@
+## [0.5.4] - 2020-11-12
+
+### Changed
+
+- API: Processor.process() now returns the result of the execution (#9)
+- Documentation: Improved README. Added the "Contributing" section and improved the
+  testing documentation.
+
+### Fixed
+
+- Fixed batch logic (#11)
+
+
 ## [0.5.3] - 2020-07-23
 
 - Updated README with examples on how to process a dead-letter queue in-place
