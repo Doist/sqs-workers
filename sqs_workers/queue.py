@@ -369,7 +369,7 @@ class JobQueue(GenericQueue):
             if res.get("Failed", []):
                 errors = res["Failed"]
                 for error in errors:
-                    error["_message"] = msg_by_id[err["Id"]]
+                    error["_message"] = msg_by_id[error["Id"]]
                 raise SQSBatchError(errors)
 
     def add_job(
