@@ -471,10 +471,10 @@ tox -- -k aws
 
 Localstack tests should perform faster than testing against AWS, and besides, they work well in offline.
 
-Run [localstack](https://github.com/localstack/localstack) and make sure that the SQS endpoint is available by its default address localhost:4566. It's easier with a Docker container:
+Run [ElasticMQ](https://github.com/softwaremill/elasticmq) and make sure that the SQS endpoint is available by the address localhost:4566:
 
 ```bash
-docker run --rm -p 4566:4566 -e SERVICES=sqs localstack/localstack:latest
+docker run -p 4566:9324 --rm -it softwaremill/elasticmq-native
 ```
 
 Then run
