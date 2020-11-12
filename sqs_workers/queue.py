@@ -334,8 +334,11 @@ class JobQueue(GenericQueue):
         """
         Context manager to add jobs in batch.
 
-        Inside this context manager, jobs won't be added to the queue immediately, but grouped by batches of 10.
-        Once open, new jobs won't be added immediately, but either
+        Inside this context manager, jobs won't be added to the queue
+        immediately, but grouped by batches of 10. Once open, new jobs won't be
+        sent to SQS immediately, but added to a local cache. Then, once this
+        cache is big enough or when closing the batch, all messages will be
+        sent, using as few requests as possible.
         """
         self.open_add_batch()
         try:
@@ -343,13 +346,23 @@ class JobQueue(GenericQueue):
         finally:
             self.close_add_batch()
 
+    def _should_flush_batch(self):
+        """
+        Check if a message batch should be flushed, i.e. all messages should be sent
+        and removed from the internal cache.
+
+        Right now this only checks the number of messages. In the future we may
+        want to improve that by also ensuring the batch size is small enough.
+        """
+        max_size = SEND_BATCH_SIZE if self._batch_level > 0 else 1
+        return len(self._batched_messages) >= max_size
+
     def _flush_batch_if_needed(self):
         queue = self.get_queue()
 
         # There should be at most 1 batch to send. But just in case, prepare to
         # send more than that.
-        max_size = SEND_BATCH_SIZE if self._batch_level > 0 else 1
-        while len(self._batched_messages) >= max_size:
+        while self._should_flush_batch():
             msgs = self._batched_messages[:SEND_BATCH_SIZE]
             self._batched_messages = self._batched_messages[SEND_BATCH_SIZE:]
 
@@ -366,7 +379,7 @@ class JobQueue(GenericQueue):
             if res.get("Failed", []):
                 errors = res["Failed"]
                 for error in errors:
-                    error["_message"] = msg_by_id[err["Id"]]
+                    error["_message"] = msg_by_id[error["Id"]]
                 raise SQSBatchError(errors)
 
     def add_job(
@@ -432,6 +445,7 @@ class JobQueue(GenericQueue):
 
         if self._batch_level > 0:
             self._batched_messages.append(kwargs)
+            self._flush_batch_if_needed()
             return None
         else:
             ret = queue.send_message(**kwargs)
