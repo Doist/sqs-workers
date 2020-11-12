@@ -334,8 +334,11 @@ class JobQueue(GenericQueue):
         """
         Context manager to add jobs in batch.
 
-        Inside this context manager, jobs won't be added to the queue immediately, but grouped by batches of 10.
-        Once open, new jobs won't be added immediately, but either
+        Inside this context manager, jobs won't be added to the queue
+        immediately, but grouped by batches of 10. Once open, new jobs won't be
+        sent to SQS immediately, but added to a local cache. Then, once this
+        cache is big enough or when closing the batch, all messages will be
+        sent, using as few requests as possible.
         """
         self.open_add_batch()
         try:
