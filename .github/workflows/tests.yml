@@ -11,7 +11,7 @@ jobs:
     steps:
       - name: Start Docker container with localstack
         if: matrix.session == 'localstack'
-        run:  docker run -d --rm -p 4566:4566 -e SERVICES=sqs localstack/localstack:latest
+        run:  docker run -d -p 4566:9324 --rm softwaremill/elasticmq-native
       - name: Checkout Repo
         uses: actions/checkout@v2
       - name: Set up Python
