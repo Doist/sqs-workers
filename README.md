@@ -109,6 +109,7 @@ with send_email.batch():
 ```
 
 When batching is enabled:
+
 - tasks are added to SQS by batches of 10, reducing the number of AWS operations
 - it is not possible to get the task `MessageId`, as it is not known until the batch is sent
 - care has to be taken about message size, as SQS limits both the individual message size and the maximum total payload size to 256 kB.
@@ -274,15 +275,15 @@ By default message body by CloudWatch scheduler has following JSON structure.
 
 ```json
 {
-    "version": "0",
-    "id": "a9a10406-9a1f-0ddc-51ae-08db551fac42",
-    "detail-type": "Scheduled Event",
-    "source": "aws.events",
-    "account": "NNNNNNNNNN",
-    "time": "2019-09-20T09:19:56Z",
-    "region": "eu-west-1",
-    "resources": ["arn:aws:events:eu-west-1:NNNNNNNNNN:rule/Playground"],
-    "detail": {}
+  "version": "0",
+  "id": "a9a10406-9a1f-0ddc-51ae-08db551fac42",
+  "detail-type": "Scheduled Event",
+  "source": "aws.events",
+  "account": "NNNNNNNNNN",
+  "time": "2019-09-20T09:19:56Z",
+  "region": "eu-west-1",
+  "resources": ["arn:aws:events:eu-west-1:NNNNNNNNNN:rule/Playground"],
+  "detail": {}
 }
 ```
 
@@ -349,9 +350,9 @@ When launching the queue processor with process_queue(), it's possible to option
 
 Following shutdown policies are supported:
 
--   IdleShutdown(idle_seconds): return from function when no new tasks are sent for a specific period.
+- IdleShutdown(idle_seconds): return from function when no new tasks are sent for a specific period.
 
--   MaxTasksShutdown(max_tasks): return from function after processing at least max_task jobs. It can be helpful to prevent memory leaks.
+- MaxTasksShutdown(max_tasks): return from function after processing at least max_task jobs. It can be helpful to prevent memory leaks.
 
 The default policy is NeverShutdown. It's also possible to combine two previous policies with OrShutdown or AndShutdown policies or create custom classes for specific behavior.
 
@@ -383,13 +384,11 @@ Usage example:
 
 This code takes all the messages in the foo_dead queue and pushes them back to the foo queue. Then it waits 10 seconds to ensure no new messages appear, and quit.
 
-
 ## Processing a dead-letter queue by executing tasks in-place
 
 Instead of pushing the tasks back to the main queue, you can execute them in place. For this, you need to copy the queue processors from the main queue to the deadletter.
 
 Usage example:
-
 
     >>> env = SQSEnv()
     >>> foo = env.queue("foo")
@@ -400,7 +399,6 @@ Usage example:
     >>> foo_dead.process_queue(shutdown_policy=IdleShutdown(10))
 
 This code takes all the messages in the foo_dead queue and executes them with processors from the "foo" queue. Then it waits 10 seconds to ensure no new messages appear, and quit.
-
 
 ## Using in unit tests with MemorySession
 
@@ -425,12 +423,11 @@ env = SQSEnv(MemorySession())
 
 Please note that MemorySession has some serious limitations, and may not fit well your use-case. Namely, when you work with MemorySession:
 
--   Redrive policy doesn't work
--   There is no differences between standard and FIFO queues
--   FIFO queues don't support content-based deduplication
--   Delayed tasks are executed ineffectively: the task is gotten from the queue, and if the time hasn't come, the task is put back.
--   API can return slightly different results
-
+- Redrive policy doesn't work
+- There is no differences between standard and FIFO queues
+- FIFO queues don't support content-based deduplication
+- Delayed tasks are executed ineffectively: the task is gotten from the queue, and if the time hasn't come, the task is put back.
+- API can return slightly different results
 
 ## Contributing
 
@@ -440,17 +437,15 @@ Please feel free to [report any issue](https://github.com/Doist/sqs-workers/issu
 
 If you want to contribute with code, please open a Pull Request. A few things to keep in mind:
 
--   sqs-workers is released under the [MIT license](./LICENSE)
--   please use [pre-commit](https://pre-commit.com/) to ensure some formatting rules and basic consistency checks are applied before each Git commit
--   please add tests for your changes!
-
+- sqs-workers is released under the [MIT license](./LICENSE)
+- please use [pre-commit](https://pre-commit.com/) to ensure some formatting rules and basic consistency checks are applied before each Git commit
+- please add tests for your changes!
 
 ### Testing
 
 We use pytest to run unittests, and tox to run them for all supported Python versions.
 
 If you just run `pytest` or `tox`, all tests will be run against AWS, localstack, and MemorySession. You can disable those you don't want to use using the pytest `-k` flag, for instance using `-k localstack` or `-k 'not aws'`.
-
 
 ### Testing with AWS
 
@@ -502,10 +497,10 @@ tox -- -k memory
 
 ## Releasing new versions
 
--   Bump version in `sqs_workers/__version__.py`
--   Update the CHANGELOG
--   Commit the changes with a commit message "Version X.X.X"
--   Push the changes to GitHub and PyPI with a single command `make upload`
+- Bump version in `sqs_workers/__version__.py`
+- Update the CHANGELOG
+- Commit the changes with a commit message "Version X.X.X"
+- Push the changes to GitHub and PyPI with a single command `make upload`
 
 ## Why does it depend on werkzeug? 😱
 
