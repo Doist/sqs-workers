@@ -447,6 +447,12 @@ We use pytest to run unittests, and tox to run them for all supported Python ver
 
 If you just run `pytest` or `tox`, all tests will be run against AWS, localstack, and MemorySession. You can disable those you don't want to use using the pytest `-k` flag, for instance using `-k localstack` or `-k 'not aws'`.
 
+Running tests with `pytest` requires installing two additional dependencies:
+
+```bash
+pip install pytest localstack-client
+```
+
 ### Testing with AWS
 
 Make sure you have all dependencies installed, and boto3 client configured ([ref](https://boto3.readthedocs.io/en/latest/guide/quickstart.html#configuration)) and then run
@@ -465,7 +471,11 @@ tox -- -k aws
 
 Localstack tests should perform faster than testing against AWS, and besides, they work well in offline.
 
-Run [localstack](https://github.com/localstack/localstack) and make sure that the SQS endpoint is available by its default address http://localhost:4576
+Run [localstack](https://github.com/localstack/localstack) and make sure that the SQS endpoint is available by its default address localhost:4566. It's easier with a Docker container:
+
+```bash
+docker run --rm -p 4566:4566 -e SERVICES=sqs localstack/localstack:latest
+```
 
 Then run
 
