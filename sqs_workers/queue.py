@@ -445,6 +445,7 @@ class JobQueue(GenericQueue):
 
         if self._batch_level > 0:
             self._batched_messages.append(kwargs)
+            self._flush_batch_if_needed()
             return None
         else:
             ret = queue.send_message(**kwargs)

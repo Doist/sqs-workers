@@ -76,13 +76,32 @@ def test_batch_tasks(sqs, queue_name):
     # add task immediately
     say_hello_task.delay(username="Homer")
     assert len(queue.get_raw_messages(0)) == 1
-    # with batching, only add at the end
+    # with batching (and few tasks), only add at the end
     with say_hello_task.batch():
         say_hello_task.delay(username="Lisa")
         assert len(queue.get_raw_messages(0)) == 0
         say_hello_task.delay(username="Bart")
         assert len(queue.get_raw_messages(0)) == 0
     assert len(queue.get_raw_messages(0)) == 2
+
+
+def test_big_batches(sqs, queue_name):
+    queue = sqs.queue(queue_name)
+    say_hello_task = queue.connect_processor("say_hello", say_hello)
+
+    with say_hello_task.batch():
+        # no messages after 9 tasks
+        for n in range(9):
+            say_hello_task.delay(username="Homer %d" % n)
+        assert len(queue.get_raw_messages(0)) == 0
+
+        # add 5 more tasks: batch is flushed after the 1st one, 4 are left
+        for n in range(5):
+            say_hello_task.delay(username="Bart %d" % n)
+        assert len(queue.get_raw_messages(0)) == 10
+
+    # 4 remaining tasks are flushed when closing the batch
+    assert len(queue.get_raw_messages(0)) == 4
 
 
 def test_call_raises_exception(sqs, queue_name):
