@@ -1,0 +1,24 @@
+name: test
+on: push
+jobs:
+  test:
+    name: "python ${{ matrix.python-version }} with ${{ matrix.session }}"
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: [ '2.x', '3.7', '3.8', '3.9' ]
+        session: ['memory', 'localstack']  # TODO: we don't test against production AWS
+    steps:
+      - name: Start Docker container with localstack
+        if: matrix.session == 'localstack'
+        run:  docker run -d --rm -p 4566:4566 -e SERVICES=sqs localstack/localstack:latest
+      - name: Checkout Repo
+        uses: actions/checkout@v2
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install dependencies
+        run: python -m pip install -r requirements_test.txt
+      - name: Run tests
+        run: python -m pytest -vv -k ${{ matrix.session }}
