@@ -70,22 +70,36 @@ def test_baked_tasks(sqs, queue_name):
     assert worker_results["say_hello"] == "Homer"
 
 
-def test_batch_tasks(sqs, queue_name):
+def test_batch_should_keep_messages_on_add(sqs, queue_name):
     queue = sqs.queue(queue_name)
     say_hello_task = queue.connect_processor("say_hello", say_hello)
-    # add task immediately
-    say_hello_task.delay(username="Homer")
-    assert len(queue.get_raw_messages(0)) == 1
-    # with batching (and few tasks), only add at the end
+
+    # no message before
+    assert len(queue.get_raw_messages(0)) == 0
+
     with say_hello_task.batch():
         say_hello_task.delay(username="Lisa")
+
+        # no message yet
         assert len(queue.get_raw_messages(0)) == 0
+
+
+def test_batch_should_flush_on_exit(sqs, queue_name):
+    queue = sqs.queue(queue_name)
+    say_hello_task = queue.connect_processor("say_hello", say_hello)
+
+    with say_hello_task.batch():
+        say_hello_task.delay(username="Lisa")
         say_hello_task.delay(username="Bart")
+
+        # not enough tasks to flush the batch yet
         assert len(queue.get_raw_messages(0)) == 0
+
+    # but once the batch is closed, all tasks are added
     assert len(queue.get_raw_messages(0)) == 2
 
 
-def test_big_batches(sqs, queue_name):
+def test_batch_should_keep_messages_until_overflow(sqs, queue_name):
     queue = sqs.queue(queue_name)
     say_hello_task = queue.connect_processor("say_hello", say_hello)
 
@@ -95,13 +109,13 @@ def test_big_batches(sqs, queue_name):
             say_hello_task.delay(username="Homer %d" % n)
         assert len(queue.get_raw_messages(0)) == 0
 
-        # add 5 more tasks: batch is flushed after the 1st one, 4 are left
-        for n in range(5):
-            say_hello_task.delay(username="Bart %d" % n)
+        # 2 more: overflow, the first 10 messages are added to the queue
+        say_hello_task.delay(username="Bart")
+        say_hello_task.delay(username="Lisa")
         assert len(queue.get_raw_messages(0)) == 10
 
-    # 4 remaining tasks are flushed when closing the batch
-    assert len(queue.get_raw_messages(0)) == 4
+    # 1 message remaining: it's added once the batch is closed
+    assert len(queue.get_raw_messages(0)) == 1
 
 
 def test_call_raises_exception(sqs, queue_name):
