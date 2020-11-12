@@ -346,13 +346,23 @@ class JobQueue(GenericQueue):
         finally:
             self.close_add_batch()
 
+    def _should_flush_batch(self):
+        """
+        Check if a message batch should be flushed, i.e. all messages should be sent
+        and removed from the internal cache.
+
+        Right now this only checks the number of messages. In the future we may
+        want to improve that by also ensuring the batch size is small enough.
+        """
+        max_size = SEND_BATCH_SIZE if self._batch_level > 0 else 1
+        return len(self._batched_messages) >= max_size
+
     def _flush_batch_if_needed(self):
         queue = self.get_queue()
 
         # There should be at most 1 batch to send. But just in case, prepare to
         # send more than that.
-        max_size = SEND_BATCH_SIZE if self._batch_level > 0 else 1
-        while len(self._batched_messages) >= max_size:
+        while self._should_flush_batch():
             msgs = self._batched_messages[:SEND_BATCH_SIZE]
             self._batched_messages = self._batched_messages[SEND_BATCH_SIZE:]
 
