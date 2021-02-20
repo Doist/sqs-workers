@@ -1,12 +1,8 @@
 # SQS Workers
 
-## How can I use it?
+An opinionated queue processor for Amazon SQS.
 
-Unless you are the part of the [Doist development team](https://github.com/orgs/Doist/people), you most likely don't need it. It's something opinionated, built out of our own internal needs, and probably provides little value for outside developers.
-
-Queue processors are in abundance (see http://queues.io/ for examples), and there is no shortage of SQS queue processors on [PyPI](https://pypi.org/search/?q=SQS), so please don't put your high hopes on this particular implementation
-
-## Got it, but how can I start using it anyway?
+## Usage
 
 Install the package with
 
