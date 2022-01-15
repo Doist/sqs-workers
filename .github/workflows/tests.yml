@@ -8,6 +8,7 @@ jobs:
       matrix:
         python-version: [ '2.x', '3.7', '3.8', '3.9' ]
         session: ['memory', 'localstack']  # TODO: we don't test against production AWS
+    timeout-minutes: 60
     steps:
       - name: Start Docker container with localstack
         if: matrix.session == 'localstack'
