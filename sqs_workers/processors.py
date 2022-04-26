@@ -6,7 +6,7 @@ import attr
 
 from sqs_workers import codecs
 from sqs_workers.context import SQSContext
-from sqs_workers.utils import adv_validate_arguments
+from sqs_workers.utils import validate_arguments
 
 if TYPE_CHECKING:
     from sqs_workers.queue import GenericQueue
@@ -89,7 +89,7 @@ def get_job_context(job_message, codec):
 
 def call_handler(fn, kwargs):
     try:
-        handler_args, handler_kwargs = adv_validate_arguments(fn, [], kwargs)
+        handler_args, handler_kwargs = validate_arguments(fn, [], kwargs)
     except TypeError:
         # it may happen, if "fn" is not a function (but
         # a mock object, for example)

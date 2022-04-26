@@ -32,7 +32,6 @@ setup(
         "pytest-runner",
         "attrs",
         "typing",
-        "werkzeug",
     ],
     include_package_data=True,
     license="MIT",

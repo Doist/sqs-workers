@@ -1,11 +1,11 @@
 from textwrap import TextWrapper
 
 from sqs_workers.utils import (
-    adv_bind_arguments,
-    adv_validate_arguments,
+    bind_arguments,
     instantiate_from_dict,
     instantiate_from_string,
     string_to_object,
+    validate_arguments,
 )
 
 
@@ -27,18 +27,18 @@ def test_instantiate_from_string():
     assert w.width == 80
 
 
-def test_adv_bind_arguments_converts_to_unicode():
+def test_bind_arguments_converts_to_unicode():
     def foo(a, b):
         pass
 
-    kwargs = adv_bind_arguments(foo, [], {b"a": 1, b"b": 2})
+    kwargs = bind_arguments(foo, [], {b"a": 1, b"b": 2})
     assert kwargs == {"a": 1, "b": 2}
 
 
-def test_adv_validate_arguments_converts_to_unicode():
+def test_validate_arguments_converts_to_unicode():
     def foo(a, b):
         pass
 
-    args, kwargs = adv_validate_arguments(foo, [], {b"a": 1, b"b": 2})
+    args, kwargs = validate_arguments(foo, [], {b"a": 1, b"b": 2})
     assert args == (1, 2)
     assert kwargs == {}

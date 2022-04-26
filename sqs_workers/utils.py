@@ -1,31 +1,39 @@
 import importlib
+from inspect import Signature
 from typing import Any
 
-from werkzeug.utils import bind_arguments, validate_arguments
 
-
-def adv_validate_arguments(callback, args, kwargs):
-    """
-    "Advanced version" of Werkzeug's "validate_arguments" which doesn't modify
-    passed args and kwargs
-
-    :return: (args, kwargs) to pass to original function
-    """
+def _bind_args(callback, args, kwargs):
+    sig = Signature.from_callable(callback)
     bind_args = list(args)
     bind_kwargs = {ensure_string(k): v for k, v in kwargs.items()}
-    arguments, keyword_arguments = validate_arguments(callback, bind_args, bind_kwargs)
-    return arguments, keyword_arguments
+    bound_args = sig.bind(*bind_args, **bind_kwargs)
+    return bound_args
 
 
-def adv_bind_arguments(callback, args, kwargs):
+def validate_arguments(callback, args, kwargs):
+    """Checks if the function accepts the provided arguments and keyword
+    arguments. Returns a new `(args, kwargs)` tuple that can be passed to the
+    function without causing a TypeError due to an incompatible signature.
+
+    If the arguments are invalid, a TypeError is raised.
+
+    Similar to Werkzeug's old `validate_arguments` function, but doesn't modify
+    passed args and kwargs.
     """
-    "Advanced version" of Werkzeug's "bind_arguments" which doesn't modify
-    passed args and kwargs
+    bound_args = _bind_args(callback, args, kwargs)
+    return (bound_args.args, bound_args.kwargs)
+
+
+def bind_arguments(callback, args, kwargs):
+    """Bind the arguments provided into a dict, returning a dict of bound
+    keyword arguments.
+
+    Similar to Werkzeug's old `bind_arguments` function, but doesn't modify
+    passed args and kwargs.
     """
-    bind_args = list(args)
-    bind_kwargs = {ensure_string(k): v for k, v in kwargs.items()}
-    keyword_arguments = bind_arguments(callback, bind_args, bind_kwargs)
-    return keyword_arguments
+    bound_args = _bind_args(callback, args, kwargs)
+    return bound_args.arguments
 
 
 def string_to_object(string: str) -> Any:

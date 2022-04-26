@@ -2,7 +2,7 @@ from contextlib import contextmanager
 from typing import TYPE_CHECKING, Callable
 
 from sqs_workers.codecs import DEFAULT_CONTENT_TYPE
-from sqs_workers.utils import adv_bind_arguments
+from sqs_workers.utils import bind_arguments
 
 if TYPE_CHECKING:
     from sqs_workers.queue import JobQueue
@@ -30,7 +30,7 @@ class AsyncTask(object):
         """
         Run the task synchronously.
         """
-        kwargs = adv_bind_arguments(self.processor, args, kwargs)
+        kwargs = bind_arguments(self.processor, args, kwargs)
         return self.processor(**kwargs)
 
     @contextmanager
@@ -49,7 +49,7 @@ class AsyncTask(object):
         _delay_seconds = kwargs.pop("_delay_seconds", None)
         _deduplication_id = kwargs.pop("_deduplication_id", None)
         _group_id = kwargs.pop("_group_id", None)
-        kwargs = adv_bind_arguments(self.processor, args, kwargs)
+        kwargs = bind_arguments(self.processor, args, kwargs)
         return self.queue.add_job(
             self.job_name,
             _content_type=_content_type,

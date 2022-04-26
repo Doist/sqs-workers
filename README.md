@@ -507,7 +507,3 @@ tox -- -k memory
 - Update the CHANGELOG
 - Commit the changes with a commit message "Version X.X.X"
 - Push the changes to GitHub and PyPI with a single command `make upload`
-
-## Why does it depend on werkzeug? 😱
-
-The only reason is [werkzeug.utils.validate_arguments](http://werkzeug.pocoo.org/docs/dev/utils/#werkzeug.utils.validate_arguments) which we love, and we are lazy enough to move it to this codebase.
