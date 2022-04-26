@@ -6,7 +6,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: [ '2.x', '3.7', '3.8', '3.9' ]
+        python-version: [ '3.8', '3.9', '3.10' ]
         session: ['memory', 'localstack']  # TODO: we don't test against production AWS
     timeout-minutes: 60
     steps:
