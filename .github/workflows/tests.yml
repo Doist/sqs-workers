@@ -1,20 +1,26 @@
-name: test
-on: push
+name: Run test suite
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
 jobs:
   test:
-    name: "python ${{ matrix.python-version }} with ${{ matrix.session }}"
     runs-on: ubuntu-latest
+    timeout-minutes: 30
+    name: "Python ${{ matrix.python-version }} with ${{ matrix.session }}"
     strategy:
       matrix:
-        python-version: [ '2.x', '3.7', '3.8', '3.9' ]
+        python-version: [ '3.8', '3.9', '3.10' ]
         session: ['memory', 'localstack']  # TODO: we don't test against production AWS
-    timeout-minutes: 60
     steps:
       - name: Start Docker container with localstack
         if: matrix.session == 'localstack'
         run:  docker run -d -p 4566:9324 --rm softwaremill/elasticmq-native
       - name: Checkout Repo
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
       - name: Set up Python
         uses: actions/setup-python@v2
         with:

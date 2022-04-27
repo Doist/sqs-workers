@@ -1,36 +1,42 @@
 import importlib
+from inspect import Signature
 from typing import Any
 
-from past.types import unicode
-from werkzeug.utils import bind_arguments, validate_arguments
 
-
-def adv_validate_arguments(callback, args, kwargs):
-    """
-    "Advanced version" of Werkzeug's "validate_arguments" which doesn't modify
-    passed args and kwargs
-
-    :return: (args, kwargs) to pass to original function
-    """
+def _bind_args(callback, args, kwargs):
+    sig = Signature.from_callable(callback)
     bind_args = list(args)
-    bind_kwargs = {ensure_unicode(k): v for k, v in kwargs.items()}
-    arguments, keyword_arguments = validate_arguments(callback, bind_args, bind_kwargs)
-    return arguments, keyword_arguments
+    bind_kwargs = {ensure_string(k): v for k, v in kwargs.items()}
+    bound_args = sig.bind(*bind_args, **bind_kwargs)
+    return bound_args
 
 
-def adv_bind_arguments(callback, args, kwargs):
+def validate_arguments(callback, args, kwargs):
+    """Checks if the function accepts the provided arguments and keyword
+    arguments. Returns a new `(args, kwargs)` tuple that can be passed to the
+    function without causing a TypeError due to an incompatible signature.
+
+    If the arguments are invalid, a TypeError is raised.
+
+    Similar to Werkzeug's old `validate_arguments` function, but doesn't modify
+    passed args and kwargs.
     """
-    "Advanced version" of Werkzeug's "bind_arguments" which doesn't modify
-    passed args and kwargs
+    bound_args = _bind_args(callback, args, kwargs)
+    return (bound_args.args, bound_args.kwargs)
+
+
+def bind_arguments(callback, args, kwargs):
+    """Bind the arguments provided into a dict, returning a dict of bound
+    keyword arguments.
+
+    Similar to Werkzeug's old `bind_arguments` function, but doesn't modify
+    passed args and kwargs.
     """
-    bind_args = list(args)
-    bind_kwargs = {ensure_unicode(k): v for k, v in kwargs.items()}
-    keyword_arguments = bind_arguments(callback, bind_args, bind_kwargs)
-    return keyword_arguments
+    bound_args = _bind_args(callback, args, kwargs)
+    return bound_args.arguments
 
 
-def string_to_object(string):
-    # type: (unicode) -> Any
+def string_to_object(string: str) -> Any:
     """
     Convert full path string representation of the object to object itself.
     """
@@ -62,13 +68,11 @@ def instantiate_from_dict(options, maker_key="maker", **extra_init_kwargs):
     return string_to_object(classname_value)(**init_kwargs)
 
 
-def ensure_unicode(obj, encoding="utf-8", errors="strict"):
-    # type: (Any, unicode, unicode) -> unicode
-    """Make sure an object is converted to a proper Unicode representation."""
-    if isinstance(obj, unicode):
-        uobj = obj
+def ensure_string(obj: Any, encoding="utf-8", errors="strict") -> str:
+    """Make sure an object is converted to a proper string representation."""
+    if isinstance(obj, str):
+        return obj
     elif isinstance(obj, bytes):
-        uobj = obj.decode(encoding, errors)
+        return obj.decode(encoding, errors)
     else:
-        uobj = unicode(obj)
-    return uobj
+        return str(obj)
