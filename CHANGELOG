@@ -1,3 +1,17 @@
+## [0.5.5] - 2022-05-05
+
+### Changed
+
+- Dropped support for Python 2
+- Declared Python 3.8 as the minimum version supported
+- Dropped 2 dependencies (werkzeug and future) that are not needed anymore
+- Updated README a bit
+
+### Fixed
+
+- Fixed a bug with recent versions of Werkzeug (#20)
+
+
 ## [0.5.4] - 2020-11-12
 
 ### Changed
