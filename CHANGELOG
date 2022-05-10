@@ -1,3 +1,10 @@
+## [0.5.6] - 2022-05-10
+
+### Fixed
+
+- Fixed a behavior change for the utils.validate_arguments function
+
+
 ## [0.5.5] - 2022-05-05
 
 ### Changed
