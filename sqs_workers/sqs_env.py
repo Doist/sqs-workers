@@ -64,21 +64,25 @@ class SQSEnv(object):
         return self.queues[queue_name]
 
     def processor(
-        self, queue_name, job_name, pass_context=False, context_var=DEFAULT_CONTEXT_VAR
+        self,
+        queue_name: str,
+        job_name: str,
+        pass_context=False,
+        context_var=DEFAULT_CONTEXT_VAR
     ):
         """
         Decorator to attach processor to all jobs "job_name" of the queue "queue_name".
         """
-        q = self.queue(queue_name, queue_maker=JobQueue)  # type: JobQueue
+        q: JobQueue = self.queue(queue_name, queue_maker=JobQueue)
         return q.processor(
             job_name=job_name, pass_context=pass_context, context_var=context_var
         )
 
-    def raw_processor(self, queue_name):
+    def raw_processor(self, queue_name: str):
         """
         Decorator to attach raw processor to all jobs of the queue "queue_name".
         """
-        q = self.queue(queue_name, queue_maker=RawQueue)  # type: RawQueue
+        q: RawQueue = self.queue(queue_name, queue_maker=RawQueue)
         return q.raw_processor()
 
     def add_job(
