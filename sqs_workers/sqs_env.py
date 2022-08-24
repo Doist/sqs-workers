@@ -19,7 +19,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-AnyQueue = Union[GenericQueue, JobQueue]
+AnyQueue = Union[GenericQueue, JobQueue, RawQueue]
 
 
 @attr.s
@@ -52,7 +52,7 @@ class SQSEnv(object):
         queue_maker=JobQueue,  # type: Type[AnyQueue]
         backoff_policy=None,  # type: Optional[BackoffPolicy]
     ):
-        # type: (...) -> GenericQueue
+        # type: (...) -> AnyQueue
         """
         Get a queue object, initializing it with queue_maker if necessary.
         """
