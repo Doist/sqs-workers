@@ -88,7 +88,7 @@ Is the same as
 send_email.delay(to='user@example.com', subject='Hello world', body='hello world')
 ```
 
-## Batching
+## Batch Writes
 
 If you have many tasks to enqueue, it may be more efficient to use batching when adding them:
 
@@ -109,6 +109,24 @@ When batching is enabled:
 - tasks are added to SQS by batches of 10, reducing the number of AWS operations
 - it is not possible to get the task `MessageId`, as it is not known until the batch is sent
 - care has to be taken about message size, as SQS limits both the individual message size and the maximum total payload size to 256 kB.
+
+## Batch Reads
+
+If you wish to consume and process batches of messages from a queue at once (say to speed up ingestion)
+you can use the `batch_processor` decorator.
+
+```python
+from sqs_workers import SQSEnv
+
+sqs = SQSEnv()
+
+@sqs.batch_processor("send_email", batch_size=10)
+def send_email(emails: list):
+    for email in emails:
+        print(f"Sending email {email.subject} to {email.to}")
+```
+
+This function will receive up to 10 messages at once based on how many are available on the queue being consumed.
 
 ## Synchronous task execution
 
