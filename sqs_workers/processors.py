@@ -60,7 +60,7 @@ class Processor(object):
         effective_kwargs = job_kwargs.copy()
         if self.pass_context:
             effective_kwargs[self.context_var] = job_context
-        return call_handler(self.fn, effective_kwargs)
+        return call_handler(self.fn, [], effective_kwargs)
 
     def copy(self, **kwargs):
         """
@@ -92,11 +92,11 @@ def get_job_context(job_message, codec):
     return SQSContext.from_dict(deserialized)
 
 
-def call_handler(fn, kwargs):
+def call_handler(fn, args, kwargs):
     try:
-        handler_args, handler_kwargs = validate_arguments(fn, [], kwargs)
+        handler_args, handler_kwargs = validate_arguments(fn, args, kwargs)
     except TypeError:
         # it may happen, if "fn" is not a function (but
         # a mock object, for example)
-        handler_args, handler_kwargs = [], kwargs
+        handler_args, handler_kwargs = args, kwargs
     return fn(*handler_args, **handler_kwargs)
