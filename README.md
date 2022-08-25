@@ -129,7 +129,7 @@ queue = sqs.queue("emails")
 @queue.batch_processor("send_email", batch_size=10)
 def send_email(messages: list):
     for email in messages:
-        print(f"Sending email {email.subject} to {email.to}")
+        print(f"Sending email {email['subject']} to {email['to']}")
 ```
 
 This function will receive up to 10 messages at once based on how many are available on the queue being consumed.
