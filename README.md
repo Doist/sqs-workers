@@ -118,11 +118,15 @@ you can use the `batch_processor` decorator.
 The underlying function is expected to have a single parameter which will receive the list of messages.
 
 ```python
-from sqs_workers import SQSEnv
+from sqs_workers import SQSEnv, create_standard_queue
 
 sqs = SQSEnv()
 
-@sqs.batch_processor("send_email", batch_size=10)
+create_standard_queue(sqs, "emails")
+
+queue = sqs.queue("emails")
+
+@queue.batch_processor("send_email", batch_size=10)
 def send_email(messages: list):
     for email in messages:
         print(f"Sending email {email.subject} to {email.to}")
