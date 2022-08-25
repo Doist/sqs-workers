@@ -113,26 +113,30 @@ When batching is enabled:
 ## Batch Reads
 
 If you wish to consume and process batches of messages from a queue at once (say to speed up ingestion)
-you can use the `batch_processor` decorator.
+you can set the `batching_policy` at queue level.
 
 The underlying function is expected to have a single parameter which will receive the list of messages.
 
 ```python
+from sqs_workers.batching import BatchMessages
 from sqs_workers import SQSEnv, create_standard_queue
 
 sqs = SQSEnv()
 
 create_standard_queue(sqs, "emails")
 
-queue = sqs.queue("emails")
+queue = sqs.queue("emails", batching_policy=BatchMessages(batch_size=10))
 
-@queue.batch_processor("send_email", batch_size=10)
+@queue.processor("send_email")
 def send_email(messages: list):
     for email in messages:
         print(f"Sending email {email['subject']} to {email['to']}")
 ```
 
-This function will receive up to 10 messages at once based on how many are available on the queue being consumed.
+This function will receive up to 10 messages at once based on:
+
+* How many are available on the queue being consumed
+* How many of those messages on the `emails` queue are for the `send_email` job
 
 ## Synchronous task execution
 

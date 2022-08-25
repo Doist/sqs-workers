@@ -35,8 +35,8 @@ class NoBatching(BatchingConfiguration):
 class BatchMessages(BatchingConfiguration):
     """Configures the processor to process the messages in batches"""
 
-    def __init__(self, number_of_messages):
-        self.number_of_messages = number_of_messages
+    def __init__(self, batch_size):
+        self.number_of_messages = batch_size
 
     @property
     def batching_enabled(self) -> bool:
