@@ -1,15 +1,17 @@
 import logging
 import uuid
 import warnings
+from collections import defaultdict
 from contextlib import contextmanager
 from functools import partial
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Type
 
 import attr
 
 from sqs_workers import DEFAULT_BACKOFF, codecs
 from sqs_workers.async_task import AsyncTask
 from sqs_workers.backoff_policies import BackoffPolicy
+from sqs_workers.batching import BatchingConfiguration, NoBatching
 from sqs_workers.core import BatchProcessingResult, get_job_name
 from sqs_workers.exceptions import SQSError
 from sqs_workers.processors import DEFAULT_CONTEXT_VAR, Processor
@@ -34,6 +36,7 @@ class GenericQueue(object):
     env = attr.ib(repr=False)  # type: SQSEnv
     name = attr.ib()  # type: str
     backoff_policy = attr.ib(default=DEFAULT_BACKOFF)  # type: BackoffPolicy
+    batching_policy = attr.ib(default=NoBatching)  # type: Type[BatchingConfiguration]
     _queue = attr.ib(repr=False, default=None)
 
     @classmethod
@@ -73,6 +76,32 @@ class GenericQueue(object):
         the number of successfully processed messages, and exit
         """
         queue = self.get_queue()
+
+        if self.batching_policy.batching_enabled:
+            return self._process_messages_in_batch(queue, wait_seconds)
+
+        return self._process_messages_individually(queue, wait_seconds)
+
+    def _process_messages_in_batch(self, queue, wait_seconds):
+        messages = self.get_raw_messages(wait_seconds, self.batching_policy.batch_size)
+        result = BatchProcessingResult(self.name)
+
+        success = self.process_messages(messages)
+
+        for message in messages:
+            result.update_with_message(message, success)
+            if success:
+                entry = {
+                    "Id": message.message_id,
+                    "ReceiptHandle": message.receipt_handle,
+                }
+                queue.delete_messages(Entries=[entry])
+            else:
+                timeout = self.backoff_policy.get_visibility_timeout(message)
+                message.change_visibility(VisibilityTimeout=timeout)
+        return result
+
+    def _process_messages_individually(self, queue, wait_seconds):
         messages = self.get_raw_messages(wait_seconds)
         result = BatchProcessingResult(self.name)
 
@@ -99,13 +128,23 @@ class GenericQueue(object):
         """
         raise NotImplementedError()
 
-    def get_raw_messages(self, wait_seconds):
+    def process_messages(self, messages):
+        # type: (Any) -> bool
+        """
+        Process a batch of messages.
+
+        Return True if processing went successful
+        for every message in the batch
+        """
+        raise NotImplementedError()
+
+    def get_raw_messages(self, wait_seconds, max_messages=10):
         """
         Return raw messages from the queue, addressed by its name
         """
         kwargs = {
             "WaitTimeSeconds": wait_seconds,
-            "MaxNumberOfMessages": 10,
+            "MaxNumberOfMessages": max_messages,
             "MessageAttributeNames": ["All"],
             "AttributeNames": ["All"],
         }
@@ -236,6 +275,38 @@ class RawQueue(GenericQueue):
         except Exception:
             logger.exception(
                 "Error while processing {queue_name}.{message_id}".format(**extra),
+                extra=extra,
+            )
+            return False
+        else:
+            return True
+
+    def process_messages(self, messages):
+        # type: (Any) -> bool
+        """
+        Process a batch of messages, grouped by job type.
+
+        Return True if processing went successful for all messages in the batch.
+        """
+        message_ids = [m.message_id for m in messages]
+        extra = {"message_ids": message_ids, "queue_name": self.name}
+        if not self.processor:
+            logger.warning(
+                "No processor set for {queue_name}".format(**extra), extra=extra
+            )
+            return False
+
+        logger.debug(
+            "Process {queue_name} for ids {message_ids}".format(**extra), extra=extra
+        )
+
+        try:
+            self.processor(messages)
+        except Exception:
+            logger.exception(
+                "Error while processing {queue_name} for ids {message_ids}".format(
+                    **extra
+                ),
                 extra=extra,
             )
             return False
@@ -463,12 +534,35 @@ class JobQueue(GenericQueue):
         if processor:
             return processor.process_message(message)
         else:
-            return self.process_message_fallback(message)
+            return self.process_message_fallback(job_name)
 
-    def process_message_fallback(self, message):
-        warnings.warn(
-            "Error while processing {}.{}".format(self.name, get_job_name(message))
-        )
+    def process_messages(self, messages):
+        # type: (Any) -> bool
+        """
+        Process a batch of messages, grouped by job type.
+
+        Return True if processing went successful for all messages in the batch.
+        """
+        messages_by_job_name = defaultdict(list)
+        for message in messages:
+            job_name = get_job_name(message)
+            messages_by_job_name[job_name].append(message)
+
+        results = []
+
+        for job_name, grouped_messages in messages_by_job_name.items():
+            processor = self.get_processor(job_name)
+            if processor:
+                result = processor.process_messages(grouped_messages)
+                results.append(result)
+            else:
+                result = self.process_message_fallback(job_name)
+                results.append(result)
+
+        return all(results)
+
+    def process_message_fallback(self, job_name):
+        warnings.warn("Error while processing {}.{}".format(self.name, job_name))
         return False
 
     def copy_processors(self, dst_queue):
