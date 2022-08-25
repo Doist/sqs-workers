@@ -1,10 +1,12 @@
 import time
+from typing import Dict, List, Optional
 
 import pytest
 
 from sqs_workers import (
     IMMEDIATE_RETURN,
     ExponentialBackoff,
+    batching,
     create_fifo_queue,
     create_standard_queue,
     delete_queue,
@@ -15,7 +17,9 @@ from sqs_workers.memory_sqs import MemorySession
 from sqs_workers.processors import Processor
 from sqs_workers.queue import RawQueue
 
-worker_results = {"say_hello": None}
+worker_results: Dict[str, Optional[str]] = {"say_hello": None}
+
+batch_results: List[str] = []
 
 
 def raise_exception(username="Anonymous"):
@@ -26,10 +30,20 @@ def say_hello(username="Anonymous"):
     worker_results["say_hello"] = username
 
 
+def batch_say_hello(messages: list):
+    batch_results.extend([m["username"] for m in messages])
+
+
 @pytest.fixture(autouse=True)
 def _reset_worker_results():
     global worker_results
     worker_results = {"say_hello": None}
+
+
+@pytest.fixture(autouse=True)
+def _reset_batch_results():
+    global batch_results
+    batch_results = []
 
 
 def test_add_pickle_job(sqs, queue_name):
@@ -363,3 +377,15 @@ def test_raw_queue_decorator(sqs, queue_name):
     queue.add_raw_job("foo")
     assert queue.process_batch().succeeded_count() == 1
     assert message_body["body"] == "foo"
+
+
+def test_batch_processor(sqs, queue_name):
+    queue = sqs.queue(queue_name, batching_policy=batching.BatchMessages(batch_size=5))
+    batch_say_hello_task = queue.connect_processor("batch_say_hello", batch_say_hello)
+
+    for i in range(20):
+        batch_say_hello_task.delay(username=f"Homer_{i}")
+
+    assert len(batch_results) == 0
+    queue.process_batch(wait_seconds=0)
+    assert len(batch_results) == 5
