@@ -52,7 +52,8 @@ class AsyncTask(object):
         _delay_seconds = kwargs.pop("_delay_seconds", None)
         _deduplication_id = kwargs.pop("_deduplication_id", None)
         _group_id = kwargs.pop("_group_id", None)
-        kwargs = bind_arguments(self.processor, args, kwargs)
+        if not self.queue.batching_policy.batching_enabled:
+            kwargs = bind_arguments(self.processor, args, kwargs)
         return self.queue.add_job(
             self.job_name,
             _content_type=_content_type,

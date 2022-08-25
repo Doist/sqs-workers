@@ -101,7 +101,7 @@ class Processor(object):
                 job_kwargs[self.context_var] = job_context
             deserialized_messages.append(job_kwargs)
 
-        call_handler(self.fn, [messages], {})
+        call_handler(self.fn, [deserialized_messages], {})
 
     def copy(self, **kwargs):
         """
