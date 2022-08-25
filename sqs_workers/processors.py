@@ -44,11 +44,8 @@ class Processor(object):
         logger.debug("Process {queue_name}.{job_name}".format(**extra), extra=extra)
 
         try:
-            content_type = get_job_content_type(message)
+            content_type, job_kwargs, job_context = self.deserialize_message(message)
             extra["job_content_type"] = content_type
-            codec = codecs.get_codec(content_type)
-            job_kwargs = codec.deserialize(message.body)
-            job_context = get_job_context(message, codec)
             self.process(job_kwargs, job_context)
         except Exception:
             logger.exception(
@@ -71,6 +68,14 @@ class Processor(object):
         arguments of the constructor from update_kwargs
         """
         return attr.evolve(self, **kwargs)
+
+    @staticmethod
+    def deserialize_message(message):
+        content_type = get_job_content_type(message)
+        codec = codecs.get_codec(content_type)
+        job_kwargs = codec.deserialize(message.body)
+        job_context = get_job_context(message, codec)
+        return content_type, job_kwargs, job_context
 
 
 def get_job_content_type(job_message):
