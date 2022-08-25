@@ -4,7 +4,7 @@ import warnings
 from collections import defaultdict
 from contextlib import contextmanager
 from functools import partial
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Type
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional
 
 import attr
 
@@ -36,7 +36,7 @@ class GenericQueue(object):
     env = attr.ib(repr=False)  # type: SQSEnv
     name = attr.ib()  # type: str
     backoff_policy = attr.ib(default=DEFAULT_BACKOFF)  # type: BackoffPolicy
-    batching_policy = attr.ib(default=NoBatching)  # type: Type[BatchingConfiguration]
+    batching_policy = attr.ib(default=NoBatching())  # type: BatchingConfiguration
     _queue = attr.ib(repr=False, default=None)
 
     @classmethod

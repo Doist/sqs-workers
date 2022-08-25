@@ -7,6 +7,7 @@ import attr
 import boto3
 
 from sqs_workers import DEFAULT_BACKOFF, RawQueue, codecs, context, processors
+from sqs_workers.batching import BatchingConfiguration, BatchMessages, NoBatching
 from sqs_workers.core import RedrivePolicy
 from sqs_workers.processors import DEFAULT_CONTEXT_VAR
 from sqs_workers.queue import GenericQueue, JobQueue
@@ -50,6 +51,7 @@ class SQSEnv(object):
         self,
         queue_name,  # type: str
         queue_maker=JobQueue,  # type: Type[AnyQueue]
+        batching_policy=NoBatching(),  # type: BatchingConfiguration
         backoff_policy=None,  # type: Optional[BackoffPolicy]
     ):
         # type: (...) -> AnyQueue
@@ -59,7 +61,10 @@ class SQSEnv(object):
         if queue_name not in self.queues:
             backoff_policy = backoff_policy or self.backoff_policy
             self.queues[queue_name] = queue_maker(
-                env=self, name=queue_name, backoff_policy=backoff_policy
+                env=self,
+                name=queue_name,
+                batching_policy=batching_policy,
+                backoff_policy=backoff_policy,
             )
         return self.queues[queue_name]
 
@@ -68,12 +73,33 @@ class SQSEnv(object):
         queue_name: str,
         job_name: str,
         pass_context=False,
-        context_var=DEFAULT_CONTEXT_VAR
+        context_var=DEFAULT_CONTEXT_VAR,
     ):
         """
         Decorator to attach processor to all jobs "job_name" of the queue "queue_name".
         """
-        q: JobQueue = self.queue(queue_name, queue_maker=JobQueue)
+        q: JobQueue = self.queue(queue_name, queue_maker=JobQueue)  # type: ignore
+        return q.processor(
+            job_name=job_name, pass_context=pass_context, context_var=context_var
+        )
+
+    def batch_processor(
+        self,
+        queue_name: str,
+        job_name: str,
+        batch_size: int = 10,
+        pass_context=False,
+        context_var=DEFAULT_CONTEXT_VAR,
+    ):
+        """
+        Decorator to attach a batch processor to all jobs "job_name"
+        of the queue "queue_name".
+        """
+        q: JobQueue = self.queue(
+            queue_name,
+            batching_policy=BatchMessages(batch_size),
+            queue_maker=JobQueue,
+        )  # type: ignore
         return q.processor(
             job_name=job_name, pass_context=pass_context, context_var=context_var
         )
@@ -82,7 +108,16 @@ class SQSEnv(object):
         """
         Decorator to attach raw processor to all jobs of the queue "queue_name".
         """
-        q: RawQueue = self.queue(queue_name, queue_maker=RawQueue)
+        q: RawQueue = self.queue(queue_name, queue_maker=RawQueue)  # type: ignore
+        return q.raw_processor()
+
+    def raw_batch_processor(self, queue_name: str, batch_size: int = 10):
+        """
+        Decorator to attach a raw batch processor to all jobs of the queue "queue_name".
+        """
+        q: RawQueue = self.queue(
+            queue_name, batching_policy=BatchMessages(batch_size), queue_maker=RawQueue
+        )  # type: ignore
         return q.raw_processor()
 
     def add_job(
