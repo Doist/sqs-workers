@@ -7,7 +7,6 @@ import attr
 import boto3
 
 from sqs_workers import DEFAULT_BACKOFF, RawQueue, codecs, context, processors
-from sqs_workers.batching import BatchingConfiguration, BatchMessages, NoBatching
 from sqs_workers.core import RedrivePolicy
 from sqs_workers.processors import DEFAULT_CONTEXT_VAR
 from sqs_workers.queue import GenericQueue, JobQueue
@@ -51,7 +50,6 @@ class SQSEnv(object):
         self,
         queue_name,  # type: str
         queue_maker=JobQueue,  # type: Type[AnyQueue]
-        batching_policy=NoBatching(),  # type: BatchingConfiguration
         backoff_policy=None,  # type: Optional[BackoffPolicy]
     ):
         # type: (...) -> AnyQueue
@@ -63,7 +61,6 @@ class SQSEnv(object):
             self.queues[queue_name] = queue_maker(
                 env=self,
                 name=queue_name,
-                batching_policy=batching_policy,
                 backoff_policy=backoff_policy,
             )
         return self.queues[queue_name]
@@ -95,13 +92,12 @@ class SQSEnv(object):
         Decorator to attach a batch processor to all jobs "job_name"
         of the queue "queue_name".
         """
-        q: JobQueue = self.queue(
-            queue_name,
-            batching_policy=BatchMessages(batch_size),
-            queue_maker=JobQueue,
-        )  # type: ignore
-        return q.processor(
-            job_name=job_name, pass_context=pass_context, context_var=context_var
+        q: JobQueue = self.queue(queue_name, queue_maker=JobQueue)  # type: ignore
+        return q.batch_processor(
+            job_name=job_name,
+            batch_size=batch_size,
+            pass_context=pass_context,
+            context_var=context_var,
         )
 
     def raw_processor(self, queue_name: str):
@@ -115,10 +111,8 @@ class SQSEnv(object):
         """
         Decorator to attach a raw batch processor to all jobs of the queue "queue_name".
         """
-        q: RawQueue = self.queue(
-            queue_name, batching_policy=BatchMessages(batch_size), queue_maker=RawQueue
-        )  # type: ignore
-        return q.raw_processor()
+        q: RawQueue = self.queue(queue_name, queue_maker=RawQueue)  # type: ignore
+        return q.raw_batch_processor(batch_size=batch_size)
 
     def add_job(
         self,

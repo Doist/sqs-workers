@@ -11,7 +11,7 @@ import attr
 from sqs_workers import DEFAULT_BACKOFF, codecs
 from sqs_workers.async_task import AsyncTask
 from sqs_workers.backoff_policies import BackoffPolicy
-from sqs_workers.batching import BatchingConfiguration, NoBatching
+from sqs_workers.batching import BatchingConfiguration, BatchMessages, NoBatching
 from sqs_workers.core import BatchProcessingResult, get_job_name
 from sqs_workers.exceptions import SQSError
 from sqs_workers.processors import DEFAULT_CONTEXT_VAR, Processor
@@ -198,12 +198,32 @@ class RawQueue(GenericQueue):
 
         Usage example:
 
-        cron = sqs.queue('cron')
+            cron = sqs.queue('cron')
 
-        @cron.raw_processor()
-        def process(message):
-            print(message.body)
+            @cron.raw_processor()
+            def process(message):
+                print(message.body)
         """
+
+        def func(processor):
+            return self.connect_raw_processor(processor)
+
+        return func
+
+    def raw_batch_processor(self, batch_size=10):
+        """
+        Decorator to assign a batch processor to handle jobs from the raw queue
+
+        Usage example:
+
+            cron = sqs.queue('cron')
+
+            @cron.raw_batch_processor(batch_size=20)
+            def process(messages):
+                for message in messages:
+                    print(message['body'])
+        """
+        self.batching_policy = BatchMessages(batch_size)
 
         def func(processor):
             return self.connect_raw_processor(processor)
@@ -329,23 +349,23 @@ class JobQueue(GenericQueue):
 
         Usage example:
 
-        queue = sqs.queue('q1')
+            queue = sqs.queue('q1')
 
-        @queue.processor('say_hello')
-        def say_hello(name):
-            print("Hello, " + name)
+            @queue.processor('say_hello')
+            def say_hello(name):
+                print("Hello, " + name)
 
         Then you can add messages to the queue by calling ".delay" attribute
         of a newly created object:
 
-        >>> say_hello.delay(name='John')
+            say_hello.delay(name='John')
 
         Here, instead of calling function locally, it will be pushed to the
         queue (essentially, mimics the non-blocking call of the function).
 
         If you still want to call function locally, you can call
 
-        >>> say_hello(name='John')
+            say_hello(name='John')
         """
 
         def fn(processor):
@@ -354,6 +374,41 @@ class JobQueue(GenericQueue):
             )
 
         return fn
+
+    def batch_processor(
+        self,
+        job_name,
+        batch_size=10,
+        pass_context=False,
+        context_var=DEFAULT_CONTEXT_VAR,
+    ):
+        """
+        Decorator to assign a batch processor to handle jobs with
+        the name job_name from the queue queue_name
+
+        Usage example:
+
+            queue = sqs.queue('q1')
+
+            @queue.batch_processor('say_hello', batch_size=20)
+            def say_hello(messages):
+                for message in messages:
+                    print("Hello, " + message['name'])
+
+        Then you can add messages to the queue by calling ".delay" attribute
+        of a newly created object:
+
+            say_hello.delay(name='John')
+
+        Here, instead of calling function locally, it will be pushed to the
+        queue (essentially, mimics the non-blocking call of the function).
+
+        If you still want to call function locally, you can call
+
+            say_hello(name='John')
+        """
+        self.batching_policy = BatchMessages(batch_size)
+        return self.processor(job_name, pass_context, context_var)
 
     def connect_processor(
         self, job_name, processor, pass_context=False, context_var=DEFAULT_CONTEXT_VAR
