@@ -30,8 +30,11 @@ class AsyncTask(object):
         """
         Run the task synchronously.
         """
-        kwargs = bind_arguments(self.processor, args, kwargs)
-        return self.processor(**kwargs)
+        if self.queue.batching_policy.batching_enabled:
+            return self.processor([kwargs])
+        else:
+            kwargs = bind_arguments(self.processor, args, kwargs)
+            return self.processor(**kwargs)
 
     @contextmanager
     def batch(self):

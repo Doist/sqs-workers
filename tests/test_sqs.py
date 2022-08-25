@@ -31,7 +31,8 @@ def say_hello(username="Anonymous"):
 
 
 def batch_say_hello(messages: list):
-    batch_results.extend([m["username"] for m in messages])
+    names = [f"{m['username']}_{i}" for i, m in enumerate(messages)]
+    batch_results.extend(names)
 
 
 @pytest.fixture(autouse=True)
@@ -389,3 +390,11 @@ def test_batch_processor(sqs, queue_name):
     assert len(batch_results) == 0
     queue.process_batch(wait_seconds=0)
     assert len(batch_results) == 5
+
+
+def test_batch_processor_run_executes_task_immediately(sqs, queue_name):
+    queue = sqs.queue(queue_name, batching_policy=batching.BatchMessages(batch_size=5))
+    batch_say_hello_task = queue.connect_processor("batch_say_hello", batch_say_hello)
+    batch_say_hello_task.run(username="Homer")
+    assert len(batch_results) == 1
+    assert batch_results[0] == "Homer_0"
