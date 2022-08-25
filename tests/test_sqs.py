@@ -391,6 +391,9 @@ def test_batch_processor(sqs, queue_name):
     queue.process_batch(wait_seconds=0)
     assert len(batch_results) == 5
 
+    queue.process_batch(wait_seconds=0)
+    assert len(batch_results) == 10
+
 
 def test_batch_processor_run_executes_task_immediately(sqs, queue_name):
     queue = sqs.queue(queue_name, batching_policy=batching.BatchMessages(batch_size=5))
