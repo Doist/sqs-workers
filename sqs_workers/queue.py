@@ -257,7 +257,7 @@ class RawQueue(GenericQueue):
     def process_message(self, message):
         # type: (Any) -> bool
         """
-        Process single message.
+        Sends a single message to the call handler.
 
         Return True if processing went successful
         """
@@ -284,7 +284,7 @@ class RawQueue(GenericQueue):
     def process_messages(self, messages):
         # type: (Any) -> bool
         """
-        Process a batch of messages, grouped by job type.
+        Sends a list of messages to the call handler
 
         Return True if processing went successful for all messages in the batch.
         """
@@ -316,7 +316,6 @@ class RawQueue(GenericQueue):
 
 @attr.s
 class JobQueue(GenericQueue):
-
     processors = attr.ib(factory=dict)  # type: Dict[str, Processor]
 
     _batch_level = attr.ib(default=0, repr=False)  # type: int
@@ -525,7 +524,7 @@ class JobQueue(GenericQueue):
     def process_message(self, message):
         # type: (Any) -> bool
         """
-        Process single message.
+        Sends a single message to the call handler.
 
         Return True if processing went successful
         """
@@ -539,7 +538,7 @@ class JobQueue(GenericQueue):
     def process_messages(self, messages):
         # type: (Any) -> bool
         """
-        Process a batch of messages, grouped by job type.
+        Sends a list of messages to the call handler
 
         Return True if processing went successful for all messages in the batch.
         """

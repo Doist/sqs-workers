@@ -3,25 +3,30 @@ from abc import ABC, abstractmethod
 
 class BatchingConfiguration(ABC):
     """
-    Abstract class defining the contract for configuring whether
-    a processor receives messages 1 by 1, or processes them in batch.
+    Defining the contract for configuring whether a processor sends
+    messages 1 by 1 to a call handler, or as a list of messages.
     """
 
     @property
     @abstractmethod
     def batching_enabled(self) -> bool:
-        """If false, process messages 1 by 1, otherwise process in batch"""
+        """
+        If false, messages are sent 1 by 1 to the call handler
+        If true, messages are sent as a list to the call handler
+        """
         ...
 
     @property
     @abstractmethod
     def batch_size(self) -> int:
-        """Number of messages to process at once if batching_enabled"""
+        """
+        Number of messages to process at once if batching_enabled
+        """
         ...
 
 
 class NoBatching(BatchingConfiguration):
-    """Configures the processor to process each message 1 by 1"""
+    """Configures the processor to send messages 1 by 1 to the call handler"""
 
     @property
     def batching_enabled(self) -> bool:
@@ -33,7 +38,7 @@ class NoBatching(BatchingConfiguration):
 
 
 class BatchMessages(BatchingConfiguration):
-    """Configures the processor to process the messages in batches"""
+    """Configures the processor to send a list of messages to the call handler"""
 
     def __init__(self, batch_size):
         self.number_of_messages = batch_size

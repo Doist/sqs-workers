@@ -25,7 +25,6 @@ AnyQueue = Union[GenericQueue, JobQueue, RawQueue]
 
 @attr.s
 class SQSEnv(object):
-
     session = attr.ib(default=boto3)
     queue_prefix = attr.ib(default="")
 
