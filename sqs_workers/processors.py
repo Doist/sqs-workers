@@ -36,6 +36,9 @@ class Processor(object):
         return partial(cls, **kwargs)
 
     def process_message(self, message):
+        """
+        Takes an individual message and sends it to the decorated call handler function.
+        """
         extra = {
             "message_id": message.message_id,
             "queue_name": self.queue.name,
@@ -56,11 +59,49 @@ class Processor(object):
         else:
             return True
 
+    def process_messages(self, messages):
+        """
+        Take a list of messages and send them in a batch
+        to the decorated call handler function.
+        """
+        message_ids = [m.message_id for m in messages]
+        extra = {
+            "message_ids": message_ids,
+            "queue_name": self.queue.name,
+            "job_name": self.job_name,
+        }
+        logger.debug(
+            "Processing batch for {queue_name}.{job_name}".format(**extra), extra=extra
+        )
+
+        try:
+            self.process_batch(messages)
+        except Exception:
+            logger.exception(
+                "Error while processing batch for {queue_name}.{job_name}".format(
+                    **extra
+                ),
+                extra=extra,
+            )
+            return False
+        else:
+            return True
+
     def process(self, job_kwargs, job_context):
         effective_kwargs = job_kwargs.copy()
         if self.pass_context:
             effective_kwargs[self.context_var] = job_context
         return call_handler(self.fn, [], effective_kwargs)
+
+    def process_batch(self, messages):
+        deserialized_messages = []
+        for message in messages:
+            _, job_kwargs, job_context = self.deserialize_message(message)
+            if self.pass_context:
+                job_kwargs[self.context_var] = job_context
+            deserialized_messages.append(job_kwargs)
+
+        call_handler(self.fn, [messages], {})
 
     def copy(self, **kwargs):
         """
