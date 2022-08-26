@@ -455,17 +455,9 @@ Please note that MemorySession has some serious limitations, and may not fit wel
 
 ## Contributing
 
-Any help is welcome!
+Please see our guide [here](./CONTRIBUTING.md)
 
-Please feel free to [report any issue](https://github.com/Doist/sqs-workers/issues/new/choose) you may have.
-
-If you want to contribute with code, please open a Pull Request. A few things to keep in mind:
-
-- sqs-workers is released under the [MIT license](./LICENSE)
-- please use [pre-commit](https://pre-commit.com/) to ensure some formatting rules and basic consistency checks are applied before each Git commit
-- please add tests for your changes!
-
-### Testing
+## Testing
 
 We use pytest to run unittests, and tox to run them for all supported Python versions.
 
