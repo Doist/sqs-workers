@@ -39,7 +39,7 @@ class SQSEnv(object):
     context = attr.ib(default=None)
     sqs_client = attr.ib(default=None)
     sqs_resource = attr.ib(default=None)
-    queues = attr.ib(init=False, factory=dict)  # type: Dict[str, AnyQueue]
+    queues: Dict[str, AnyQueue] = attr.ib(init=False, factory=dict)
 
     def __attrs_post_init__(self):
         self.context = self.context_maker()
@@ -48,12 +48,11 @@ class SQSEnv(object):
 
     def queue(
         self,
-        queue_name,  # type: str
-        queue_maker=JobQueue,  # type: Type[AnyQueue]
-        batching_policy=NoBatching(),  # type: BatchingConfiguration
-        backoff_policy=None,  # type: Optional[BackoffPolicy]
-    ):
-        # type: (...) -> AnyQueue
+        queue_name: str,
+        queue_maker: Type[AnyQueue] = JobQueue,
+        batching_policy: BatchingConfiguration = NoBatching(),
+        backoff_policy: Optional["BackoffPolicy"] = None,
+    ) -> AnyQueue:
         """
         Get a queue object, initializing it with queue_maker if necessary.
         """

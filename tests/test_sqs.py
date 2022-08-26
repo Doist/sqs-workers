@@ -232,9 +232,9 @@ def test_redrive(sqs_session, sqs, queue_name_with_redrive):
 def test_deadletter_processor(sqs, queue_name_with_redrive):
     queue_name, dead_queue_name = queue_name_with_redrive
     queue = sqs.queue(queue_name, RawQueue)
-    dead_queue = sqs.queue(
+    dead_queue: DeadLetterQueue = sqs.queue(
         dead_queue_name, DeadLetterQueue.maker(upstream_queue=queue)
-    )  # type: DeadLetterQueue
+    )
 
     dead_queue.add_raw_job("say_hello")
     assert dead_queue.process_batch(wait_seconds=0).succeeded_count() == 1
@@ -359,7 +359,7 @@ def test_raw_queue(sqs, queue_name):
     def raw_processor(message):
         message_body["body"] = message.body
 
-    queue = sqs.queue(queue_name, RawQueue)  # type: RawQueue
+    queue: RawQueue = sqs.queue(queue_name, RawQueue)
     queue.connect_raw_processor(raw_processor)
     queue.add_raw_job("foo")
     assert queue.process_batch().succeeded_count() == 1
@@ -369,7 +369,7 @@ def test_raw_queue(sqs, queue_name):
 def test_raw_queue_decorator(sqs, queue_name):
     message_body = {}
 
-    queue = sqs.queue(queue_name, RawQueue)  # type: RawQueue
+    queue: RawQueue = sqs.queue(queue_name, RawQueue)
 
     @queue.raw_processor()
     def raw_processor(message):

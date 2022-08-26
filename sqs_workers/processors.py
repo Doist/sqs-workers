@@ -25,11 +25,11 @@ class Processor(object):
     SQS message
     """
 
-    queue = attr.ib()  # type: GenericQueue
-    fn = attr.ib(default=None)  # type: Optional[Callable]
-    job_name = attr.ib(default="")  # type: str
-    pass_context = attr.ib(default=False)  # type: bool
-    context_var = attr.ib(default=DEFAULT_CONTEXT_VAR)  # type: str
+    queue: "GenericQueue" = attr.ib()
+    fn: Optional[Callable] = attr.ib(default=None)
+    job_name: str = attr.ib(default="")
+    pass_context: bool = attr.ib(default=False)
+    context_var: str = attr.ib(default=DEFAULT_CONTEXT_VAR)
 
     @classmethod
     def maker(cls, **kwargs):

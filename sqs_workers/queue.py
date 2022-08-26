@@ -32,10 +32,10 @@ class SQSBatchError(SQSError):
 
 @attr.s
 class GenericQueue(object):
-    env = attr.ib(repr=False)  # type: SQSEnv
-    name = attr.ib()  # type: str
-    backoff_policy = attr.ib(default=DEFAULT_BACKOFF)  # type: BackoffPolicy
-    batching_policy = attr.ib(default=NoBatching())  # type: BatchingConfiguration
+    env: "SQSEnv" = attr.ib(repr=False)
+    name: str = attr.ib()
+    backoff_policy: BackoffPolicy = attr.ib(default=DEFAULT_BACKOFF)
+    batching_policy: BatchingConfiguration = attr.ib(default=NoBatching())
     _queue = attr.ib(repr=False, default=None)
 
     @classmethod
@@ -70,8 +70,7 @@ class GenericQueue(object):
                 )
                 break
 
-    def process_batch(self, wait_seconds=0):
-        # type: (int) -> BatchProcessingResult
+    def process_batch(self, wait_seconds=0) -> BatchProcessingResult:
         """
         Process a batch of messages from the queue (10 messages at most), return
         the number of successfully processed messages, and exit
@@ -120,8 +119,7 @@ class GenericQueue(object):
                 message.change_visibility(VisibilityTimeout=timeout)
         return result
 
-    def process_message(self, message):
-        # type: (Any) -> bool
+    def process_message(self, message: Any) -> bool:
         """
         Process single message.
 
@@ -129,8 +127,7 @@ class GenericQueue(object):
         """
         raise NotImplementedError()
 
-    def process_messages(self, messages):
-        # type: (Any) -> bool
+    def process_messages(self, messages: List[Any]) -> bool:
         """
         Process a batch of messages.
 
@@ -191,7 +188,7 @@ class GenericQueue(object):
 
 @attr.s
 class RawQueue(GenericQueue):
-    processor = attr.ib(default=None)  # type: Optional[Callable]
+    processor: Optional[Callable] = attr.ib(default=None)
 
     def raw_processor(self):
         """
@@ -229,10 +226,10 @@ class RawQueue(GenericQueue):
 
     def add_raw_job(
         self,
-        message_body,  # type: str
-        delay_seconds=0,  # type: int
-        deduplication_id=None,  # type: Optional[str]
-        group_id=DEFAULT_MESSAGE_GROUP_ID,  # type: str
+        message_body: str,
+        delay_seconds: int = 0,
+        deduplication_id: Optional[str] = None,
+        group_id: str = DEFAULT_MESSAGE_GROUP_ID,
     ):
         """
         Add raw message to the queue
@@ -257,8 +254,7 @@ class RawQueue(GenericQueue):
         ret = self.get_queue().send_message(**kwargs)
         return ret["MessageId"]
 
-    def process_message(self, message):
-        # type: (Any) -> bool
+    def process_message(self, message: Any) -> bool:
         """
         Sends a single message to the call handler.
 
@@ -286,8 +282,7 @@ class RawQueue(GenericQueue):
         else:
             return True
 
-    def process_messages(self, messages):
-        # type: (Any) -> bool
+    def process_messages(self, messages: List[Any]) -> bool:
         """
         Sends a list of messages to the call handler
 
@@ -326,10 +321,10 @@ class RawQueue(GenericQueue):
 
 @attr.s
 class JobQueue(GenericQueue):
-    processors = attr.ib(factory=dict)  # type: Dict[str, Processor]
+    processors: Dict[str, Processor] = attr.ib(factory=dict)
 
-    _batch_level = attr.ib(default=0, repr=False)  # type: int
-    _batched_messages = attr.ib(factory=list, repr=False)  # type: List[Dict]
+    _batch_level: int = attr.ib(default=0, repr=False)
+    _batched_messages: List[Dict] = attr.ib(factory=list, repr=False)
 
     def processor(self, job_name, pass_context=False, context_var=DEFAULT_CONTEXT_VAR):
         """
@@ -533,8 +528,7 @@ class JobQueue(GenericQueue):
             ret = queue.send_message(**kwargs)
             return ret["MessageId"]
 
-    def process_message(self, message):
-        # type: (Any) -> bool
+    def process_message(self, message: Any) -> bool:
         """
         Sends a single message to the call handler.
 
@@ -547,8 +541,7 @@ class JobQueue(GenericQueue):
         else:
             return self.process_message_fallback(job_name)
 
-    def process_messages(self, messages):
-        # type: (Any) -> bool
+    def process_messages(self, messages: List[Any]) -> bool:
         """
         Sends a list of messages to the call handler
 
@@ -576,8 +569,7 @@ class JobQueue(GenericQueue):
         logger.warning("Error while processing %s.%s", self.name, job_name)
         return False
 
-    def copy_processors(self, dst_queue):
-        # type: (JobQueue) -> None
+    def copy_processors(self, dst_queue: "JobQueue"):
         """
         Copy processors from self to dst_queue. Can be helpful to process d
         ead-letter queue with processors from the main queue.

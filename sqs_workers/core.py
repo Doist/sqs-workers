@@ -11,8 +11,7 @@ class BatchProcessingResult(object):
         self.succeeded = succeeded or []
         self.failed = failed or []
 
-    def update_with_message(self, message, success):
-        # type: (Any, bool) -> None
+    def update_with_message(self, message: Any, success: bool):
         """
         Update processing result with a message.
         """

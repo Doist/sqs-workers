@@ -9,8 +9,7 @@ if TYPE_CHECKING:
 
 
 class AsyncTask(object):
-    def __init__(self, queue, job_name, processor):
-        # type: (JobQueue, str, Callable) -> None
+    def __init__(self, queue: "JobQueue", job_name: str, processor: Callable):
         self.queue = queue
         self.job_name = job_name
         self.processor = processor
