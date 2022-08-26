@@ -97,7 +97,7 @@ class SQSEnv(object):
         _delay_seconds=None,
         _deduplication_id=None,
         _group_id=None,
-        **job_kwargs
+        **job_kwargs,
     ):
         """
         Add job to the queue.
@@ -113,7 +113,7 @@ class SQSEnv(object):
             _delay_seconds=_delay_seconds,
             _deduplication_id=_deduplication_id,
             _group_id=_group_id,
-            **job_kwargs
+            **job_kwargs,
         )
 
     def process_queues(self, queue_names=None, shutdown_policy_maker=NeverShutdown):
@@ -160,7 +160,7 @@ class SQSEnv(object):
         ("low level") name by simply prefixing it. Used to create namespaces
         for different environments (development, staging, production, etc)
         """
-        return "{}{}".format(self.queue_prefix, queue_name)
+        return f"{self.queue_prefix}{queue_name}"
 
     def redrive_policy(self, dead_letter_queue_name, max_receive_count):
         return RedrivePolicy(self, dead_letter_queue_name, max_receive_count)

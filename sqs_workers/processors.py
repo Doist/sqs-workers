@@ -44,7 +44,7 @@ class Processor(object):
             "queue_name": self.queue.name,
             "job_name": self.job_name,
         }
-        logger.debug("Process {queue_name}.{job_name}".format(**extra), extra=extra)
+        logger.debug("Process %s.%s", self.queue.name, self.job_name, extra=extra)
 
         try:
             content_type, job_kwargs, job_context = self.deserialize_message(message)
@@ -52,7 +52,9 @@ class Processor(object):
             self.process(job_kwargs, job_context)
         except Exception:
             logger.exception(
-                "Error while processing {queue_name}.{job_name}".format(**extra),
+                "Error while processing %s.%s",
+                self.queue.name,
+                self.job_name,
                 extra=extra,
             )
             return False
@@ -71,16 +73,19 @@ class Processor(object):
             "job_name": self.job_name,
         }
         logger.debug(
-            "Processing batch for {queue_name}.{job_name}".format(**extra), extra=extra
+            "Processing batch for %s.%s",
+            self.queue.name,
+            self.job_name,
+            extra=extra,
         )
 
         try:
             self.process_batch(messages)
         except Exception:
             logger.exception(
-                "Error while processing batch for {queue_name}.{job_name}".format(
-                    **extra
-                ),
+                "Error while processing batch for %s.%s",
+                self.queue.name,
+                self.job_name,
                 extra=extra,
             )
             return False

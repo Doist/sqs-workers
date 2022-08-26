@@ -1,6 +1,5 @@
 import logging
 import uuid
-import warnings
 from collections import defaultdict
 from contextlib import contextmanager
 from functools import partial
@@ -48,7 +47,8 @@ class GenericQueue(object):
         Run worker to process one queue in the infinite loop
         """
         logger.debug(
-            "Start processing queue {}".format(self.name),
+            "Start processing queue %s",
+            self.name,
             extra={
                 "queue_name": self.name,
                 "wait_seconds": wait_second,
@@ -60,7 +60,8 @@ class GenericQueue(object):
             shutdown_policy.update_state(result)
             if shutdown_policy.need_shutdown():
                 logger.debug(
-                    "Stop processing queue {}".format(self.name),
+                    "Stop processing queue %s",
+                    self.name,
                     extra={
                         "queue_name": self.name,
                         "wait_seconds": wait_second,
@@ -219,7 +220,9 @@ class RawQueue(GenericQueue):
             "processor_name": processor.__module__ + "." + processor.__name__,
         }
         logger.debug(
-            "Connect {queue_name} to " "processor {processor_name}".format(**extra),
+            "Connect %s to processor %s",
+            extra["queue_name"],
+            extra["processor_name"],
             extra=extra,
         )
         self.processor = processor
@@ -263,18 +266,20 @@ class RawQueue(GenericQueue):
         """
         extra = {"message_id": message.message_id, "queue_name": self.name}
         if not self.processor:
-            logger.warning(
-                "No processor set for {queue_name}".format(**extra), extra=extra
-            )
+            logger.warning("No processor set for %s", extra["queue_name"], extra=extra)
             return False
 
-        logger.debug("Process {queue_name}.{message_id}".format(**extra), extra=extra)
+        logger.debug(
+            "Process %s.%s", extra["queue_name"], extra["message_id"], extra=extra
+        )
 
         try:
             self.processor(message)
         except Exception:
             logger.exception(
-                "Error while processing {queue_name}.{message_id}".format(**extra),
+                "Error while processing %s.%s",
+                extra["queue_name"],
+                extra["message_id"],
                 extra=extra,
             )
             return False
@@ -292,21 +297,26 @@ class RawQueue(GenericQueue):
         extra = {"message_ids": message_ids, "queue_name": self.name}
         if not self.processor:
             logger.warning(
-                "No processor set for {queue_name}".format(**extra), extra=extra
+                "No processor set for %s",
+                extra["queue_name"],
+                extra=extra,
             )
             return False
 
         logger.debug(
-            "Process {queue_name} for ids {message_ids}".format(**extra), extra=extra
+            "Process %s for ids %s",
+            extra["queue_name"],
+            extra["message_ids"],
+            extra=extra,
         )
 
         try:
             self.processor(messages)
         except Exception:
             logger.exception(
-                "Error while processing {queue_name} for ids {message_ids}".format(
-                    **extra
-                ),
+                "Error while processing %s for ids %s",
+                extra["queue_name"],
+                extra["message_ids"],
                 extra=extra,
             )
             return False
@@ -367,8 +377,10 @@ class JobQueue(GenericQueue):
             "processor_name": processor.__module__ + "." + processor.__name__,
         }
         logger.debug(
-            "Connect {queue_name}.{job_name} to "
-            "processor {processor_name}".format(**extra),
+            "Connect %s.%s to processor %s",
+            extra["queue_name"],
+            extra["job_name"],
+            extra["processor_name"],
             extra=extra,
         )
         self.processors[job_name] = self.env.processor_maker(
@@ -561,7 +573,7 @@ class JobQueue(GenericQueue):
         return all(results)
 
     def process_message_fallback(self, job_name):
-        warnings.warn("Error while processing {}.{}".format(self.name, job_name))
+        logger.warning("Error while processing %s.%s", self.name, job_name)
         return False
 
     def copy_processors(self, dst_queue):

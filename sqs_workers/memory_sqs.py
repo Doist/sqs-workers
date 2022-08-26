@@ -119,7 +119,7 @@ class MemoryQueue(object):
 
     @property
     def url(self):
-        return "memory://{}".format(self.name)
+        return f"memory://{self.name}"
 
     def send_message(self, **kwargs):
         message = MemoryMessage.from_kwargs(self, kwargs)
