@@ -30,7 +30,10 @@ class AsyncTask(object):
         Run the task synchronously.
         """
         if self.queue.batching_policy.batching_enabled:
-            return self.processor([kwargs])
+            if len(args) > 0:
+                raise TypeError("Must use keyword arguments only for batch read queues")
+            kwargs = bind_arguments(self.processor, [[kwargs]], {})
+            return self.processor(**kwargs)
         else:
             kwargs = bind_arguments(self.processor, args, kwargs)
             return self.processor(**kwargs)
@@ -51,8 +54,13 @@ class AsyncTask(object):
         _delay_seconds = kwargs.pop("_delay_seconds", None)
         _deduplication_id = kwargs.pop("_deduplication_id", None)
         _group_id = kwargs.pop("_group_id", None)
-        if not self.queue.batching_policy.batching_enabled:
+
+        if self.queue.batching_policy.batching_enabled:
+            if len(args) > 0:
+                raise TypeError("Must use keyword arguments only for batch read queues")
+        else:
             kwargs = bind_arguments(self.processor, args, kwargs)
+
         return self.queue.add_job(
             self.job_name,
             _content_type=_content_type,
