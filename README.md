@@ -523,7 +523,9 @@ tox -- -k memory
 
 ## Releasing new versions
 
-- Bump version in `sqs_workers/__version__.py`
+- Bump version in `pyproject.toml`
 - Update the CHANGELOG
 - Commit the changes with a commit message "Version X.X.X"
-- Push the changes to GitHub and PyPI with a single command `make upload`
+- Tag the current commit with `vX.X.X`
+- Push the changes to GitHub with `git push origin vX.X.X`
+- GitHub Actions will publish the new version to PIP for you
