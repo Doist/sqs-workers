@@ -531,5 +531,5 @@ poetry run tox -- -k memory
 - Update the CHANGELOG
 - Commit the changes with a commit message "Version X.X.X"
 - Tag the current commit with `vX.X.X`
-- Push the changes to GitHub with `git push origin vX.X.X`
+- Create a new release on GitHub named `vX.X.X`
 - GitHub Actions will publish the new version to PIP for you
