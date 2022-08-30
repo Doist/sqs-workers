@@ -28,13 +28,10 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
-      - name: Install poetry
+      - name: Install dependencies
         run: |
           python -m pip install poetry
           poetry install
-
-      - name: Install dependencies
-        run: poetry install
 
       - name: Run tests
         run: poetry run pytest -vv -k ${{ matrix.session }}
