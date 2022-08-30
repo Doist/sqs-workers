@@ -457,30 +457,34 @@ Please note that MemorySession has some serious limitations, and may not fit wel
 
 Please see our guide [here](./CONTRIBUTING.md)
 
+## Local Development
+
+We use Poetry for dependency management & packaging.  Please see [here for setup instructions](https://python-poetry.org/docs/#installation).
+
+Once you have Poetry installed, you can run the following to install the dependencies in a virtual environment:
+
+```bash
+poetry install
+```
+
 ## Testing
 
 We use pytest to run unittests, and tox to run them for all supported Python versions.
 
 If you just run `pytest` or `tox`, all tests will be run against AWS, localstack, and MemorySession. You can disable those you don't want to use using the pytest `-k` flag, for instance using `-k localstack` or `-k 'not aws'`.
 
-Running tests with `pytest` requires installing two additional dependencies:
-
-```bash
-pip install pytest localstack-client
-```
-
 ### Testing with AWS
 
-Make sure you have all dependencies installed, and boto3 client configured ([ref](https://boto3.readthedocs.io/en/latest/guide/quickstart.html#configuration)) and then run
+Make sure you have your boto3 client configured ([ref](https://boto3.readthedocs.io/en/latest/guide/quickstart.html#configuration)) and then run
 
 ```bash
-pytest -k aws
+poetry run pytest -k aws
 ```
 
 Alternatively, to test all supported versions, run
 
 ```bash
-tox -- -k aws
+poetry run tox -- -k aws
 ```
 
 ### Testing with localstack
@@ -496,13 +500,13 @@ docker run -p 4566:9324 --rm -it softwaremill/elasticmq-native
 Then run
 
 ```bash
-pytest -k localstack
+poetry run pytest -k localstack
 ```
 
 or
 
 ```bash
-tox -- -k localstack
+poetry run tox -- -k localstack
 ```
 
 ### Testing with MemorySession
@@ -512,18 +516,20 @@ MemorySession should be even faster, but has all the limitations documented abov
 Simply run
 
 ```bash
-pytest -k memory
+poetry run pytest -k memory
 ```
 
 or
 
 ```bash
-tox -- -k memory
+poetry run tox -- -k memory
 ```
 
 ## Releasing new versions
 
-- Bump version in `sqs_workers/__version__.py`
+- Bump version in `pyproject.toml`
 - Update the CHANGELOG
 - Commit the changes with a commit message "Version X.X.X"
-- Push the changes to GitHub and PyPI with a single command `make upload`
+- Tag the current commit with `vX.X.X`
+- Create a new release on GitHub named `vX.X.X`
+- GitHub Actions will publish the new version to PIP for you

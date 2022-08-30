@@ -11,6 +11,7 @@
 - Using `%s` string interpolation for logging, easier for tools
   like Sentry / DataDog to group similar messages when parsing
 - Using type annotations over type comments now Python 2.7 support has been dropped
+- Moved to Poetry for dependency management & packaging
 
 ## [0.5.6] - 2022-05-10
 
