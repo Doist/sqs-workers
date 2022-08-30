@@ -15,8 +15,8 @@ class Config(object):
     Config object with hierarchy support.
     """
 
-    parent = attr.ib(repr=False, default=None)  # type: Optional["Config"]
-    options = attr.ib(factory=dict)  # type: Dict[str, Any]
+    parent: Optional["Config"] = attr.ib(repr=False, default=None)
+    options: Dict[str, Any] = attr.ib(factory=dict)
     maker_key = attr.ib(default="maker")
 
     def __setitem__(self, key, value):

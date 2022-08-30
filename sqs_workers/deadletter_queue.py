@@ -36,7 +36,7 @@ class DeadLetterQueue(RawQueue):
     and quit.
     """
 
-    upstream_queue = attr.ib(default=None)  # type: GenericQueue
+    upstream_queue: "GenericQueue" = attr.ib(default=None)
 
     @classmethod
     def maker(cls, upstream_queue, **kwargs):
@@ -49,7 +49,7 @@ class DeadLetterQueue(RawQueue):
 @attr.s
 class PushBackSender(object):
 
-    upstream_queue = attr.ib(default=None)  # type: GenericQueue
+    upstream_queue: "GenericQueue" = attr.ib(default=None)
 
     def __call__(self, message):
         kwargs = {

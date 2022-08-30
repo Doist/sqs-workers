@@ -88,7 +88,7 @@ Is the same as
 send_email.delay(to='user@example.com', subject='Hello world', body='hello world')
 ```
 
-## Batching
+## Batch Writes
 
 If you have many tasks to enqueue, it may be more efficient to use batching when adding them:
 
@@ -109,6 +109,34 @@ When batching is enabled:
 - tasks are added to SQS by batches of 10, reducing the number of AWS operations
 - it is not possible to get the task `MessageId`, as it is not known until the batch is sent
 - care has to be taken about message size, as SQS limits both the individual message size and the maximum total payload size to 256 kB.
+
+## Batch Reads
+
+If you wish to consume and process batches of messages from a queue at once (say to speed up ingestion)
+you can set the `batching_policy` at queue level.
+
+The underlying function is expected to have a single parameter which will receive the list of messages.
+
+```python
+from sqs_workers.batching import BatchMessages
+from sqs_workers import SQSEnv, create_standard_queue
+
+sqs = SQSEnv()
+
+create_standard_queue(sqs, "emails")
+
+queue = sqs.queue("emails", batching_policy=BatchMessages(batch_size=10))
+
+@queue.processor("send_email")
+def send_email(messages: list):
+    for email in messages:
+        print(f"Sending email {email['subject']} to {email['to']}")
+```
+
+This function will receive up to 10 messages at once based on:
+
+* How many are available on the queue being consumed
+* How many of those messages on the `emails` queue are for the `send_email` job
 
 ## Synchronous task execution
 
@@ -427,17 +455,9 @@ Please note that MemorySession has some serious limitations, and may not fit wel
 
 ## Contributing
 
-Any help is welcome!
+Please see our guide [here](./CONTRIBUTING.md)
 
-Please feel free to [report any issue](https://github.com/Doist/sqs-workers/issues/new/choose) you may have.
-
-If you want to contribute with code, please open a Pull Request. A few things to keep in mind:
-
-- sqs-workers is released under the [MIT license](./LICENSE)
-- please use [pre-commit](https://pre-commit.com/) to ensure some formatting rules and basic consistency checks are applied before each Git commit
-- please add tests for your changes!
-
-### Testing
+## Testing
 
 We use pytest to run unittests, and tox to run them for all supported Python versions.
 

@@ -29,7 +29,6 @@ def sqs(sqs_session):
 
 @pytest.fixture
 def queue_name(sqs_session, sqs, random_string):
-    # type: (SQSEnv) -> string
     create_standard_queue(sqs, random_string)
     yield random_string
     delete_queue(sqs, random_string)
@@ -37,7 +36,6 @@ def queue_name(sqs_session, sqs, random_string):
 
 @pytest.fixture
 def queue_name2(sqs_session, sqs, random_string):
-    # type: (SQSEnv) -> string
     create_standard_queue(sqs, random_string + "_2")
     yield random_string + "_2"
     delete_queue(sqs, random_string + "_2")
@@ -65,7 +63,6 @@ def queue_name_with_redrive(sqs_session, sqs, random_string):
 
 @pytest.fixture
 def fifo_queue_name(sqs_session, sqs, random_string):
-    # type: (SQSEnv) -> string
     queue_name = random_string + ".fifo"
     create_fifo_queue(sqs, queue_name)
     yield queue_name

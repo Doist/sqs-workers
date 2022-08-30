@@ -1,10 +1,12 @@
 import time
+from typing import Dict, List, Optional
 
 import pytest
 
 from sqs_workers import (
     IMMEDIATE_RETURN,
     ExponentialBackoff,
+    batching,
     create_fifo_queue,
     create_standard_queue,
     delete_queue,
@@ -15,7 +17,9 @@ from sqs_workers.memory_sqs import MemorySession
 from sqs_workers.processors import Processor
 from sqs_workers.queue import RawQueue
 
-worker_results = {"say_hello": None}
+worker_results: Dict[str, Optional[str]] = {"say_hello": None}
+
+batch_results: List[str] = []
 
 
 def raise_exception(username="Anonymous"):
@@ -26,10 +30,21 @@ def say_hello(username="Anonymous"):
     worker_results["say_hello"] = username
 
 
+def batch_say_hello(messages: list):
+    names = [f"{m['username']}_{i}" for i, m in enumerate(messages)]
+    batch_results.extend(names)
+
+
 @pytest.fixture(autouse=True)
 def _reset_worker_results():
     global worker_results
     worker_results = {"say_hello": None}
+
+
+@pytest.fixture(autouse=True)
+def _reset_batch_results():
+    global batch_results
+    batch_results = []
 
 
 def test_add_pickle_job(sqs, queue_name):
@@ -217,9 +232,9 @@ def test_redrive(sqs_session, sqs, queue_name_with_redrive):
 def test_deadletter_processor(sqs, queue_name_with_redrive):
     queue_name, dead_queue_name = queue_name_with_redrive
     queue = sqs.queue(queue_name, RawQueue)
-    dead_queue = sqs.queue(
+    dead_queue: DeadLetterQueue = sqs.queue(
         dead_queue_name, DeadLetterQueue.maker(upstream_queue=queue)
-    )  # type: DeadLetterQueue
+    )
 
     dead_queue.add_raw_job("say_hello")
     assert dead_queue.process_batch(wait_seconds=0).succeeded_count() == 1
@@ -344,7 +359,7 @@ def test_raw_queue(sqs, queue_name):
     def raw_processor(message):
         message_body["body"] = message.body
 
-    queue = sqs.queue(queue_name, RawQueue)  # type: RawQueue
+    queue: RawQueue = sqs.queue(queue_name, RawQueue)
     queue.connect_raw_processor(raw_processor)
     queue.add_raw_job("foo")
     assert queue.process_batch().succeeded_count() == 1
@@ -354,7 +369,7 @@ def test_raw_queue(sqs, queue_name):
 def test_raw_queue_decorator(sqs, queue_name):
     message_body = {}
 
-    queue = sqs.queue(queue_name, RawQueue)  # type: RawQueue
+    queue: RawQueue = sqs.queue(queue_name, RawQueue)
 
     @queue.raw_processor()
     def raw_processor(message):
@@ -363,3 +378,40 @@ def test_raw_queue_decorator(sqs, queue_name):
     queue.add_raw_job("foo")
     assert queue.process_batch().succeeded_count() == 1
     assert message_body["body"] == "foo"
+
+
+def test_batch_processor(sqs, queue_name):
+    queue = sqs.queue(queue_name, batching_policy=batching.BatchMessages(batch_size=5))
+    batch_say_hello_task = queue.connect_processor("batch_say_hello", batch_say_hello)
+
+    for i in range(20):
+        batch_say_hello_task.delay(username=f"Homer_{i}")
+
+    assert len(batch_results) == 0
+    queue.process_batch(wait_seconds=0)
+    assert len(batch_results) == 5
+
+    queue.process_batch(wait_seconds=0)
+    assert len(batch_results) == 10
+
+
+def test_batch_processor_run_executes_task_immediately(sqs, queue_name):
+    queue = sqs.queue(queue_name, batching_policy=batching.BatchMessages(batch_size=5))
+    batch_say_hello_task = queue.connect_processor("batch_say_hello", batch_say_hello)
+    batch_say_hello_task.run(username="Homer")
+    assert len(batch_results) == 1
+    assert batch_results[0] == "Homer_0"
+
+
+def test_batch_processor_run_raises_type_error_if_unnamed_args_used(sqs, queue_name):
+    queue = sqs.queue(queue_name, batching_policy=batching.BatchMessages(batch_size=5))
+    batch_say_hello_task = queue.connect_processor("batch_say_hello", batch_say_hello)
+    with pytest.raises(TypeError):
+        batch_say_hello_task.run(1, 2, 3)
+
+
+def test_batch_processor_delay_raises_type_error_if_non_kwargs_used(sqs, queue_name):
+    queue = sqs.queue(queue_name, batching_policy=batching.BatchMessages(batch_size=5))
+    batch_say_hello_task = queue.connect_processor("batch_say_hello", batch_say_hello)
+    with pytest.raises(TypeError):
+        batch_say_hello_task.delay(1, 2, 3)

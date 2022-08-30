@@ -7,6 +7,7 @@ import attr
 import boto3
 
 from sqs_workers import DEFAULT_BACKOFF, RawQueue, codecs, context, processors
+from sqs_workers.batching import BatchingConfiguration, NoBatching
 from sqs_workers.core import RedrivePolicy
 from sqs_workers.processors import DEFAULT_CONTEXT_VAR
 from sqs_workers.queue import GenericQueue, JobQueue
@@ -19,12 +20,11 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-AnyQueue = Union[GenericQueue, JobQueue]
+AnyQueue = Union[GenericQueue, JobQueue, RawQueue]
 
 
 @attr.s
 class SQSEnv(object):
-
     session = attr.ib(default=boto3)
     queue_prefix = attr.ib(default="")
 
@@ -39,7 +39,7 @@ class SQSEnv(object):
     context = attr.ib(default=None)
     sqs_client = attr.ib(default=None)
     sqs_resource = attr.ib(default=None)
-    queues = attr.ib(init=False, factory=dict)  # type: Dict[str, AnyQueue]
+    queues: Dict[str, AnyQueue] = attr.ib(init=False, factory=dict)
 
     def __attrs_post_init__(self):
         self.context = self.context_maker()
@@ -48,37 +48,44 @@ class SQSEnv(object):
 
     def queue(
         self,
-        queue_name,  # type: str
-        queue_maker=JobQueue,  # type: Type[AnyQueue]
-        backoff_policy=None,  # type: Optional[BackoffPolicy]
-    ):
-        # type: (...) -> GenericQueue
+        queue_name: str,
+        queue_maker: Type[AnyQueue] = JobQueue,
+        batching_policy: BatchingConfiguration = NoBatching(),
+        backoff_policy: Optional["BackoffPolicy"] = None,
+    ) -> AnyQueue:
         """
         Get a queue object, initializing it with queue_maker if necessary.
         """
         if queue_name not in self.queues:
             backoff_policy = backoff_policy or self.backoff_policy
             self.queues[queue_name] = queue_maker(
-                env=self, name=queue_name, backoff_policy=backoff_policy
+                env=self,
+                name=queue_name,
+                batching_policy=batching_policy,
+                backoff_policy=backoff_policy,
             )
         return self.queues[queue_name]
 
     def processor(
-        self, queue_name, job_name, pass_context=False, context_var=DEFAULT_CONTEXT_VAR
+        self,
+        queue_name: str,
+        job_name: str,
+        pass_context=False,
+        context_var=DEFAULT_CONTEXT_VAR,
     ):
         """
         Decorator to attach processor to all jobs "job_name" of the queue "queue_name".
         """
-        q = self.queue(queue_name, queue_maker=JobQueue)  # type: JobQueue
+        q: JobQueue = self.queue(queue_name, queue_maker=JobQueue)  # type: ignore
         return q.processor(
             job_name=job_name, pass_context=pass_context, context_var=context_var
         )
 
-    def raw_processor(self, queue_name):
+    def raw_processor(self, queue_name: str):
         """
         Decorator to attach raw processor to all jobs of the queue "queue_name".
         """
-        q = self.queue(queue_name, queue_maker=RawQueue)  # type: RawQueue
+        q: RawQueue = self.queue(queue_name, queue_maker=RawQueue)  # type: ignore
         return q.raw_processor()
 
     def add_job(
@@ -89,7 +96,7 @@ class SQSEnv(object):
         _delay_seconds=None,
         _deduplication_id=None,
         _group_id=None,
-        **job_kwargs
+        **job_kwargs,
     ):
         """
         Add job to the queue.
@@ -105,7 +112,7 @@ class SQSEnv(object):
             _delay_seconds=_delay_seconds,
             _deduplication_id=_deduplication_id,
             _group_id=_group_id,
-            **job_kwargs
+            **job_kwargs,
         )
 
     def process_queues(self, queue_names=None, shutdown_policy_maker=NeverShutdown):
@@ -152,7 +159,7 @@ class SQSEnv(object):
         ("low level") name by simply prefixing it. Used to create namespaces
         for different environments (development, staging, production, etc)
         """
-        return "{}{}".format(self.queue_prefix, queue_name)
+        return f"{self.queue_prefix}{queue_name}"
 
     def redrive_policy(self, dead_letter_queue_name, max_receive_count):
         return RedrivePolicy(self, dead_letter_queue_name, max_receive_count)

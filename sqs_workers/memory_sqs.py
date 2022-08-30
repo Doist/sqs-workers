@@ -28,15 +28,15 @@ class MemoryAWS(object):
     In-memory AWS as a whole.
     """
 
-    client = attr.ib(
+    client: "MemoryClient" = attr.ib(
         repr=False,
         default=attr.Factory(lambda self: MemoryClient(self), takes_self=True),
-    )  # type: "MemoryClient"
-    resource = attr.ib(
+    )
+    resource: "ServiceResource" = attr.ib(
         repr=False,
         default=attr.Factory(lambda self: ServiceResource(self), takes_self=True),
-    )  # type: "ServiceResource"
-    queues = attr.ib(factory=list)  # type: List["MemoryQueue"]
+    )
+    queues: List["MemoryQueue"] = attr.ib(factory=list)
 
     def create_queue(self, QueueName, Attributes):
         queue = MemoryQueue(self, QueueName, Attributes)
@@ -88,7 +88,7 @@ class MemoryClient(object):
 @attr.s
 class ServiceResource(object):
 
-    aws = attr.ib(repr=False)  # type: MemoryAWS
+    aws: MemoryAWS = attr.ib(repr=False)
 
     def create_queue(self, QueueName, Attributes):
         return self.aws.create_queue(QueueName, Attributes)
@@ -109,17 +109,17 @@ class MemoryQueue(object):
          services/sqs.html#queue
     """
 
-    aws = attr.ib()  # type: MemoryAWS
-    name = attr.ib()  # type: str
-    attributes = attr.ib()  # type: Dict[str, Dict[str, str]]
-    messages = attr.ib(factory=list)  # type: List[MemoryMessage]
+    aws: MemoryAWS = attr.ib()
+    name: str = attr.ib()
+    attributes: Dict[str, Dict[str, str]] = attr.ib()
+    messages: List["MemoryMessage"] = attr.ib(factory=list)
 
     def __attrs_post_init__(self):
         self.attributes["QueueArn"] = self.name
 
     @property
     def url(self):
-        return "memory://{}".format(self.name)
+        return f"memory://{self.name}"
 
     def send_message(self, **kwargs):
         message = MemoryMessage.from_kwargs(self, kwargs)
@@ -198,26 +198,26 @@ class MemoryMessage(object):
          services/sqs.html#SQS.Message
     """
 
-    queue_impl = attr.ib()  # type: MemoryQueue
+    queue_impl: MemoryQueue = attr.ib()
 
     # The message's contents (not URL-encoded).
-    body = attr.ib()  # type: bytes
+    body: bytes = attr.ib()
 
     # Each message attribute consists of a Name, Type, and Value.
-    message_attributes = attr.ib(factory=dict)  # type: Dict[str, Dict[str, str]]
+    message_attributes: Dict[str, Dict[str, str]] = attr.ib(factory=dict)
 
     # A map of the attributes requested in `` ReceiveMessage `` to their
     # respective values.
-    attributes = attr.ib(factory=dict)  # type: Dict[str, Any]
+    attributes: Dict[str, Any] = attr.ib(factory=dict)
 
     # Internal attribute which contains the execution time.
-    execute_at = attr.ib(factory=datetime.datetime.utcnow)  # type: datetime.datetime
+    execute_at: datetime.datetime = attr.ib(factory=datetime.datetime.utcnow)
 
     # A unique identifier for the message
-    message_id = attr.ib(factory=lambda: uuid.uuid4().hex)  # type: str
+    message_id: str = attr.ib(factory=lambda: uuid.uuid4().hex)
 
     # The Message's receipt_handle identifier
-    receipt_handle = attr.ib(factory=lambda: uuid.uuid4().hex)  # type: str
+    receipt_handle: str = attr.ib(factory=lambda: uuid.uuid4().hex)
 
     @classmethod
     def from_kwargs(cls, queue_impl, kwargs):
