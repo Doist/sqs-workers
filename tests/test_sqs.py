@@ -415,3 +415,17 @@ def test_batch_processor_delay_raises_type_error_if_non_kwargs_used(sqs, queue_n
     batch_say_hello_task = queue.connect_processor("batch_say_hello", batch_say_hello)
     with pytest.raises(TypeError):
         batch_say_hello_task.delay(1, 2, 3)
+
+
+def test_batch_processor_calls_queue_multiple_times_if_max_messages_over_10(
+    sqs, queue_name
+):
+    queue = sqs.queue(queue_name, batching_policy=batching.BatchMessages(batch_size=45))
+    batch_say_hello_task = queue.connect_processor("batch_say_hello", batch_say_hello)
+
+    for i in range(42):
+        batch_say_hello_task.delay(username=f"Homer_{i}")
+
+    assert len(batch_results) == 0
+    queue.process_batch(wait_seconds=0)
+    assert len(batch_results) == 42
