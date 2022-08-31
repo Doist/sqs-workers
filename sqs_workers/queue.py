@@ -142,12 +142,27 @@ class GenericQueue(object):
         """
         kwargs = {
             "WaitTimeSeconds": wait_seconds,
-            "MaxNumberOfMessages": max_messages,
+            "MaxNumberOfMessages": max_messages if max_messages <= 10 else 10,
             "MessageAttributeNames": ["All"],
             "AttributeNames": ["All"],
         }
         queue = self.get_queue()
-        return queue.receive_messages(**kwargs)
+
+        if max_messages <= 10:
+            return queue.receive_messages(**kwargs)
+
+        messages_left_on_queue = True
+        received_messages = []
+
+        # receive_messages will only return a maximum batch of 10 messages per call
+        # if the client requests more than that we must poll multiple times
+        while messages_left_on_queue and len(received_messages) < max_messages:
+            messages = queue.receive_messages(**kwargs)
+            received_messages.extend(messages)
+            if len(messages) < 10:
+                messages_left_on_queue = False
+
+        return received_messages
 
     def drain_queue(self, wait_seconds=0):
         """
