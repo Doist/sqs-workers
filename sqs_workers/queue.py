@@ -158,7 +158,7 @@ class GenericQueue(object):
         # if the client requests more than that we must poll multiple times
         while messages_left_on_queue and len(received_messages) < max_messages:
             messages = queue.receive_messages(**kwargs)
-            received_messages.append(messages)
+            received_messages.extend(messages)
             if len(messages) < 10:
                 messages_left_on_queue = False
 
