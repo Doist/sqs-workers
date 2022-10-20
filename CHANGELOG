@@ -1,3 +1,9 @@
+## [Unrealesed]
+
+### Changed
+
+- When a processor for a job can't be found, we now log this as an error (rather than a warning) and provide a more helpful error message.
+
 ## [0.5.8] - 2022-08-31
 
 ### Changed

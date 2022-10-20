@@ -581,7 +581,14 @@ class JobQueue(GenericQueue):
         return all(results)
 
     def process_message_fallback(self, job_name):
-        logger.warning("Error while processing %s.%s", self.name, job_name)
+        # Note: we don't set exc_info=True, since source of the error is almost
+        # certainly in another code base.
+        logger.error(
+            "Could not find an SQS processor for %s.%s."
+            "Has it been registered correctly?",
+            self.name,
+            job_name,
+        )
         return False
 
     def copy_processors(self, dst_queue: "JobQueue"):
