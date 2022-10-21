@@ -584,7 +584,7 @@ class JobQueue(GenericQueue):
         # Note: we don't set exc_info=True, since source of the error is almost
         # certainly in another code base.
         logger.error(
-            "Could not find an SQS processor for %s.%s."
+            "Could not find an SQS processor for %s.%s. "
             "Has it been registered correctly?",
             self.name,
             job_name,
