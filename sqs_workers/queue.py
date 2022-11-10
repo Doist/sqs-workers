@@ -477,7 +477,7 @@ class JobQueue(GenericQueue):
     def add_job(
         self,
         job_name,
-        _content_type=codecs.DEFAULT_CONTENT_TYPE,
+        _content_type=None,
         _delay_seconds=None,
         _deduplication_id=None,
         _group_id=None,
@@ -487,6 +487,8 @@ class JobQueue(GenericQueue):
         Add job to the queue. The body of the job will be converted to the text
         with one of the codes (by default it's "pickle")
         """
+        if not _content_type:
+            _content_type = self.env.codec
         codec = codecs.get_codec(_content_type)
         message_body = codec.serialize(job_kwargs)
         job_context = codec.serialize(self.env.context.to_dict())

@@ -424,6 +424,19 @@ Usage example:
 
 This code takes all the messages in the foo_dead queue and executes them with processors from the "foo" queue. Then it waits 10 seconds to ensure no new messages appear, and quit.
 
+## Codecs
+
+Before being added to SQS, task parameters are encoded using a `Codec`. At the moment, 3 codecs are available:
+- `pickle`: serialize with Pickle, using the default protocol version;
+- `pickle_compat`: serialize with Pickle, using protocol version 2, which is compatible with Python 2;
+- `json`: serialize with JSON.
+
+By default, `pickle_compat` is used, for backward compatibility with previous versions of sqs-workers.
+
+JSON is recommended if using untrusted data (see the notes about security in the [pickle docs](https://docs.python.org/3/library/pickle.html), or for compatibility with other systems. In all other cases, you should use `pickle` instead of `pickle_compat`, as it's more compact and efficient:
+
+    >>> env = SQSEnv(codec="pickle")
+
 ## Using in unit tests with MemorySession
 
 There is a special MemorySession, which can be used as a quick and dirty replacement for real queues in unit tests. If you have a function `create_task` which adds some tasks to the queue and you want to test how it works, you can technically write your tests like this:

@@ -2,7 +2,8 @@
 
 ### Added
 
-- New codec (message encoding) that uses the default version of the Pickle protocol instead of one compatible with Python 2
+- New codec (message encoding) that uses the default version of the Pickle protocol instead of one compatible with Python 2.
+- Possibility to change default codec in SQSEnv.
 
 ### Changed
 

@@ -27,6 +27,7 @@ AnyQueue = Union[GenericQueue, JobQueue, RawQueue]
 class SQSEnv(object):
     session = attr.ib(default=boto3)
     queue_prefix = attr.ib(default="")
+    codec: str = attr.ib(default=codecs.DEFAULT_CONTENT_TYPE)
 
     # queue-specific settings
     backoff_policy = attr.ib(default=DEFAULT_BACKOFF)
@@ -92,7 +93,7 @@ class SQSEnv(object):
         self,
         queue_name,
         job_name,
-        _content_type=codecs.DEFAULT_CONTENT_TYPE,
+        _content_type=None,
         _delay_seconds=None,
         _deduplication_id=None,
         _group_id=None,
@@ -105,6 +106,8 @@ class SQSEnv(object):
             "sqs.add_job() is deprecated. Use sqs.queue(...).add_job() instead",
             DeprecationWarning,
         )
+        if not _content_type:
+            _content_type = self.codec
         q = self.queue(queue_name, queue_maker=JobQueue)  # type: JobQueue
         return q.add_job(
             job_name,
