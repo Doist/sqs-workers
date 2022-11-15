@@ -485,7 +485,7 @@ class JobQueue(GenericQueue):
     ):
         """
         Add job to the queue. The body of the job will be converted to the text
-        with one of the codes (by default it's "pickle")
+        with one of the codecs (by default it's "pickle_compat")
         """
         if not _content_type:
             _content_type = self.env.codec
