@@ -11,7 +11,7 @@ from sqs_workers import (
     create_standard_queue,
     delete_queue,
 )
-from sqs_workers.codecs import JSONCodec, PickleCodec
+from sqs_workers.codecs import JSONCodec, PickleCodec, PickleCompatCodec
 from sqs_workers.deadletter_queue import DeadLetterQueue
 from sqs_workers.memory_sqs import MemorySession
 from sqs_workers.processors import Processor
@@ -47,24 +47,45 @@ def _reset_batch_results():
     batch_results = []
 
 
-def test_add_pickle_job(sqs, queue_name):
+@pytest.fixture(
+    params=[
+        ("pickle", PickleCodec),
+        ("pickle_compat", PickleCompatCodec),
+        ("json", JSONCodec),
+    ]
+)
+def codec(request):
+    return request.param
+
+
+@pytest.fixture
+def sqs_codec(sqs, codec):
+    sqs.codec = codec[0]
+    return codec
+
+
+def test_add_job_with_codec(sqs, queue_name, codec):
+    codec_name, codec_cls = codec
+
+    queue = sqs.queue(queue_name)
+    queue.add_job("say_hello", username="Homer", _content_type=codec_name)
+    job_messages = queue.get_raw_messages(0)
+    msg = job_messages[0]
+    assert msg.message_attributes["JobName"]["StringValue"] == "say_hello"
+    assert msg.message_attributes["ContentType"]["StringValue"] == codec_name
+    assert codec_cls.deserialize(msg.body) == {"username": "Homer"}
+
+
+def test_sqs_with_codec(sqs, queue_name, sqs_codec):
+    codec_name, codec_cls = sqs_codec
+
     queue = sqs.queue(queue_name)
     queue.add_job("say_hello", username="Homer")
     job_messages = queue.get_raw_messages(0)
     msg = job_messages[0]
     assert msg.message_attributes["JobName"]["StringValue"] == "say_hello"
-    assert msg.message_attributes["ContentType"]["StringValue"] == "pickle"
-    assert PickleCodec.deserialize(msg.body) == {"username": "Homer"}
-
-
-def test_add_json_job(sqs, queue_name):
-    queue = sqs.queue(queue_name)
-    queue.add_job("say_hello", username="Homer", _content_type="json")
-    job_messages = queue.get_raw_messages(0)
-    msg = job_messages[0]
-    assert msg.message_attributes["JobName"]["StringValue"] == "say_hello"
-    assert msg.message_attributes["ContentType"]["StringValue"] == "json"
-    assert JSONCodec.deserialize(msg.body) == {"username": "Homer"}
+    assert msg.message_attributes["ContentType"]["StringValue"] == codec_name
+    assert codec_cls.deserialize(msg.body) == {"username": "Homer"}
 
 
 def test_processor(sqs, queue_name):

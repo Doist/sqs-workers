@@ -1,7 +1,6 @@
 from contextlib import contextmanager
 from typing import TYPE_CHECKING, Callable
 
-from sqs_workers.codecs import DEFAULT_CONTENT_TYPE
 from sqs_workers.utils import bind_arguments
 
 if TYPE_CHECKING:
@@ -50,7 +49,7 @@ class AsyncTask(object):
         """
         Run the task asynchronously.
         """
-        _content_type = kwargs.pop("_content_type", DEFAULT_CONTENT_TYPE)
+        _content_type = kwargs.pop("_content_type", self.queue.env.codec)
         _delay_seconds = kwargs.pop("_delay_seconds", None)
         _deduplication_id = kwargs.pop("_deduplication_id", None)
         _group_id = kwargs.pop("_group_id", None)

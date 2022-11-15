@@ -1,8 +1,14 @@
 ## [Unrealesed]
 
+### Added
+
+- New codec (message encoding) that uses the default version of the Pickle protocol instead of one compatible with Python 2.
+- Possibility to change default codec in SQSEnv.
+
 ### Changed
 
 - When a processor for a job can't be found, we now log this as an error (rather than a warning) and provide a more helpful error message.
+- Default codec is renamed from "pickle" to "pickle_compat".
 
 ## [0.5.8] - 2022-08-31
 

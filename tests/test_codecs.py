@@ -1,9 +1,9 @@
 import pytest
 
-from sqs_workers.codecs import JSONCodec, PickleCodec
+from sqs_workers.codecs import JSONCodec, PickleCodec, PickleCompatCodec
 
 
-@pytest.mark.parametrize("codec", [PickleCodec, JSONCodec])
+@pytest.mark.parametrize("codec", [PickleCodec, PickleCompatCodec, JSONCodec])
 def test_encode_decode(codec):
     foo = {"message": "hello world"}
     foo_str = codec.serialize(foo)
