@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "sqs-workers"
-version = "0.5.8"
+version = "0.5.9"
 description = "An opinionated queue processor for Amazon SQS"
 authors = ["Doist Developers <dev@doist.com>"]
 license = "MIT"
