@@ -44,8 +44,10 @@ class SQSEnv(object):
 
     def __attrs_post_init__(self):
         self.context = self.context_maker()
-        self.sqs_client = self.session.client("sqs")
-        self.sqs_resource = self.session.resource("sqs")
+        if not self.sqs_client:
+            self.sqs_client = self.session.client("sqs")
+        if not self.sqs_resource:
+            self.sqs_resource = self.session.resource("sqs")
 
     def queue(
         self,
