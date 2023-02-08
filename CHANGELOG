@@ -1,4 +1,6 @@
-### Upcoming
+## [0.5.10] - 2023-02-08
+
+### Added
 
 - Allow to override `sqs_client`, `sqs_resource` by passing them the `SQSEnv` constructor.
 
