@@ -1,5 +1,5 @@
 default_language_version:
-  python: python3.8
+  python: python3.11
 
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
@@ -31,6 +31,6 @@ repos:
           - types-boto3
 
   - repo: https://github.com/PyCQA/isort
-    rev: 5.10.1
+    rev: 5.12.0
     hooks:
       - id: isort
