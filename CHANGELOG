@@ -1,3 +1,9 @@
+## [Unreleased]
+
+### Changed
+
+- Extended the set of supported Python versions to include 3.11
+
 ## [0.5.10] - 2023-02-08
 
 ### Added

@@ -13,7 +13,7 @@ jobs:
     name: "Python ${{ matrix.python-version }} with ${{ matrix.session }}"
     strategy:
       matrix:
-        python-version: [ '3.8', '3.9', '3.10' ]
+        python-version: ['3.8', '3.9', '3.10', '3.11']
         session: ['memory', 'localstack']  # TODO: we don't test against production AWS
     steps:
       - name: Start Docker container with localstack
