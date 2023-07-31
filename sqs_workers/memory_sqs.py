@@ -59,7 +59,7 @@ class MemorySession(object):
         assert service_name == "sqs"
         return self.aws.client
 
-    def resource(self, service_name):
+    def resource(self, service_name, **kwargs):
         assert service_name == "sqs"
         return self.aws.resource
 
@@ -229,7 +229,7 @@ class MemoryMessage(object):
         """
         # required attributes
         body = kwargs["MessageBody"]
-        message_atttributes = kwargs["MessageAttributes"]
+        message_atttributes = kwargs.get("MessageAttributes")
 
         # optional attributes
         attributes = {"ApproximateReceiveCount": 1}
