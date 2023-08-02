@@ -341,7 +341,9 @@ class JobQueue(GenericQueue):
     _batch_level: int = attr.ib(default=0, repr=False)
     _batched_messages: List[Dict] = attr.ib(factory=list, repr=False)
 
-    def processor(self, job_name, pass_context=False, context_var=DEFAULT_CONTEXT_VAR):
+    def processor(
+        self, job_name: str, pass_context: bool = False, context_var=DEFAULT_CONTEXT_VAR
+    ):
         """
         Decorator to assign processor to handle jobs with the name job_name
         from the queue queue_name
@@ -375,7 +377,11 @@ class JobQueue(GenericQueue):
         return fn
 
     def connect_processor(
-        self, job_name, processor, pass_context=False, context_var=DEFAULT_CONTEXT_VAR
+        self,
+        job_name: str,
+        processor,
+        pass_context=False,
+        context_var=DEFAULT_CONTEXT_VAR,
     ):
         """
         Assign processor (a function) to handle jobs with the name job_name

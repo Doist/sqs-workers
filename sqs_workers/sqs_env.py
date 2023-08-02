@@ -73,7 +73,7 @@ class SQSEnv(object):
         self,
         queue_name: str,
         job_name: str,
-        pass_context=False,
+        pass_context: bool = False,
         context_var=DEFAULT_CONTEXT_VAR,
     ):
         """
