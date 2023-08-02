@@ -16,9 +16,9 @@ class AsyncTask(object):
 
     def __call__(self, *args, **kwargs):
         raise RuntimeError(
-            "Async task {0.queue.name}.{0.job_name} called synchronously (probably, "
+            f"Async task {self.queue.name}.{self.job_name} called synchronously (probably, "
             "by mistake). Use either AsyncTask.run(...) to run the task synchronously "
-            "or AsyncTask.delay(...) to add it to the queue".format(self)
+            "or AsyncTask.delay(...) to add it to the queue"
         )
 
     def __repr__(self):
@@ -66,7 +66,7 @@ class AsyncTask(object):
             _delay_seconds=_delay_seconds,
             _deduplication_id=_deduplication_id,
             _group_id=_group_id,
-            **kwargs
+            **kwargs,
         )
 
     def bake(self, *args, **kwargs):
