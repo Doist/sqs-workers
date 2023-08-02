@@ -55,7 +55,7 @@ class MemorySession(object):
 
     aws = attr.ib(repr=False, factory=MemoryAWS)
 
-    def client(self, service_name):
+    def client(self, service_name, **kwargs):
         assert service_name == "sqs"
         return self.aws.client
 
