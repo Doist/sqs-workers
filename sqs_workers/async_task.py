@@ -1,5 +1,15 @@
+from __future__ import annotations
+
 from contextlib import contextmanager
-from typing import TYPE_CHECKING, Callable, Generator
+from typing import (
+    TYPE_CHECKING,
+    Callable,
+    Generator,
+    Generic,
+    NoReturn,
+    ParamSpec,
+    TypeVar,
+)
 
 from sqs_workers.utils import bind_arguments
 
@@ -7,24 +17,30 @@ if TYPE_CHECKING:
     from sqs_workers.queue import JobQueue
 
 
-class AsyncTask(object):
-    def __init__(self, queue: "JobQueue", job_name: str, processor: Callable):
+P = ParamSpec("P")
+R = TypeVar("R")
+
+
+class AsyncTask(Generic[P, R]):
+    def __init__(
+        self, queue: JobQueue, job_name: str, processor: Callable[P, R]
+    ) -> None:
         self.queue = queue
         self.job_name = job_name
         self.processor = processor
         self.__doc__ = processor.__doc__
 
-    def __call__(self, *args, **kwargs):
+    def __call__(self, *args: P.args, **kwargs: P.kwargs) -> NoReturn:
         raise RuntimeError(
             f"Async task {self.queue.name}.{self.job_name} called synchronously (probably, "
             "by mistake). Use either AsyncTask.run(...) to run the task synchronously "
             "or AsyncTask.delay(...) to add it to the queue"
         )
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return "<%s %s.%s>" % (self.__class__.__name__, self.queue.name, self.job_name)
 
-    def run(self, *args, **kwargs):
+    def run(self, *args: P.args, **kwargs: P.kwargs) -> R:
         """
         Run the task synchronously.
         """
@@ -45,7 +61,7 @@ class AsyncTask(object):
         with self.queue.add_batch():
             yield
 
-    def delay(self, *args, **kwargs):
+    def delay(self, *args: P.args, **kwargs: P.kwargs) -> R:
         """
         Run the task asynchronously.
         """
@@ -69,7 +85,7 @@ class AsyncTask(object):
             **kwargs,
         )
 
-    def bake(self, *args, **kwargs):
+    def bake(self, *args: P.args, **kwargs: P.kwargs):
         """
         Create a baked version of the async task, which contains the reference
         to a queue and task, as well as all arguments which needs to be passed
@@ -90,5 +106,5 @@ class BakedAsyncTask(object):
     def delay(self):
         self.async_task.delay(*self.args, **self.kwargs)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return "BakedAsyncTask(%r, ...)" % self.async_task

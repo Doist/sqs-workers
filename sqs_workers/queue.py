@@ -3,7 +3,17 @@ import uuid
 from collections import defaultdict
 from contextlib import contextmanager
 from functools import partial
-from typing import TYPE_CHECKING, Any, Callable, Dict, Generator, List, Optional
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    Dict,
+    Generator,
+    List,
+    Optional,
+    ParamSpec,
+    TypeVar,
+)
 
 import attr
 
@@ -23,6 +33,10 @@ if TYPE_CHECKING:
     from sqs_workers import SQSEnv
 
 logger = logging.getLogger(__name__)
+
+
+P = ParamSpec("P")
+R = TypeVar("R")
 
 
 class SQSBatchError(SQSError):
@@ -343,7 +357,7 @@ class JobQueue(GenericQueue):
 
     def processor(
         self, job_name: str, pass_context: bool = False, context_var=DEFAULT_CONTEXT_VAR
-    ):
+    ) -> Callable[[Callable[P, R]], AsyncTask[P, R]]:
         """
         Decorator to assign processor to handle jobs with the name job_name
         from the queue queue_name
@@ -369,7 +383,7 @@ class JobQueue(GenericQueue):
             say_hello(name='John')
         """
 
-        def fn(processor):
+        def fn(processor: Callable[P, R]) -> AsyncTask[P, R]:
             return self.connect_processor(
                 job_name, processor, pass_context, context_var
             )
@@ -379,10 +393,10 @@ class JobQueue(GenericQueue):
     def connect_processor(
         self,
         job_name: str,
-        processor,
-        pass_context=False,
+        processor: Callable[P, R],
+        pass_context: bool = False,
         context_var=DEFAULT_CONTEXT_VAR,
-    ):
+    ) -> AsyncTask[P, R]:
         """
         Assign processor (a function) to handle jobs with the name job_name
         from the queue queue_name
