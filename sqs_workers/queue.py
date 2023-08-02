@@ -3,7 +3,7 @@ import uuid
 from collections import defaultdict
 from contextlib import contextmanager
 from functools import partial
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional
+from typing import TYPE_CHECKING, Any, Callable, Dict, Generator, List, Optional
 
 import attr
 
@@ -428,7 +428,7 @@ class JobQueue(GenericQueue):
         self._flush_batch_if_needed()
 
     @contextmanager
-    def add_batch(self):
+    def add_batch(self) -> Generator[None, None, None]:
         """
         Context manager to add jobs in batch.
 
@@ -444,7 +444,7 @@ class JobQueue(GenericQueue):
         finally:
             self.close_add_batch()
 
-    def _should_flush_batch(self):
+    def _should_flush_batch(self) -> bool:
         """
         Check if a message batch should be flushed, i.e. all messages should be sent
         and removed from the internal cache.
@@ -455,7 +455,7 @@ class JobQueue(GenericQueue):
         max_size = SEND_BATCH_SIZE if self._batch_level > 0 else 1
         return len(self._batched_messages) >= max_size
 
-    def _flush_batch_if_needed(self):
+    def _flush_batch_if_needed(self) -> None:
         queue = self.get_queue()
 
         # There should be at most 1 batch to send. But just in case, prepare to
@@ -482,7 +482,7 @@ class JobQueue(GenericQueue):
 
     def add_job(
         self,
-        job_name,
+        job_name: str,
         _content_type=None,
         _delay_seconds=None,
         _deduplication_id=None,
@@ -510,7 +510,7 @@ class JobQueue(GenericQueue):
 
     def add_raw_job(
         self,
-        job_name,
+        job_name: str,
         message_body,
         job_context,
         content_type,

@@ -1,5 +1,5 @@
 from contextlib import contextmanager
-from typing import TYPE_CHECKING, Callable
+from typing import TYPE_CHECKING, Callable, Generator
 
 from sqs_workers.utils import bind_arguments
 
@@ -38,7 +38,7 @@ class AsyncTask(object):
             return self.processor(**kwargs)
 
     @contextmanager
-    def batch(self):
+    def batch(self) -> Generator[None, None, None]:
         """
         Context manager to add jobs in batch.
         """
