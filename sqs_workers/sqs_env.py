@@ -1,7 +1,16 @@
 import logging
 import multiprocessing
 import warnings
-from typing import TYPE_CHECKING, Dict, Optional, Type, Union
+from typing import (
+    TYPE_CHECKING,
+    Callable,
+    Dict,
+    Optional,
+    ParamSpec,
+    Type,
+    TypeVar,
+    Union,
+)
 
 import attr
 import boto3
@@ -12,6 +21,7 @@ from sqs_workers.core import RedrivePolicy
 from sqs_workers.processors import DEFAULT_CONTEXT_VAR
 from sqs_workers.queue import GenericQueue, JobQueue
 from sqs_workers.shutdown_policies import NeverShutdown
+from sqs_workers.async_task import AsyncTask
 
 if TYPE_CHECKING:
     from sqs_workers.backoff_policies import BackoffPolicy
@@ -21,6 +31,9 @@ logger = logging.getLogger(__name__)
 
 
 AnyQueue = Union[GenericQueue, JobQueue, RawQueue]
+
+P = ParamSpec("P")
+R = TypeVar("R")
 
 
 @attr.s
@@ -75,7 +88,7 @@ class SQSEnv(object):
         job_name: str,
         pass_context: bool = False,
         context_var=DEFAULT_CONTEXT_VAR,
-    ):
+    ) -> Callable[[Callable[P, R]], AsyncTask[P, R]]:
         """
         Decorator to attach processor to all jobs "job_name" of the queue "queue_name".
         """

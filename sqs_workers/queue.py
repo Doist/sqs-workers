@@ -500,7 +500,7 @@ class JobQueue(GenericQueue):
         _content_type=None,
         _delay_seconds=None,
         _deduplication_id=None,
-        _group_id=None,
+        _group_id: str | None = None,
         **job_kwargs
     ):
         """
@@ -530,7 +530,7 @@ class JobQueue(GenericQueue):
         content_type,
         delay_seconds,
         deduplication_id,
-        group_id,
+        group_id: str | None,
     ):
         """
         Low-level function to put message to the queue
