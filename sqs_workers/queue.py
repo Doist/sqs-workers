@@ -3,7 +3,18 @@ import uuid
 from collections import defaultdict
 from contextlib import contextmanager
 from functools import partial
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    Dict,
+    Generator,
+    List,
+    Optional,
+    TypeVar,
+)
+from typing_extensions import ParamSpec
+
 
 import attr
 
@@ -23,6 +34,10 @@ if TYPE_CHECKING:
     from sqs_workers import SQSEnv
 
 logger = logging.getLogger(__name__)
+
+
+P = ParamSpec("P")
+R = TypeVar("R")
 
 
 class SQSBatchError(SQSError):
@@ -341,7 +356,9 @@ class JobQueue(GenericQueue):
     _batch_level: int = attr.ib(default=0, repr=False)
     _batched_messages: List[Dict] = attr.ib(factory=list, repr=False)
 
-    def processor(self, job_name, pass_context=False, context_var=DEFAULT_CONTEXT_VAR):
+    def processor(
+        self, job_name: str, pass_context: bool = False, context_var=DEFAULT_CONTEXT_VAR
+    ) -> Callable[[Callable[P, R]], AsyncTask[P, R]]:
         """
         Decorator to assign processor to handle jobs with the name job_name
         from the queue queue_name
@@ -367,7 +384,7 @@ class JobQueue(GenericQueue):
             say_hello(name='John')
         """
 
-        def fn(processor):
+        def fn(processor: Callable[P, R]) -> AsyncTask[P, R]:
             return self.connect_processor(
                 job_name, processor, pass_context, context_var
             )
@@ -375,8 +392,12 @@ class JobQueue(GenericQueue):
         return fn
 
     def connect_processor(
-        self, job_name, processor, pass_context=False, context_var=DEFAULT_CONTEXT_VAR
-    ):
+        self,
+        job_name: str,
+        processor: Callable[P, R],
+        pass_context: bool = False,
+        context_var=DEFAULT_CONTEXT_VAR,
+    ) -> AsyncTask[P, R]:
         """
         Assign processor (a function) to handle jobs with the name job_name
         from the queue queue_name
@@ -422,7 +443,7 @@ class JobQueue(GenericQueue):
         self._flush_batch_if_needed()
 
     @contextmanager
-    def add_batch(self):
+    def add_batch(self) -> Generator[None, None, None]:
         """
         Context manager to add jobs in batch.
 
@@ -438,7 +459,7 @@ class JobQueue(GenericQueue):
         finally:
             self.close_add_batch()
 
-    def _should_flush_batch(self):
+    def _should_flush_batch(self) -> bool:
         """
         Check if a message batch should be flushed, i.e. all messages should be sent
         and removed from the internal cache.
@@ -449,7 +470,7 @@ class JobQueue(GenericQueue):
         max_size = SEND_BATCH_SIZE if self._batch_level > 0 else 1
         return len(self._batched_messages) >= max_size
 
-    def _flush_batch_if_needed(self):
+    def _flush_batch_if_needed(self) -> None:
         queue = self.get_queue()
 
         # There should be at most 1 batch to send. But just in case, prepare to
@@ -476,11 +497,11 @@ class JobQueue(GenericQueue):
 
     def add_job(
         self,
-        job_name,
+        job_name: str,
         _content_type=None,
         _delay_seconds=None,
         _deduplication_id=None,
-        _group_id=None,
+        _group_id: Optional[str] = None,
         **job_kwargs
     ):
         """
@@ -504,13 +525,13 @@ class JobQueue(GenericQueue):
 
     def add_raw_job(
         self,
-        job_name,
+        job_name: str,
         message_body,
         job_context,
         content_type,
         delay_seconds,
         deduplication_id,
-        group_id,
+        group_id: Optional[str],
     ):
         """
         Low-level function to put message to the queue
