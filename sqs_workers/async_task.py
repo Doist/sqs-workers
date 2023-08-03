@@ -7,9 +7,9 @@ from typing import (
     Generator,
     Generic,
     NoReturn,
-    ParamSpec,
     TypeVar,
 )
+from typing_extensions import ParamSpec
 
 from sqs_workers.utils import bind_arguments
 

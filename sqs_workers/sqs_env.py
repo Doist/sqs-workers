@@ -6,11 +6,11 @@ from typing import (
     Callable,
     Dict,
     Optional,
-    ParamSpec,
     Type,
     TypeVar,
     Union,
 )
+from typing_extensions import ParamSpec
 
 import attr
 import boto3

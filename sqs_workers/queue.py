@@ -11,9 +11,10 @@ from typing import (
     Generator,
     List,
     Optional,
-    ParamSpec,
     TypeVar,
 )
+from typing_extensions import ParamSpec
+
 
 import attr
 
