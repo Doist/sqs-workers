@@ -501,7 +501,7 @@ class JobQueue(GenericQueue):
         _content_type=None,
         _delay_seconds=None,
         _deduplication_id=None,
-        _group_id: str | None = None,
+        _group_id: Optional[str] = None,
         **job_kwargs
     ):
         """
