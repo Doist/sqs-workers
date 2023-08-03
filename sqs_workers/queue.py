@@ -531,7 +531,7 @@ class JobQueue(GenericQueue):
         content_type,
         delay_seconds,
         deduplication_id,
-        group_id: str | None,
+        group_id: Optional[str],
     ):
         """
         Low-level function to put message to the queue
