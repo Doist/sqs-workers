@@ -21,7 +21,7 @@ jobs:
         run:  docker run -d -p 4566:9324 --rm softwaremill/elasticmq-native
 
       - name: Checkout Repo
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Set up Python
         uses: actions/setup-python@v4
