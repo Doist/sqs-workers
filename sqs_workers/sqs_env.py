@@ -9,6 +9,7 @@ from typing import (
     Type,
     TypeVar,
     Union,
+    overload,
 )
 from typing_extensions import ParamSpec
 
@@ -31,6 +32,7 @@ logger = logging.getLogger(__name__)
 
 
 AnyQueue = Union[GenericQueue, JobQueue, RawQueue]
+AnyQueueT = TypeVar("AnyQueueT", GenericQueue, JobQueue, RawQueue)
 
 P = ParamSpec("P")
 R = TypeVar("R")
@@ -62,10 +64,30 @@ class SQSEnv(object):
         if not self.sqs_resource:
             self.sqs_resource = self.session.resource("sqs")
 
+    @overload
     def queue(
         self,
         queue_name: str,
-        queue_maker: Type[AnyQueue] = JobQueue,
+        queue_maker: Union[Type[JobQueue], Callable[..., JobQueue]] = JobQueue,
+        batching_policy: BatchingConfiguration = NoBatching(),
+        backoff_policy: Optional["BackoffPolicy"] = None,
+    ) -> JobQueue:
+        ...
+
+    @overload
+    def queue(
+        self,
+        queue_name: str,
+        queue_maker: Union[Type[AnyQueueT], Callable[..., AnyQueueT]],
+        batching_policy: BatchingConfiguration = NoBatching(),
+        backoff_policy: Optional["BackoffPolicy"] = None,
+    ) -> AnyQueueT:
+        ...
+
+    def queue(
+        self,
+        queue_name: str,
+        queue_maker: Union[Type[AnyQueue], Callable[..., AnyQueue]] = JobQueue,
         batching_policy: BatchingConfiguration = NoBatching(),
         backoff_policy: Optional["BackoffPolicy"] = None,
     ) -> AnyQueue:
@@ -123,7 +145,7 @@ class SQSEnv(object):
         )
         if not _content_type:
             _content_type = self.codec
-        q = self.queue(queue_name, queue_maker=JobQueue)  # type: JobQueue
+        q = self.queue(queue_name, queue_maker=JobQueue)
         return q.add_job(
             job_name,
             _content_type=_content_type,
