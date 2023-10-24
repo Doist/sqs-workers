@@ -10,6 +10,7 @@ from typing import (
     Dict,
     Generator,
     List,
+    Literal,
     Optional,
     TypeVar,
 )
@@ -197,7 +198,7 @@ class GenericQueue(object):
             deleted_count += len(messages)
         return deleted_count
 
-    def get_sqs_queue_name(self):
+    def get_sqs_queue_name(self) -> str:
         """
         Take "high-level" (user-visible) queue name and return SQS
         ("low level") name by simply prefixing it. Used to create namespaces
@@ -423,19 +424,19 @@ class JobQueue(GenericQueue):
         )
         return AsyncTask(self, job_name, processor)
 
-    def get_processor(self, job_name):
+    def get_processor(self, job_name: str) -> Processor | None:
         """
         Helper function to return a processor for the queue
         """
         return self.processors.get(job_name)
 
-    def open_add_batch(self):
+    def open_add_batch(self) -> None:
         """
         Open an add batch.
         """
         self._batch_level += 1
 
-    def close_add_batch(self):
+    def close_add_batch(self) -> None:
         """
         Close an add batch.
         """
@@ -498,8 +499,8 @@ class JobQueue(GenericQueue):
     def add_job(
         self,
         job_name: str,
-        _content_type=None,
-        _delay_seconds=None,
+        _content_type: str | None = None,
+        _delay_seconds: int | None = None,
         _deduplication_id=None,
         _group_id: Optional[str] = None,
         **job_kwargs
@@ -603,7 +604,7 @@ class JobQueue(GenericQueue):
 
         return all(results)
 
-    def process_message_fallback(self, job_name):
+    def process_message_fallback(self, job_name: str) -> Literal[False]:
         # Note: we don't set exc_info=True, since source of the error is almost
         # certainly in another code base.
         logger.error(
@@ -614,7 +615,7 @@ class JobQueue(GenericQueue):
         )
         return False
 
-    def copy_processors(self, dst_queue: "JobQueue"):
+    def copy_processors(self, dst_queue: "JobQueue") -> None:
         """
         Copy processors from self to dst_queue. Can be helpful to process d
         ead-letter queue with processors from the main queue.

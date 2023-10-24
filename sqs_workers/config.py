@@ -19,7 +19,7 @@ class Config(object):
     options: Dict[str, Any] = attr.ib(factory=dict)
     maker_key = attr.ib(default="maker")
 
-    def __setitem__(self, key, value):
+    def __setitem__(self, key: str, value):
         self.options.__setitem__(key, value)
 
     def __getitem__(self, item):

@@ -64,7 +64,7 @@ def _bind_args(callback, args, kwargs, drop_extra):
     return bound_args
 
 
-def validate_arguments(callback, args, kwargs, drop_extra=True):
+def validate_arguments(callback, args, kwargs, drop_extra: bool = True):
     """Checks if the function accepts the provided arguments and keyword
     arguments. Returns a new `(args, kwargs)` tuple that can be passed to the
     function without causing a TypeError due to an incompatible signature.
