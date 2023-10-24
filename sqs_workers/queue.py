@@ -504,7 +504,7 @@ class JobQueue(GenericQueue):
         _deduplication_id=None,
         _group_id: Optional[str] = None,
         **job_kwargs
-    ) -> str | None:
+    ) -> Optional[str]:
         """
         Add job to the queue. The body of the job will be converted to the text
         with one of the codecs (by default it's "pickle_compat")
