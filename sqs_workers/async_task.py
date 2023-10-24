@@ -8,6 +8,7 @@ from typing import (
     Generator,
     Generic,
     NoReturn,
+    Optional,
     TypeVar,
 )
 from typing_extensions import ParamSpec
@@ -61,7 +62,7 @@ class AsyncTask(Generic[P]):
         with self.queue.add_batch():
             yield
 
-    def delay(self, *args: P.args, **kwargs: P.kwargs) -> str | None:
+    def delay(self, *args: P.args, **kwargs: P.kwargs) -> Optional[str]:
         """
         Run the task asynchronously.
         """
