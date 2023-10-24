@@ -1,6 +1,6 @@
 import json
 import logging
-from typing import Any
+from typing import Any, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -64,6 +64,6 @@ class RedrivePolicy(object):
         )
 
 
-def get_job_name(message) -> str | None:
+def get_job_name(message) -> Optional[str]:
     attrs = message.message_attributes or {}
     return (attrs.get("JobName") or {}).get("StringValue")

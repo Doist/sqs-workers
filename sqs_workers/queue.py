@@ -424,7 +424,7 @@ class JobQueue(GenericQueue):
         )
         return AsyncTask(self, job_name, processor)
 
-    def get_processor(self, job_name: str) -> Processor | None:
+    def get_processor(self, job_name: str) -> Optional[Processor]:
         """
         Helper function to return a processor for the queue
         """
@@ -499,8 +499,8 @@ class JobQueue(GenericQueue):
     def add_job(
         self,
         job_name: str,
-        _content_type: str | None = None,
-        _delay_seconds: int | None = None,
+        _content_type: Optional[str] = None,
+        _delay_seconds: Optional[int] = None,
         _deduplication_id=None,
         _group_id: Optional[str] = None,
         **job_kwargs
