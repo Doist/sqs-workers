@@ -3,6 +3,7 @@ from __future__ import annotations
 from contextlib import contextmanager
 from typing import (
     TYPE_CHECKING,
+    Any,
     Callable,
     Generator,
     Generic,
@@ -18,12 +19,11 @@ if TYPE_CHECKING:
 
 
 P = ParamSpec("P")
-R = TypeVar("R")
 
 
-class AsyncTask(Generic[P, R]):
+class AsyncTask(Generic[P]):
     def __init__(
-        self, queue: JobQueue, job_name: str, processor: Callable[P, R]
+        self, queue: JobQueue, job_name: str, processor: Callable[P, Any]
     ) -> None:
         self.queue = queue
         self.job_name = job_name
@@ -40,7 +40,7 @@ class AsyncTask(Generic[P, R]):
     def __repr__(self) -> str:
         return "<%s %s.%s>" % (self.__class__.__name__, self.queue.name, self.job_name)
 
-    def run(self, *args: P.args, **kwargs: P.kwargs) -> R:
+    def run(self, *args: P.args, **kwargs: P.kwargs) -> NoReturn:
         """
         Run the task synchronously.
         """
@@ -61,7 +61,7 @@ class AsyncTask(Generic[P, R]):
         with self.queue.add_batch():
             yield
 
-    def delay(self, *args: P.args, **kwargs: P.kwargs) -> R:
+    def delay(self, *args: P.args, **kwargs: P.kwargs) -> str | None:
         """
         Run the task asynchronously.
         """
@@ -85,7 +85,7 @@ class AsyncTask(Generic[P, R]):
             **kwargs,
         )
 
-    def bake(self, *args: P.args, **kwargs: P.kwargs):
+    def bake(self, *args: P.args, **kwargs: P.kwargs) -> BakedAsyncTask:
         """
         Create a baked version of the async task, which contains the reference
         to a queue and task, as well as all arguments which needs to be passed
