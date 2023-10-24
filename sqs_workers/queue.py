@@ -359,7 +359,7 @@ class JobQueue(GenericQueue):
 
     def processor(
         self, job_name: str, pass_context: bool = False, context_var=DEFAULT_CONTEXT_VAR
-    ) -> Callable[[Callable[P, R]], AsyncTask[P, R]]:
+    ) -> Callable[[Callable[P, Any]], AsyncTask[P]]:
         """
         Decorator to assign processor to handle jobs with the name job_name
         from the queue queue_name
@@ -385,7 +385,7 @@ class JobQueue(GenericQueue):
             say_hello(name='John')
         """
 
-        def fn(processor: Callable[P, R]) -> AsyncTask[P, R]:
+        def fn(processor: Callable[P, Any]) -> AsyncTask[P]:
             return self.connect_processor(
                 job_name, processor, pass_context, context_var
             )
@@ -395,10 +395,10 @@ class JobQueue(GenericQueue):
     def connect_processor(
         self,
         job_name: str,
-        processor: Callable[P, R],
+        processor: Callable[P, Any],
         pass_context: bool = False,
         context_var=DEFAULT_CONTEXT_VAR,
-    ) -> AsyncTask[P, R]:
+    ) -> AsyncTask[P]:
         """
         Assign processor (a function) to handle jobs with the name job_name
         from the queue queue_name
@@ -504,7 +504,7 @@ class JobQueue(GenericQueue):
         _deduplication_id=None,
         _group_id: Optional[str] = None,
         **job_kwargs
-    ) -> str | None:
+    ) -> Optional[str]:
         """
         Add job to the queue. The body of the job will be converted to the text
         with one of the codecs (by default it's "pickle_compat")
@@ -533,7 +533,7 @@ class JobQueue(GenericQueue):
         delay_seconds,
         deduplication_id,
         group_id: Optional[str],
-    ) -> str | None:
+    ) -> Optional[str]:
         """
         Low-level function to put message to the queue
         """
