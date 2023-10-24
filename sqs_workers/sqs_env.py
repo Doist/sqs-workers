@@ -3,6 +3,7 @@ import multiprocessing
 import warnings
 from typing import (
     TYPE_CHECKING,
+    Any,
     Callable,
     Dict,
     Optional,
@@ -110,7 +111,7 @@ class SQSEnv(object):
         job_name: str,
         pass_context: bool = False,
         context_var=DEFAULT_CONTEXT_VAR,
-    ) -> Callable[[Callable[P, R]], AsyncTask[P, R]]:
+    ) -> Callable[[Callable[P, Any]], AsyncTask[P]]:
         """
         Decorator to attach processor to all jobs "job_name" of the queue "queue_name".
         """
