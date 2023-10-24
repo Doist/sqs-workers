@@ -5,7 +5,7 @@ Helper functions to create and delete queues on SQS.
 
 def create_standard_queue(
     env,
-    queue_name,
+    queue_name: str,
     message_retention_period=None,
     visibility_timeout=None,
     redrive_policy=None,
@@ -27,7 +27,7 @@ def create_standard_queue(
 
 def create_fifo_queue(
     env,
-    queue_name,
+    queue_name: str,
     content_based_deduplication=False,
     message_retention_period=None,
     visibility_timeout=None,
@@ -57,7 +57,7 @@ def create_fifo_queue(
     return ret["QueueUrl"]
 
 
-def delete_queue(env, queue_name):
+def delete_queue(env, queue_name: str) -> None:
     """
     Delete the queue
     """

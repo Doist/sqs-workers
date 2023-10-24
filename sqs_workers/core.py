@@ -1,12 +1,12 @@
 import json
 import logging
-from typing import Any
+from typing import Any, Optional
 
 logger = logging.getLogger(__name__)
 
 
 class BatchProcessingResult(object):
-    def __init__(self, queue_name, succeeded=None, failed=None):
+    def __init__(self, queue_name: str, succeeded=None, failed=None):
         self.queue_name = queue_name
         self.succeeded = succeeded or []
         self.failed = failed or []
@@ -20,16 +20,16 @@ class BatchProcessingResult(object):
         else:
             self.failed.append(message)
 
-    def succeeded_count(self):
+    def succeeded_count(self) -> int:
         return len(self.succeeded)
 
-    def failed_count(self):
+    def failed_count(self) -> int:
         return len(self.failed)
 
-    def total_count(self):
+    def total_count(self) -> int:
         return self.succeeded_count() + self.failed_count()
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return "<BatchProcessingResult/%s/%s/%s>" % (
             self.queue_name,
             self.succeeded_count(),
@@ -50,7 +50,7 @@ class RedrivePolicy(object):
         self.dead_letter_queue_name = dead_letter_queue_name
         self.max_receive_count = max_receive_count
 
-    def __json__(self):
+    def __json__(self) -> str:
         queue = self.sqs_env.sqs_resource.get_queue_by_name(
             QueueName=self.sqs_env.get_sqs_queue_name(self.dead_letter_queue_name)
         )
@@ -64,6 +64,6 @@ class RedrivePolicy(object):
         )
 
 
-def get_job_name(message):
+def get_job_name(message) -> Optional[str]:
     attrs = message.message_attributes or {}
     return (attrs.get("JobName") or {}).get("StringValue")

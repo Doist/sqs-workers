@@ -38,12 +38,12 @@ class MemoryAWS(object):
     )
     queues: List["MemoryQueue"] = attr.ib(factory=list)
 
-    def create_queue(self, QueueName, Attributes):
+    def create_queue(self, QueueName: str, Attributes) -> "MemoryQueue":
         queue = MemoryQueue(self, QueueName, Attributes)
         self.queues.append(queue)
         return queue
 
-    def delete_queue(self, QueueUrl):
+    def delete_queue(self, QueueUrl: str) -> None:
         self.queues = [queue for queue in self.queues if queue.url != QueueUrl]
 
 
@@ -55,24 +55,23 @@ class MemorySession(object):
 
     aws = attr.ib(repr=False, factory=MemoryAWS)
 
-    def client(self, service_name, **kwargs):
+    def client(self, service_name: str, **kwargs):
         assert service_name == "sqs"
         return self.aws.client
 
-    def resource(self, service_name, **kwargs):
+    def resource(self, service_name: str, **kwargs):
         assert service_name == "sqs"
         return self.aws.resource
 
 
 @attr.s
 class MemoryClient(object):
-
     aws = attr.ib(repr=False)
 
-    def create_queue(self, QueueName, Attributes):
+    def create_queue(self, QueueName: str, Attributes):
         return self.aws.create_queue(QueueName, Attributes)
 
-    def delete_queue(self, QueueUrl):
+    def delete_queue(self, QueueUrl: str):
         return self.aws.delete_queue(QueueUrl)
 
     def list_queues(self, QueueNamePrefix=""):
@@ -87,13 +86,12 @@ class MemoryClient(object):
 
 @attr.s
 class ServiceResource(object):
-
     aws: MemoryAWS = attr.ib(repr=False)
 
-    def create_queue(self, QueueName, Attributes):
+    def create_queue(self, QueueName: str, Attributes):
         return self.aws.create_queue(QueueName, Attributes)
 
-    def get_queue_by_name(self, QueueName):
+    def get_queue_by_name(self, QueueName: str):
         for queue in self.aws.queues:
             if queue.name == QueueName:
                 return queue

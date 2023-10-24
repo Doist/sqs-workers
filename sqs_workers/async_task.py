@@ -100,10 +100,10 @@ class BakedAsyncTask(object):
         self.args = args
         self.kwargs = kwargs
 
-    def __call__(self):
+    def __call__(self) -> None:
         self.async_task(*self.args, **self.kwargs)
 
-    def delay(self):
+    def delay(self) -> None:
         self.async_task.delay(*self.args, **self.kwargs)
 
     def __repr__(self) -> str:

@@ -193,7 +193,7 @@ class SQSEnv(object):
             ret.append(sqs_name[queue_prefix_len:])
         return ret
 
-    def get_sqs_queue_name(self, queue_name):
+    def get_sqs_queue_name(self, queue_name: str) -> str:
         """
         Take "high-level" (user-visible) queue name and return SQS
         ("low level") name by simply prefixing it. Used to create namespaces

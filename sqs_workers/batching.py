@@ -40,7 +40,7 @@ class NoBatching(BatchingConfiguration):
 class BatchMessages(BatchingConfiguration):
     """Configures the processor to send a list of messages to the call handler"""
 
-    def __init__(self, batch_size):
+    def __init__(self, batch_size: int):
         self.number_of_messages = batch_size
 
     @property
