@@ -118,7 +118,7 @@ class GenericQueue(object):
         return result
 
     def _process_messages_individually(self, queue, wait_seconds):
-        messages = self.get_raw_messages(wait_seconds)
+        messages = self.get_raw_messages(wait_seconds, max_messages=1)
         result = BatchProcessingResult(self.name)
 
         for message in messages:
