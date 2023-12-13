@@ -12,18 +12,18 @@ from typing import (
     Union,
     overload,
 )
-from typing_extensions import ParamSpec
 
 import attr
 import boto3
+from typing_extensions import ParamSpec
 
 from sqs_workers import DEFAULT_BACKOFF, RawQueue, codecs, context, processors
+from sqs_workers.async_task import AsyncTask
 from sqs_workers.batching import BatchingConfiguration, NoBatching
 from sqs_workers.core import RedrivePolicy
 from sqs_workers.processors import DEFAULT_CONTEXT_VAR
 from sqs_workers.queue import GenericQueue, JobQueue
 from sqs_workers.shutdown_policies import NeverShutdown
-from sqs_workers.async_task import AsyncTask
 
 if TYPE_CHECKING:
     from sqs_workers.backoff_policies import BackoffPolicy
