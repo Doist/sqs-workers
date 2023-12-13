@@ -64,6 +64,18 @@ def sqs_codec(sqs, codec):
     return codec
 
 
+def test_create_queue_with_queue_url(sqs_session, sqs, queue_url):
+    if isinstance(sqs_session, MemorySession):
+        pytest.skip("MemorySession doesn't produce a SQS compatible queue_url")
+    
+    expected_name = queue_url.split("/")[-1]
+    expected_private_queue = sqs.sqs_resource.Queue(queue_url)
+
+    queue = sqs.queue(queue_url)
+    assert queue.name == expected_name
+    assert queue._queue == expected_private_queue
+
+
 def test_add_job_with_codec(sqs, queue_name, codec):
     codec_name, codec_cls = codec
 

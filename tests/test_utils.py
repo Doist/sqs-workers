@@ -6,6 +6,7 @@ from sqs_workers.utils import (
     bind_arguments,
     instantiate_from_dict,
     instantiate_from_string,
+    is_queue_url,
     string_to_object,
     validate_arguments,
 )
@@ -103,3 +104,18 @@ def test_bind_arguments_raises_on_extra():
                 "d": 4,
             },
         )
+
+
+@pytest.mark.parametrize(
+    "queue_name,expected",
+    [
+        ("https://sqs.us-east-1.amazonaws.com/177715257436", False),
+        ("https://sqs.us-east-1.amazonaws.com/1/MyQueue", False),
+        ("https://sqs.us-east-1.amazonaws.com/MyQueue", False),
+        ("http://localhost:9324/000000000000/sqs_workers_tests_20231213_gkzk7rh0ca", True),
+        ("https://localhost:9324/000000000000/sqs_workers_tests_20231213_gkzk7rh0ca", True),
+        ("https://sqs.us-east-1.amazonaws.com/177715257436/MyQueue", True),
+    ],
+)
+def test_is_queue_url(queue_name, expected):
+    assert expected == is_queue_url(queue_name)

@@ -27,6 +27,7 @@ from sqs_workers.core import BatchProcessingResult, get_job_name
 from sqs_workers.exceptions import SQSError
 from sqs_workers.processors import DEFAULT_CONTEXT_VAR, Processor
 from sqs_workers.shutdown_policies import NEVER_SHUTDOWN
+from sqs_workers.utils import is_queue_url
 
 DEFAULT_MESSAGE_GROUP_ID = "default"
 SEND_BATCH_SIZE = 10
@@ -53,6 +54,17 @@ class GenericQueue(object):
     backoff_policy: BackoffPolicy = attr.ib(default=DEFAULT_BACKOFF)
     batching_policy: BatchingConfiguration = attr.ib(default=NoBatching())
     _queue = attr.ib(repr=False, default=None)
+
+    def __attrs_post_init__(self):
+        """
+        Change the attributes name and _queue if the name is an SQS queue url
+
+        This will avoid the use of sqs_resource.get_queue_by_name in get_queue method
+        """
+        if is_queue_url(self.name):
+            queue_url = self.name
+            self.name = queue_url.split("/")[-1]
+            self._queue = self.env.sqs_resource.Queue(queue_url)
 
     @classmethod
     def maker(cls, **kwargs):

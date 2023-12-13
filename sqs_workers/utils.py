@@ -1,5 +1,6 @@
 import importlib
 import logging
+import re
 from inspect import Signature
 from typing import Any
 
@@ -129,3 +130,11 @@ def ensure_string(obj: Any, encoding="utf-8", errors="strict") -> str:
         return obj.decode(encoding, errors)
     else:
         return str(obj)
+
+
+def is_queue_url(queue_name: str):
+    """
+    Return true if the queue_name variable is an SQS queue url
+    """
+    sqs_queue_regex = r"(http|https)[:][\/]{2}[a-zA-Z0-9-_:.]+[\/][0-9]{12}[\/]{1}[a-zA-Z0-9-_]{0,80}"
+    return True if re.search(sqs_queue_regex, queue_name) else False

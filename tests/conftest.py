@@ -42,6 +42,13 @@ def queue_name2(sqs_session, sqs, random_string):
 
 
 @pytest.fixture
+def queue_url(sqs_session, sqs, random_string):
+    queue_url = create_standard_queue(sqs, random_string)
+    yield queue_url
+    delete_queue(sqs, random_string)
+
+
+@pytest.fixture
 def queue_name_with_redrive(sqs_session, sqs, random_string):
     # dead letter queue_name
     queue = random_string
