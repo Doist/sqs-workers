@@ -48,7 +48,6 @@ class DeadLetterQueue(RawQueue):
 
 @attr.s
 class PushBackSender(object):
-
     upstream_queue: "GenericQueue" = attr.ib(default=None)
 
     def __call__(self, message):

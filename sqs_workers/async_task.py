@@ -1,16 +1,8 @@
 from __future__ import annotations
 
 from contextlib import contextmanager
-from typing import (
-    TYPE_CHECKING,
-    Any,
-    Callable,
-    Generator,
-    Generic,
-    NoReturn,
-    Optional,
-    TypeVar,
-)
+from typing import TYPE_CHECKING, Any, Callable, Generator, Generic, NoReturn, Optional
+
 from typing_extensions import ParamSpec
 
 from sqs_workers.utils import bind_arguments
@@ -33,15 +25,16 @@ class AsyncTask(Generic[P]):
 
     def __call__(self, *args: P.args, **kwargs: P.kwargs) -> NoReturn:
         raise RuntimeError(
-            f"Async task {self.queue.name}.{self.job_name} called synchronously (probably, "
-            "by mistake). Use either AsyncTask.run(...) to run the task synchronously "
-            "or AsyncTask.delay(...) to add it to the queue"
+            f"Async task {self.queue.name}.{self.job_name} called synchronously "
+            "(probably, by mistake). Use either AsyncTask.run(...) "
+            "to run the task synchronously or AsyncTask.delay(...) "
+            "to add it to the queue"
         )
 
     def __repr__(self) -> str:
         return "<%s %s.%s>" % (self.__class__.__name__, self.queue.name, self.job_name)
 
-    def run(self, *args: P.args, **kwargs: P.kwargs) -> NoReturn:
+    def run(self, *args: P.args, **kwargs: P.kwargs) -> Any:
         """
         Run the task synchronously.
         """
@@ -66,10 +59,10 @@ class AsyncTask(Generic[P]):
         """
         Run the task asynchronously.
         """
-        _content_type = kwargs.pop("_content_type", self.queue.env.codec)
-        _delay_seconds = kwargs.pop("_delay_seconds", None)
-        _deduplication_id = kwargs.pop("_deduplication_id", None)
-        _group_id = kwargs.pop("_group_id", None)
+        _content_type = kwargs.pop("_content_type", self.queue.env.codec)  # type: ignore  # noqa
+        _delay_seconds = kwargs.pop("_delay_seconds", None)  # type: ignore
+        _deduplication_id = kwargs.pop("_deduplication_id", None)  # type: ignore
+        _group_id = kwargs.pop("_group_id", None)  # type: ignore
 
         if self.queue.batching_policy.batching_enabled:
             if len(args) > 0:
@@ -79,10 +72,10 @@ class AsyncTask(Generic[P]):
 
         return self.queue.add_job(
             self.job_name,
-            _content_type=_content_type,
-            _delay_seconds=_delay_seconds,
+            _content_type=_content_type,  # type: ignore
+            _delay_seconds=_delay_seconds,  # type: ignore
             _deduplication_id=_deduplication_id,
-            _group_id=_group_id,
+            _group_id=_group_id,  # type: ignore
             **kwargs,
         )
 

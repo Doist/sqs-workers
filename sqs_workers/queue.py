@@ -14,10 +14,9 @@ from typing import (
     Optional,
     TypeVar,
 )
-from typing_extensions import ParamSpec
-
 
 import attr
+from typing_extensions import ParamSpec
 
 from sqs_workers import DEFAULT_BACKOFF, codecs
 from sqs_workers.async_task import AsyncTask
@@ -503,7 +502,7 @@ class JobQueue(GenericQueue):
         _delay_seconds: Optional[int] = None,
         _deduplication_id=None,
         _group_id: Optional[str] = None,
-        **job_kwargs
+        **job_kwargs,
     ) -> Optional[str]:
         """
         Add job to the queue. The body of the job will be converted to the text
@@ -574,11 +573,11 @@ class JobQueue(GenericQueue):
         Return True if processing went successful
         """
         job_name = get_job_name(message)
-        processor = self.get_processor(job_name)
+        processor = self.get_processor(job_name)  # type: ignore
         if processor:
             return processor.process_message(message)
         else:
-            return self.process_message_fallback(job_name)
+            return self.process_message_fallback(job_name)  # type: ignore
 
     def process_messages(self, messages: List[Any]) -> bool:
         """
@@ -594,12 +593,12 @@ class JobQueue(GenericQueue):
         results = []
 
         for job_name, grouped_messages in messages_by_job_name.items():
-            processor = self.get_processor(job_name)
+            processor = self.get_processor(job_name)  # type: ignore
             if processor:
                 result = processor.process_messages(grouped_messages)
                 results.append(result)
             else:
-                result = self.process_message_fallback(job_name)
+                result = self.process_message_fallback(job_name)  # type: ignore
                 results.append(result)
 
         return all(results)
