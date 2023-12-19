@@ -27,7 +27,7 @@ attrs = "^23.1.0"
 [tool.poetry.dev-dependencies]
 pytest-runner = "^6.0.0"
 pytest = "^7.1.2"
-localstack-client = "^1.7"
+localstack-client = "^2.5"
 pre-commit = "^2.20.0"
 tox = "^4.11.0"
 typing-extensions = "^4.0.0"
