@@ -13,12 +13,12 @@ jobs:
     name: "Python ${{ matrix.python-version }} with ${{ matrix.session }}"
     strategy:
       matrix:
-        python-version: ['3.8', '3.9', '3.10', '3.11']
-        session: ['memory', 'localstack']  # TODO: we don't test against production AWS
+        python-version: ["3.8", "3.9", "3.10", "3.11", "3.12"]
+        session: ["memory", "localstack"] # TODO: we don't test against production AWS
     steps:
       - name: Start Docker container with localstack
         if: matrix.session == 'localstack'
-        run:  docker run -d -p 4566:9324 --rm softwaremill/elasticmq-native
+        run: docker run -d -p 4566:9324 --rm softwaremill/elasticmq-native
 
       - name: Checkout Repo
         uses: actions/checkout@v4
