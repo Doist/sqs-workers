@@ -46,7 +46,7 @@ class SQSBatchError(SQSError):
 
 
 @attr.s
-class GenericQueue(object):
+class GenericQueue:
     env: "SQSEnv" = attr.ib(repr=False)
     name: str = attr.ib()
     backoff_policy: BackoffPolicy = attr.ib(default=DEFAULT_BACKOFF)
@@ -58,9 +58,7 @@ class GenericQueue(object):
         return partial(cls, **kwargs)
 
     def process_queue(self, shutdown_policy=NEVER_SHUTDOWN, wait_second=10):
-        """
-        Run worker to process one queue in the infinite loop
-        """
+        """Run worker to process one queue in the infinite loop"""
         logger.debug(
             "Start processing queue %s",
             self.name,
@@ -152,9 +150,7 @@ class GenericQueue(object):
         raise NotImplementedError()
 
     def get_raw_messages(self, wait_seconds, max_messages=10):
-        """
-        Return raw messages from the queue, addressed by its name
-        """
+        """Return raw messages from the queue, addressed by its name"""
         kwargs = {
             "WaitTimeSeconds": wait_seconds,
             "MaxNumberOfMessages": max_messages if max_messages <= 10 else 10,
@@ -180,9 +176,7 @@ class GenericQueue(object):
         return received_messages
 
     def drain_queue(self, wait_seconds=0):
-        """
-        Delete all messages from the queue without calling purge().
-        """
+        """Delete all messages from the queue without calling purge()."""
         queue = self.get_queue()
         deleted_count = 0
         while True:
@@ -206,9 +200,7 @@ class GenericQueue(object):
         return self.env.get_sqs_queue_name(self.name)
 
     def get_queue(self):
-        """
-        Helper function to return queue object.
-        """
+        """Helper function to return queue object."""
         if self._queue is None:
             self._queue = self.env.sqs_resource.get_queue_by_name(
                 QueueName=self.get_sqs_queue_name()
@@ -239,9 +231,7 @@ class RawQueue(GenericQueue):
         return func
 
     def connect_raw_processor(self, processor):
-        """
-        Assign raw processor (a function) to handle jobs.
-        """
+        """Assign raw processor (a function) to handle jobs."""
         extra = {
             "queue_name": self.name,
             "processor_name": processor.__module__ + "." + processor.__name__,
@@ -261,9 +251,7 @@ class RawQueue(GenericQueue):
         deduplication_id: Optional[str] = None,
         group_id: str = DEFAULT_MESSAGE_GROUP_ID,
     ):
-        """
-        Add raw message to the queue
-        """
+        """Add raw message to the queue"""
 
         kwargs = {
             "MessageBody": message_body,
@@ -424,21 +412,15 @@ class JobQueue(GenericQueue):
         return AsyncTask(self, job_name, processor)
 
     def get_processor(self, job_name: str) -> Optional[Processor]:
-        """
-        Helper function to return a processor for the queue
-        """
+        """Helper function to return a processor for the queue"""
         return self.processors.get(job_name)
 
     def open_add_batch(self) -> None:
-        """
-        Open an add batch.
-        """
+        """Open an add batch."""
         self._batch_level += 1
 
     def close_add_batch(self) -> None:
-        """
-        Close an add batch.
-        """
+        """Close an add batch."""
         self._batch_level = max(0, self._batch_level - 1)
         self._flush_batch_if_needed()
 
@@ -533,9 +515,7 @@ class JobQueue(GenericQueue):
         deduplication_id,
         group_id: Optional[str],
     ) -> Optional[str]:
-        """
-        Low-level function to put message to the queue
-        """
+        """Low-level function to put message to the queue"""
         # if queue name ends with .fifo, then according to the AWS specs,
         # it's a FIFO queue, and requires group_id.
         # Otherwise group_id can be set to None

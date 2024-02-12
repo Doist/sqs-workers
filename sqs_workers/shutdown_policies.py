@@ -3,10 +3,8 @@ import datetime
 now = datetime.datetime.utcnow
 
 
-class NeverShutdown(object):
-    """
-    Never shutdown the worker
-    """
+class NeverShutdown:
+    """Never shutdown the worker"""
 
     def update_state(self, batch_processing_result) -> None:
         pass
@@ -18,10 +16,8 @@ class NeverShutdown(object):
         return "NeverShutdown()"
 
 
-class IdleShutdown(object):
-    """
-    Shutdown worker if it's idle for certain time (set in seconds)
-    """
+class IdleShutdown:
+    """Shutdown worker if it's idle for certain time (set in seconds)"""
 
     def __init__(self, idle_seconds: int) -> None:
         self.idle_seconds = idle_seconds
@@ -30,9 +26,7 @@ class IdleShutdown(object):
         self._last_seen = now()
 
     def update_state(self, batch_processing_result) -> None:
-        """
-        Update internal state of the shutdown policy
-        """
+        """Update internal state of the shutdown policy"""
         if batch_processing_result.total_count() == 0:
             self._is_idle = True
         else:
@@ -48,7 +42,7 @@ class IdleShutdown(object):
         return f"IdleShutdown({self.idle_seconds})"
 
 
-class MaxTasksShutdown(object):
+class MaxTasksShutdown:
     """
     Shutdown worker if it executed more than max_tasks in total (both
     successfully or with error)
@@ -68,10 +62,8 @@ class MaxTasksShutdown(object):
         return f"MaxTasksShutdown({self.max_tasks})"
 
 
-class OrShutdown(object):
-    """
-    Return True if any of conditions of policies is met
-    """
+class OrShutdown:
+    """Return True if any of conditions of policies is met"""
 
     def __init__(self, *policies) -> None:
         self.policies = policies
@@ -81,20 +73,15 @@ class OrShutdown(object):
             p.update_state(batch_processing_result)
 
     def need_shutdown(self) -> bool:
-        for p in self.policies:
-            if p.need_shutdown():
-                return True
-        return False
+        return any(p.need_shutdown() for p in self.policies)
 
     def __repr__(self) -> str:
         repr_policies = ", ".join([repr(p) for p in self.policies])
         return f"OrShutdown({repr_policies})"
 
 
-class AndShutdown(object):
-    """
-    Return True if all of conditions of policies are met
-    """
+class AndShutdown:
+    """Return True if all of conditions of policies are met"""
 
     def __init__(self, *policies) -> None:
         self.policies = policies
@@ -104,10 +91,7 @@ class AndShutdown(object):
             p.update_state(batch_processing_result)
 
     def need_shutdown(self) -> bool:
-        for p in self.policies:
-            if not p.need_shutdown():
-                return False
-        return True
+        return all(p.need_shutdown() for p in self.policies)
 
     def __repr__(self) -> str:
         repr_policies = ", ".join([repr(p) for p in self.policies])

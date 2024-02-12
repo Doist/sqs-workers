@@ -23,10 +23,8 @@ import attr
 
 
 @attr.s
-class MemoryAWS(object):
-    """
-    In-memory AWS as a whole.
-    """
+class MemoryAWS:
+    """In-memory AWS as a whole."""
 
     client: "MemoryClient" = attr.ib(
         repr=False,
@@ -48,10 +46,8 @@ class MemoryAWS(object):
 
 
 @attr.s
-class MemorySession(object):
-    """
-    In memory AWS session.
-    """
+class MemorySession:
+    """In memory AWS session."""
 
     aws = attr.ib(repr=False, factory=MemoryAWS)
 
@@ -65,7 +61,7 @@ class MemorySession(object):
 
 
 @attr.s
-class MemoryClient(object):
+class MemoryClient:
     aws = attr.ib(repr=False)
 
     def create_queue(self, QueueName: str, Attributes):
@@ -85,7 +81,7 @@ class MemoryClient(object):
 
 
 @attr.s
-class ServiceResource(object):
+class ServiceResource:
     aws: MemoryAWS = attr.ib(repr=False)
 
     def create_queue(self, QueueName: str, Attributes):
@@ -99,7 +95,7 @@ class ServiceResource(object):
 
 
 @attr.s
-class MemoryQueue(object):
+class MemoryQueue:
     """
     In-memory queue which mimics the subset of SQS Queue object.
 
@@ -188,7 +184,7 @@ class MemoryQueue(object):
 
 
 @attr.s(frozen=True)
-class MemoryMessage(object):
+class MemoryMessage:
     """
     A mock class to mimic the AWS message
 

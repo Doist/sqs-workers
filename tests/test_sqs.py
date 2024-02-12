@@ -363,7 +363,7 @@ def test_custom_processor(sqs, queue_name):
     class CustomProcessor(Processor):
         def process(self, job_kwargs, job_context):
             job_kwargs["username"] = "Foo"
-            super(CustomProcessor, self).process(job_kwargs, job_context)
+            super().process(job_kwargs, job_context)
 
     sqs.processor_maker = CustomProcessor
     say_hello_task = queue.connect_processor("say_hello", say_hello)

@@ -5,16 +5,14 @@ from typing import Any, Optional
 logger = logging.getLogger(__name__)
 
 
-class BatchProcessingResult(object):
+class BatchProcessingResult:
     def __init__(self, queue_name: str, succeeded=None, failed=None):
         self.queue_name = queue_name
         self.succeeded = succeeded or []
         self.failed = failed or []
 
     def update_with_message(self, message: Any, success: bool):
-        """
-        Update processing result with a message.
-        """
+        """Update processing result with a message."""
         if success:
             self.succeeded.append(message)
         else:
@@ -30,14 +28,14 @@ class BatchProcessingResult(object):
         return self.succeeded_count() + self.failed_count()
 
     def __repr__(self) -> str:
-        return "<BatchProcessingResult/%s/%s/%s>" % (
+        return "<BatchProcessingResult/{}/{}/{}>".format(
             self.queue_name,
             self.succeeded_count(),
             self.failed_count(),
         )
 
 
-class RedrivePolicy(object):
+class RedrivePolicy:
     """
     Redrive Policy for SQS queues
 
