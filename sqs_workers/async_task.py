@@ -32,12 +32,10 @@ class AsyncTask(Generic[P]):
         )
 
     def __repr__(self) -> str:
-        return "<%s %s.%s>" % (self.__class__.__name__, self.queue.name, self.job_name)
+        return f"<{self.__class__.__name__} {self.queue.name}.{self.job_name}>"
 
     def run(self, *args: P.args, **kwargs: P.kwargs) -> Any:
-        """
-        Run the task synchronously.
-        """
+        """Run the task synchronously."""
         if self.queue.batching_policy.batching_enabled:
             if len(args) > 0:
                 raise TypeError("Must use keyword arguments only for batch read queues")
@@ -49,17 +47,13 @@ class AsyncTask(Generic[P]):
 
     @contextmanager
     def batch(self) -> Generator[None, None, None]:
-        """
-        Context manager to add jobs in batch.
-        """
+        """Context manager to add jobs in batch."""
         with self.queue.add_batch():
             yield
 
     def delay(self, *args: P.args, **kwargs: P.kwargs) -> Optional[str]:
-        """
-        Run the task asynchronously.
-        """
-        _content_type = kwargs.pop("_content_type", self.queue.env.codec)  # type: ignore  # noqa
+        """Run the task asynchronously."""
+        _content_type = kwargs.pop("_content_type", self.queue.env.codec)  # type: ignore
         _delay_seconds = kwargs.pop("_delay_seconds", None)  # type: ignore
         _deduplication_id = kwargs.pop("_deduplication_id", None)  # type: ignore
         _group_id = kwargs.pop("_group_id", None)  # type: ignore
@@ -88,7 +82,7 @@ class AsyncTask(Generic[P]):
         return BakedAsyncTask(self, args, kwargs)
 
 
-class BakedAsyncTask(object):
+class BakedAsyncTask:
     def __init__(self, async_task, args, kwargs):
         self.async_task = async_task
         self.args = args

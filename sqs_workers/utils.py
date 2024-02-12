@@ -90,31 +90,23 @@ def bind_arguments(callback, args, kwargs):
 
 
 def string_to_object(string: str) -> Any:
-    """
-    Convert full path string representation of the object to object itself.
-    """
+    """Convert full path string representation of the object to object itself."""
     chunks = string.rsplit(".", 1)
     if len(chunks) != 2:
-        raise RuntimeError(
-            "{} doesn't represent a full module path to object".format(string)
-        )
+        raise RuntimeError(f"{string} doesn't represent a full module path to object")
     module_name, object_name = chunks
     mod = importlib.import_module(module_name)
     return getattr(mod, object_name)
 
 
 def instantiate_from_string(string, **init_kwargs):
-    """
-    Create an object from a classname string and init kwargs.
-    """
+    """Create an object from a classname string and init kwargs."""
     class_ = string_to_object(string)
     return class_(**init_kwargs)
 
 
 def instantiate_from_dict(options, maker_key="maker", **extra_init_kwargs):
-    """
-    Create an object from options with classname and init kwargs.
-    """
+    """Create an object from options with classname and init kwargs."""
     kwargs = options.copy()
     classname_value = kwargs.pop(maker_key)
     init_kwargs = dict(kwargs, **extra_init_kwargs)

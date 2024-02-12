@@ -10,10 +10,8 @@ from sqs_workers.utils import (
 
 
 @attr.s(frozen=True)
-class Config(object):
-    """
-    Config object with hierarchy support.
-    """
+class Config:
+    """Config object with hierarchy support."""
 
     parent: Optional["Config"] = attr.ib(repr=False, default=None)
     options: Dict[str, Any] = attr.ib(factory=dict)
@@ -27,7 +25,7 @@ class Config(object):
             return self.options[item]
         if self.parent:
             return self.parent[item]
-        raise KeyError("{0} is undefined".format(item))
+        raise KeyError(f"{item} is undefined")
 
     def get(self, item, default=None):
         try:
@@ -36,16 +34,12 @@ class Config(object):
             return default
 
     def get_object(self, item):
-        """
-        Get an object (usually a class) from the config.
-        """
+        """Get an object (usually a class) from the config."""
         value = self[item]
         return string_to_object(value)
 
     def get_instance(self, item, **kwargs):
-        """
-        Get an instances form the config and optional set of kwargs.
-        """
+        """Get an instances form the config and optional set of kwargs."""
         value = self[item]
         if isinstance(value, dict):
             return instantiate_from_dict(value, maker_key=self.maker_key, **kwargs)

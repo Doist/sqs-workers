@@ -19,9 +19,7 @@ class BatchingConfiguration(ABC):
     @property
     @abstractmethod
     def batch_size(self) -> int:
-        """
-        Number of messages to process at once if batching_enabled
-        """
+        """Number of messages to process at once if batching_enabled"""
         ...
 
 

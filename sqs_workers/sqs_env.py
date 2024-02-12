@@ -40,7 +40,7 @@ R = TypeVar("R")
 
 
 @attr.s
-class SQSEnv(object):
+class SQSEnv:
     session = attr.ib(default=boto3)
     queue_prefix = attr.ib(default="")
     codec: str = attr.ib(default=codecs.DEFAULT_CONTENT_TYPE)
@@ -92,9 +92,7 @@ class SQSEnv(object):
         batching_policy: BatchingConfiguration = NoBatching(),
         backoff_policy: Optional["BackoffPolicy"] = None,
     ) -> AnyQueue:
-        """
-        Get a queue object, initializing it with queue_maker if necessary.
-        """
+        """Get a queue object, initializing it with queue_maker if necessary."""
         if queue_name not in self.queues:
             backoff_policy = backoff_policy or self.backoff_policy
             self.queues[queue_name] = queue_maker(
@@ -112,18 +110,14 @@ class SQSEnv(object):
         pass_context: bool = False,
         context_var=DEFAULT_CONTEXT_VAR,
     ) -> Callable[[Callable[P, Any]], AsyncTask[P]]:
-        """
-        Decorator to attach processor to all jobs "job_name" of the queue "queue_name".
-        """
+        """Decorator to attach processor to all jobs "job_name" of the queue "queue_name"."""
         q: JobQueue = self.queue(queue_name, queue_maker=JobQueue)  # type: ignore
         return q.processor(
             job_name=job_name, pass_context=pass_context, context_var=context_var
         )
 
     def raw_processor(self, queue_name: str):
-        """
-        Decorator to attach raw processor to all jobs of the queue "queue_name".
-        """
+        """Decorator to attach raw processor to all jobs of the queue "queue_name"."""
         q: RawQueue = self.queue(queue_name, queue_maker=RawQueue)  # type: ignore
         return q.raw_processor()
 
@@ -137,9 +131,7 @@ class SQSEnv(object):
         _group_id=None,
         **job_kwargs,
     ):
-        """
-        Add job to the queue.
-        """
+        """Add job to the queue."""
         warnings.warn(
             "sqs.add_job() is deprecated. Use sqs.queue(...).add_job() instead",
             DeprecationWarning,

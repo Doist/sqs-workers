@@ -12,25 +12,11 @@ repos:
       - id: check-case-conflict
       - id: debug-statements
 
-  - repo: https://github.com/PyCQA/flake8
-    rev: 6.1.0
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.1.13
     hooks:
-      - id: flake8
-
-  - repo: https://github.com/psf/black
-    rev: 22.3.0
-    hooks:
-      - id: black
-
-  - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.7.1
-    hooks:
-      - id: mypy
-        additional_dependencies:
-          - types-attrs
-          - types-boto3
-
-  - repo: https://github.com/PyCQA/isort
-    rev: 5.13.1
-    hooks:
-      - id: isort
+      # Run the linter
+      - id: ruff
+        args: ['--fix']
+      # Run the formatter
+      - id: ruff-format

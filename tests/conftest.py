@@ -22,7 +22,7 @@ def sqs_session(request):
 
 @pytest.fixture
 def sqs(sqs_session):
-    queue_prefix = "sqs_workers_tests_{:%Y%m%d}_".format(datetime.datetime.utcnow())
+    queue_prefix = f"sqs_workers_tests_{datetime.datetime.utcnow():%Y%m%d}_"
     sqs = SQSEnv(session=sqs_session, queue_prefix=queue_prefix)
     return sqs
 

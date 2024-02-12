@@ -17,7 +17,7 @@ DEFAULT_CONTEXT_VAR = "context"
 
 
 @attr.s
-class Processor(object):
+class Processor:
     """
     Processor which calls its function for each incoming message.
 
@@ -36,9 +36,7 @@ class Processor(object):
         return partial(cls, **kwargs)
 
     def process_message(self, message):
-        """
-        Takes an individual message and sends it to the decorated call handler function.
-        """
+        """Takes an individual message and sends it to the decorated call handler function."""
         extra = {
             "message_id": message.message_id,
             "queue_name": self.queue.name,
