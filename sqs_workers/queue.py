@@ -477,7 +477,7 @@ class JobQueue(GenericQueue):
 
             if self._est_message_size() > MAX_SQS_MESSAGE_SIZE:
                 # If we have batch of large messages, try to send half of it at a time
-                send_batch_size = SEND_BATCH_SIZE / 2
+                send_batch_size = SEND_BATCH_SIZE // 2
 
             msgs = self._batched_messages[:send_batch_size]
             self._batched_messages = self._batched_messages[send_batch_size:]
