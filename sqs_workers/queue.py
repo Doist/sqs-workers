@@ -453,14 +453,19 @@ class JobQueue(GenericQueue):
         """
         max_size = SEND_BATCH_SIZE if self._batch_level > 0 else 1
 
-        # A rough guess at the size of the message we will send to SQS
-        est_message_size = len(json.dumps(self._batched_messages).encode("utf-8"))
-
         # Attempt to flush if we have gotten close to the message size limit
-        if est_message_size > MAX_SQS_MESSAGE_SIZE - 1024:
+        if self._est_message_size() > MAX_SQS_MESSAGE_SIZE:
             return True
 
         return len(self._batched_messages) >= max_size
+
+    def _est_message_size(self) -> int:
+        """
+        Return an estimate of the size (in bytes) of the combined message we want to send.
+
+        We add an extra 1K to account for any extra headers.
+        """
+        return len(json.dumps(self._batched_messages).encode("utf-8")) + 1024
 
     def _flush_batch_if_needed(self) -> None:
         queue = self.get_queue()
@@ -470,10 +475,8 @@ class JobQueue(GenericQueue):
         while self._should_flush_batch():
             send_batch_size = SEND_BATCH_SIZE
 
-            # A rough guess at the size of the message we will send to SQS
-            est_message_size = len(json.dumps(self._batched_messages).encode("utf-8"))
-            if est_message_size > MAX_SQS_MESSAGE_SIZE - 1024:
-                # If we have a really large batch, just send half of it at a time
+            if self._est_message_size() > MAX_SQS_MESSAGE_SIZE:
+                # If we have batch of large messages, try to send half of it at a time
                 send_batch_size = SEND_BATCH_SIZE / 2
 
             msgs = self._batched_messages[:send_batch_size]
