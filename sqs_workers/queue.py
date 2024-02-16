@@ -1,3 +1,4 @@
+import json
 import logging
 import uuid
 from collections import defaultdict
@@ -29,6 +30,7 @@ from sqs_workers.shutdown_policies import NEVER_SHUTDOWN
 
 DEFAULT_MESSAGE_GROUP_ID = "default"
 SEND_BATCH_SIZE = 10
+MAX_SQS_MESSAGE_SIZE = 262144  # in bytes
 
 if TYPE_CHECKING:
     from sqs_workers import SQSEnv
@@ -450,7 +452,20 @@ class JobQueue(GenericQueue):
         want to improve that by also ensuring the batch size is small enough.
         """
         max_size = SEND_BATCH_SIZE if self._batch_level > 0 else 1
+
+        # Attempt to flush if we have gotten close to the message size limit
+        if self._est_message_size() > MAX_SQS_MESSAGE_SIZE:
+            return True
+
         return len(self._batched_messages) >= max_size
+
+    def _est_message_size(self) -> int:
+        """
+        Return an estimate of the size (in bytes) of the combined message we want to send.
+
+        We add an extra 1K to account for any extra headers.
+        """
+        return len(json.dumps(self._batched_messages).encode("utf-8")) + 1024
 
     def _flush_batch_if_needed(self) -> None:
         queue = self.get_queue()
@@ -458,8 +473,14 @@ class JobQueue(GenericQueue):
         # There should be at most 1 batch to send. But just in case, prepare to
         # send more than that.
         while self._should_flush_batch():
-            msgs = self._batched_messages[:SEND_BATCH_SIZE]
-            self._batched_messages = self._batched_messages[SEND_BATCH_SIZE:]
+            send_batch_size = SEND_BATCH_SIZE
+
+            if self._est_message_size() > MAX_SQS_MESSAGE_SIZE:
+                # If we have batch of large messages, try to send half of it at a time
+                send_batch_size = SEND_BATCH_SIZE / 2
+
+            msgs = self._batched_messages[:send_batch_size]
+            self._batched_messages = self._batched_messages[send_batch_size:]
 
             # Add Ids
             msg_by_id = {}
