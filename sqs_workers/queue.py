@@ -448,8 +448,8 @@ class JobQueue(GenericQueue):
         Check if a message batch should be flushed, i.e. all messages should be sent
         and removed from the internal cache.
 
-        Right now this only checks the number of messages. In the future we may
-        want to improve that by also ensuring the batch size is small enough.
+        This not only checks the number of messages, but that the total batch size has
+        not gotten to too large.
         """
         max_size = SEND_BATCH_SIZE if self._batch_level > 0 else 1
 
