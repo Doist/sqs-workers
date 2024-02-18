@@ -488,7 +488,9 @@ class JobQueue(GenericQueue):
 
             # XXX: temporary logging while we check the length estimates against what
             # the SQS service reports. Remove if still here after 2024-02-25.
-            message_length = self._batched_messages[:send_batch_size]
+            message_length = self._estimated_message_length(
+                self._batched_messages[:send_batch_size]
+            )
             if message_length > MAX_MESSAGE_LENGTH:
                 # We log here so we can match up with the corresponding error message
                 # from SQS. Note, SQS errors are dynamic and difficult to catch
