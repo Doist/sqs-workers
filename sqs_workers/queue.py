@@ -477,7 +477,9 @@ class JobQueue(GenericQueue):
 
             while (
                 send_batch_size > 1
-                and self._est_message_size(self._batched_messages[:send_batch_size])
+                and self._estimated_message_length(
+                    self._batched_messages[:send_batch_size]
+                )
                 > MAX_MESSAGE_LENGTH
             ):
                 # If we have batch of large messages, progressively reduce the batch size
