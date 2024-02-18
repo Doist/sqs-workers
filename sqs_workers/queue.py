@@ -454,7 +454,7 @@ class JobQueue(GenericQueue):
         max_size = SEND_BATCH_SIZE if self._batch_level > 0 else 1
 
         # Attempt to flush if we have gotten close to the message size limit
-        if self._estimated_message_length() > MAX_MESSAGE_LENGTH:
+        if self._estimated_message_length(self._batched_messages) > MAX_MESSAGE_LENGTH:
             return True
 
         return len(self._batched_messages) >= max_size
