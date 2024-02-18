@@ -459,7 +459,7 @@ class JobQueue(GenericQueue):
 
         return len(self._batched_messages) >= max_size
 
-    def _estimated_message_length(self, messages: list[Any]) -> int:
+    def _estimated_message_length(self, messages: list) -> int:
         """
         Return an estimate of the length of the combined message we want to send.
 
