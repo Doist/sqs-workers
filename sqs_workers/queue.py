@@ -484,6 +484,17 @@ class JobQueue(GenericQueue):
                 # until it fits.
                 send_batch_size -= 1
 
+            # XXX: temporary logging while we check the length estimates against what
+            # the SQS service reports. Remove if still here after 2024-02-25.
+            message_length = self._batched_messages[:send_batch_size]
+            if message_length > MAX_MESSAGE_LENGTH:
+                # We log here so we can match up with the corresponding error message
+                # from SQS. Note, SQS errors are dynamic and difficult to catch
+                # explicitly and its not worth the trouble here.
+                logger.warning(
+                    "SQS Message is probably too long: {message_length} bytes",
+                )
+
             msgs = self._batched_messages[:send_batch_size]
             self._batched_messages = self._batched_messages[send_batch_size:]
 
