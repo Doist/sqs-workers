@@ -173,7 +173,10 @@ def test_batch_flush_on_large_messages(sqs, queue_name):
     assert len(queue.get_raw_messages(0)) == 1
 
 
-def test_batch_fails_on_a_giant_message(sqs, queue_name):
+def test_batch_fails_on_a_giant_message(sqs_session, sqs, queue_name):
+    if isinstance(sqs_session, MemorySession):
+        pytest.skip("MessageTooLong not implemented with MemorySession")
+
     queue = sqs.queue(queue_name)
     say_hello_task = queue.connect_processor("say_hello", say_hello)
 
