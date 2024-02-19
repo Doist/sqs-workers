@@ -449,7 +449,7 @@ class JobQueue(GenericQueue):
         and removed from the internal cache.
 
         This not only checks the number of messages, but that the total batch size has
-        not gotten to too large.
+        not gotten too large.
         """
         max_size = SEND_BATCH_SIZE if self._batch_level > 0 else 1
 
