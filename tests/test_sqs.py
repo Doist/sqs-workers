@@ -1,6 +1,7 @@
 import time
 from typing import Dict, List, Optional
 
+import botocore
 import pytest
 
 from sqs_workers import (
@@ -152,6 +153,36 @@ def test_batch_should_keep_messages_until_overflow(sqs, queue_name):
 
     # 1 message remaining: it's added once the batch is closed
     assert len(queue.get_raw_messages(0)) == 1
+
+
+def test_batch_flush_on_large_messages(sqs, queue_name):
+    queue = sqs.queue(queue_name)
+    say_hello_task = queue.connect_processor("say_hello", say_hello)
+
+    # 256KiB is our message limit
+    with say_hello_task.batch():
+        # no messages after 9 tasks
+        for n in range(9):
+            # each message is approx 32427 Bytes
+            say_hello_task.delay(username=f"Homer {n} 🍩" * 1_000_000)
+        # first 9 items is ~283651 Bytes so flush is triggered
+        # and we walk back 1 item
+        assert len(queue.get_raw_messages(0)) == 8
+
+    # 1 message remaining: it's added once the batch is closed
+    assert len(queue.get_raw_messages(0)) == 1
+
+
+def test_batch_fails_on_a_giant_message(sqs, queue_name):
+    queue = sqs.queue(queue_name)
+    say_hello_task = queue.connect_processor("say_hello", say_hello)
+
+    # 262144 Bytes is our message limit
+    with say_hello_task.batch():
+        with pytest.raises(botocore.exceptions.ClientError) as excinfo:
+            # message ~264087 bytes long
+            say_hello_task.delay(username="Homer 🍩" * 10_150_000)
+        assert "MessageTooLong" in str(excinfo.value)
 
 
 def test_call_raises_exception(sqs, queue_name):
