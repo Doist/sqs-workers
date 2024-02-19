@@ -455,6 +455,10 @@ class JobQueue(GenericQueue):
 
         # Attempt to flush if we have gotten close to the message size limit
         if self._estimated_message_length(self._batched_messages) > MAX_MESSAGE_LENGTH:
+            list_length = len(self._batched_messages)
+            logger.info(
+                f"Flushing SQS batch on oversized message list with only {list_length} items"
+            )
             return True
 
         return len(self._batched_messages) >= max_size
@@ -496,7 +500,7 @@ class JobQueue(GenericQueue):
                 # from SQS. Note, SQS errors are dynamic and difficult to catch
                 # explicitly and its not worth the trouble here.
                 logger.warning(
-                    "SQS Message is probably too long: {message_length} bytes",
+                    f"SQS Message is probably too long: {message_length} bytes",
                 )
 
             msgs = self._batched_messages[:send_batch_size]
