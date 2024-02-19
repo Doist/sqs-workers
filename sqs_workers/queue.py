@@ -30,7 +30,7 @@ from sqs_workers.shutdown_policies import NEVER_SHUTDOWN
 
 DEFAULT_MESSAGE_GROUP_ID = "default"
 SEND_BATCH_SIZE = 10
-MAX_SQS_MESSAGE_SIZE = 262144  # in bytes
+MAX_MESSAGE_LENGTH = 262144  # 256 KiB
 
 if TYPE_CHECKING:
     from sqs_workers import SQSEnv
@@ -448,24 +448,28 @@ class JobQueue(GenericQueue):
         Check if a message batch should be flushed, i.e. all messages should be sent
         and removed from the internal cache.
 
-        Right now this only checks the number of messages. In the future we may
-        want to improve that by also ensuring the batch size is small enough.
+        This not only checks the number of messages, but that the total batch size has
+        not gotten to too large.
         """
         max_size = SEND_BATCH_SIZE if self._batch_level > 0 else 1
 
         # Attempt to flush if we have gotten close to the message size limit
-        if self._est_message_size() > MAX_SQS_MESSAGE_SIZE:
+        if self._estimated_message_length(self._batched_messages) > MAX_MESSAGE_LENGTH:
+            list_length = len(self._batched_messages)
+            logger.info(
+                f"Flushing SQS batch on oversized message list with only {list_length} items"
+            )
             return True
 
         return len(self._batched_messages) >= max_size
 
-    def _est_message_size(self) -> int:
+    def _estimated_message_length(self, messages: list) -> int:
         """
-        Return an estimate of the size (in bytes) of the combined message we want to send.
+        Return an estimate of the length of the combined message we want to send.
 
-        We add an extra 1K to account for any extra headers.
+        The length is in bytes and we add a 1K buffer to account for any extra headers.
         """
-        return len(json.dumps(self._batched_messages).encode("utf-8")) + 1024
+        return len(json.dumps(messages).encode("utf-8")) + 1024
 
     def _flush_batch_if_needed(self) -> None:
         queue = self.get_queue()
@@ -473,11 +477,30 @@ class JobQueue(GenericQueue):
         # There should be at most 1 batch to send. But just in case, prepare to
         # send more than that.
         while self._should_flush_batch():
-            send_batch_size = SEND_BATCH_SIZE
+            send_batch_size = len(self._batched_messages)  # will be <= SEND_BATCH_SIZE
 
-            if self._est_message_size() > MAX_SQS_MESSAGE_SIZE:
-                # If we have batch of large messages, try to send half of it at a time
-                send_batch_size = SEND_BATCH_SIZE // 2
+            while (
+                send_batch_size > 1
+                and self._estimated_message_length(
+                    self._batched_messages[:send_batch_size]
+                )
+                > MAX_MESSAGE_LENGTH
+            ):
+                # Progressively reduce the batch size until it fits.
+                send_batch_size -= 1
+
+            # XXX: temporary logging while we check the length estimates against what
+            # the SQS service reports. Remove if still here after 2024-02-25.
+            message_length = self._estimated_message_length(
+                self._batched_messages[:send_batch_size]
+            )
+            if message_length > MAX_MESSAGE_LENGTH:
+                # We log here so we can match up with the corresponding error message
+                # from SQS. Note, SQS errors are dynamic and difficult to catch
+                # explicitly and its not worth the trouble here.
+                logger.warning(
+                    f"SQS Message is probably too long: {message_length} bytes",
+                )
 
             msgs = self._batched_messages[:send_batch_size]
             self._batched_messages = self._batched_messages[send_batch_size:]
