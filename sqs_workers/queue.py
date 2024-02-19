@@ -477,7 +477,7 @@ class JobQueue(GenericQueue):
         # There should be at most 1 batch to send. But just in case, prepare to
         # send more than that.
         while self._should_flush_batch():
-            send_batch_size = SEND_BATCH_SIZE
+            send_batch_size = len(self._batched_messages)  # will be <= SEND_BATCH_SIZE
 
             while (
                 send_batch_size > 1
@@ -486,8 +486,7 @@ class JobQueue(GenericQueue):
                 )
                 > MAX_MESSAGE_LENGTH
             ):
-                # If we have batch of large messages, progressively reduce the batch size
-                # until it fits.
+                # Progressively reduce the batch size until it fits.
                 send_batch_size -= 1
 
             # XXX: temporary logging while we check the length estimates against what
