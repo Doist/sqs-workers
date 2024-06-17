@@ -29,7 +29,7 @@ pytest-runner = "^6.0.0"
 pytest = "^8.1.1"
 localstack-client = "^1.7"
 pre-commit = "^2.20.0"
-ruff = "^0.1.13"
+ruff = "^0.4.9"
 tox = "^4.15.1"
 typing-extensions = "^4.0.0"
 
