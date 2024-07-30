@@ -107,6 +107,7 @@ class MemoryQueue:
     name: str = attr.ib()
     attributes: Dict[str, Dict[str, str]] = attr.ib()
     messages: List["MemoryMessage"] = attr.ib(factory=list)
+    in_flight: List["MemoryMessage"] = attr.ib(factory=list)
 
     def __attrs_post_init__(self):
         self.attributes["QueueArn"] = self.name
@@ -146,6 +147,7 @@ class MemoryQueue:
             else:
                 ready_messages.append(message)
         self.messages[:] = push_back_messages
+        self.in_flight.extend(ready_messages)
         return ready_messages
 
     def delete_messages(self, Entries):
@@ -158,19 +160,40 @@ class MemoryQueue:
         message_ids = {entry["Id"] for entry in Entries}
 
         successfully_deleted = set()
-        push_back_messages = []
 
-        for message in self.messages:
+        for i, message in enumerate(self.in_flight):
             if message.message_id in message_ids:
                 successfully_deleted.add(message.message_id)
-            else:
-                push_back_messages.append(message)
-        self.messages[:] = push_back_messages
+                del self.in_flight[i]
 
-        didnt_deleted = message_ids.difference(successfully_deleted)
         return {
             "Successful": [{"Id": _id} for _id in successfully_deleted],
-            "Failed": [{"Id": _id} for _id in didnt_deleted],
+        }
+
+    def change_message_visibility_batch(self, Entries):
+        """
+        Changes message visibility by looking at in-flight messages, setting
+        a new execute_at, and returning it to the pool of processable messages
+        """
+        edited = []
+        return_to_pool = []
+        entries_by_id = {e["Id"]: e for e in Entries}
+
+        for i, m in enumerate(self.in_flight):
+            if m.message_id in entries_by_id.keys():
+                sec = int(entries_by_id[m.message_id]["VisibilityTimeout"])
+                now = datetime.datetime.utcnow()
+                execute_at = now + datetime.timedelta(seconds=sec)
+                changed = attr.evolve(m, execute_at=execute_at)
+                changed.attributes["ApproximateReceiveCount"] += 1
+                edited.append(changed)
+                return_to_pool.append(changed)
+                del self.in_flight[i]
+
+        self.messages.extend(return_to_pool)
+
+        return {
+            "Successful": [{"Id": _id} for _id in edited],
         }
 
     def delete(self):
@@ -241,10 +264,3 @@ class MemoryMessage:
         return MemoryMessage(
             queue_impl, body, message_atttributes, attributes, execute_at
         )
-
-    def change_visibility(self, VisibilityTimeout="0", **kwargs):
-        timeout = int(VisibilityTimeout)
-        execute_at = datetime.datetime.utcnow() + datetime.timedelta(seconds=timeout)
-        message = attr.evolve(self, execute_at=execute_at)
-        message.attributes["ApproximateReceiveCount"] += 1
-        self.queue_impl.messages.append(message)
