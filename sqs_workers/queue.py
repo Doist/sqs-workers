@@ -94,7 +94,9 @@ class GenericQueue:
         the number of successfully processed messages, and exit
         """
         if self.batching_policy.batching_enabled:
-            messages = self.get_raw_messages(wait_seconds, self.batching_policy.batch_size)
+            messages = self.get_raw_messages(
+                wait_seconds, self.batching_policy.batch_size
+            )
             success = self.process_messages(messages)
             messages_with_success = ((m, success) for m in messages)
         else:
@@ -140,7 +142,9 @@ class GenericQueue:
                         {
                             "Id": m.message_id,
                             "ReceiptHandle": m.receipt_handle,
-                            "VisibilityTimeout": self.backoff_policy.get_visibility_timeout(m),
+                            "VisibilityTimeout": self.backoff_policy.get_visibility_timeout(
+                                m
+                            ),
                         }
                     )
 
