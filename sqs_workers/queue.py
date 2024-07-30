@@ -128,8 +128,10 @@ class GenericQueue:
                     "Id": message.message_id,
                     "ReceiptHandle": message.receipt_handle,
                 }
+                logger.info(f"Success, deleting: {entry} message {message}")
                 queue.delete_messages(Entries=[entry])
             else:
+                logger.info(f"Failure, updating viz timeout message {message}")
                 timeout = self.backoff_policy.get_visibility_timeout(message)
                 message.change_visibility(VisibilityTimeout=timeout)
         return result
