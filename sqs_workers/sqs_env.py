@@ -15,6 +15,7 @@ from typing import (
 
 import attr
 import boto3
+from botocore.config import Config
 from typing_extensions import ParamSpec
 
 from sqs_workers import DEFAULT_BACKOFF, RawQueue, codecs, context, processors
@@ -60,10 +61,12 @@ class SQSEnv:
 
     def __attrs_post_init__(self):
         self.context = self.context_maker()
+        # https://boto3.amazonaws.com/v1/documentation/api/latest/guide/retries.html
+        retry_config = Config(retries={"max_attempts": 3, "mode": "standard"})
         if not self.sqs_client:
-            self.sqs_client = self.session.client("sqs")
+            self.sqs_client = self.session.client("sqs", config=retry_config)
         if not self.sqs_resource:
-            self.sqs_resource = self.session.resource("sqs")
+            self.sqs_resource = self.session.resource("sqs", config=retry_config)
 
     @overload
     def queue(
