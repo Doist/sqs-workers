@@ -185,7 +185,7 @@ class GenericQueue:
         """
         raise NotImplementedError()
 
-    def get_raw_messages(self, wait_seconds: int, max_messages: int = 10) -> list[Any]:
+    def get_raw_messages(self, wait_seconds: int, max_messages: int = 10) -> List[Any]:
         """Return raw messages from the queue, addressed by its name"""
         queue = self.get_queue()
 
