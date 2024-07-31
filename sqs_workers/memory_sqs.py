@@ -106,7 +106,7 @@ class MemoryQueue:
          services/sqs.html#queue
     """
 
-    aws: MemoryAWS = attr.ib()
+    aws: MemoryAWS = attr.ib(repr=False)
     name: str = attr.ib()
     attributes: Dict[str, Dict[str, str]] = attr.ib()
     messages: List["MemoryMessage"] = attr.ib(factory=list)
@@ -141,17 +141,30 @@ class MemoryQueue:
         ready_messages = []
         push_back_messages = []
 
-        threshold = datetime.datetime.utcnow() + datetime.timedelta(
-            seconds=wait_seconds
-        )
+        now = datetime.datetime.utcnow()
+        threshold = now + datetime.timedelta(seconds=wait_seconds)
+
+        # before retrieving messages, go through in_flight and return any
+        # messages whose "invisible" timeout has expired back to the pool
+        for message_id, message in self.in_flight.copy().items():
+            if message.visible_at <= threshold:
+                self.in_flight.pop(message_id)
+                self.messages.append(message)
+
         for message in self.messages:
-            if message.execute_at > threshold or len(ready_messages) >= max_messages:
+            if message.visible_at > threshold or len(ready_messages) >= max_messages:
                 push_back_messages.append(message)
             else:
                 ready_messages.append(message)
+
         self.messages[:] = push_back_messages
+
+        # now, mark all returned messages as "in flight" and unavailable
+        # to be returned until their invisibility timeout comes (1s)
         for m in ready_messages:
             self.in_flight[m.message_id] = m
+            m.change_visibility(VisibilityTimeout="1")
+
         return ready_messages
 
     def delete_messages(self, Entries):
@@ -179,7 +192,7 @@ class MemoryQueue:
     def change_message_visibility_batch(self, Entries):
         """
         Changes message visibility by looking at in-flight messages, setting
-        a new execute_at, and returning it to the pool of processable messages
+        a new visible_at, when it will return to the pool of messages
         """
         found_entries = []
         not_found_entries = []
@@ -191,11 +204,9 @@ class MemoryQueue:
                 found_entries.append(e)
                 in_flight_message = self.in_flight[e["Id"]]
                 sec = int(e["VisibilityTimeout"])
-                execute_at = now + datetime.timedelta(seconds=sec)
-                updated_message = attr.evolve(in_flight_message, execute_at=execute_at)
-                updated_message.attributes["ApproximateReceiveCount"] += 1
-                self.messages.append(updated_message)
-                self.in_flight.pop(e["Id"])
+                visible_at = now + datetime.timedelta(seconds=sec)
+                updated_message = attr.evolve(in_flight_message, visible_at=visible_at)
+                self.in_flight[e["Id"]] = updated_message
             else:
                 not_found_entries.append(e)
 
@@ -223,7 +234,7 @@ class MemoryMessage:
          services/sqs.html#SQS.Message
     """
 
-    queue_impl: MemoryQueue = attr.ib()
+    queue_impl: MemoryQueue = attr.ib(repr=False)
 
     # The message's contents (not URL-encoded).
     body: bytes = attr.ib()
@@ -236,7 +247,7 @@ class MemoryMessage:
     attributes: Dict[str, Any] = attr.ib(factory=dict)
 
     # Internal attribute which contains the execution time.
-    execute_at: datetime.datetime = attr.ib(factory=datetime.datetime.utcnow)
+    visible_at: datetime.datetime = attr.ib(factory=datetime.datetime.utcnow)
 
     # A unique identifier for the message
     message_id: str = attr.ib(factory=lambda: uuid.uuid4().hex)
@@ -264,23 +275,21 @@ class MemoryMessage:
         if "MessageGroupId" in kwargs:
             attributes["MessageGroupId"] = kwargs["MessageGroupId"]
 
-        execute_at = datetime.datetime.utcnow()
+        visible_at = datetime.datetime.utcnow()
         if "DelaySeconds" in kwargs:
             delay_seconds_int = int(kwargs["DelaySeconds"])
-            execute_at += datetime.timedelta(seconds=delay_seconds_int)
+            visible_at += datetime.timedelta(seconds=delay_seconds_int)
 
         return MemoryMessage(
-            queue_impl, body, message_atttributes, attributes, execute_at
+            queue_impl, body, message_atttributes, attributes, visible_at
         )
 
     def change_visibility(self, VisibilityTimeout="0", **kwargs):
         if self.message_id in self.queue_impl.in_flight:
             now = datetime.datetime.utcnow()
             sec = int(VisibilityTimeout)
-            execute_at = now + datetime.timedelta(seconds=sec)
-            updated_message = attr.evolve(self, execute_at=execute_at)
-            updated_message.attributes["ApproximateReceiveCount"] += 1
-            self.queue_impl.messages.append(updated_message)
-            self.queue_impl.in_flight.pop(self.message_id)
+            visible_at = now + datetime.timedelta(seconds=sec)
+            updated_message = attr.evolve(self, visible_at=visible_at)
+            self.queue_impl.in_flight[self.message_id] = updated_message
         else:
             logger.warning("Tried to change visibility of message not in flight")
