@@ -1,3 +1,9 @@
+## [0.5.19] - 2024-07-31
+
+### Changed
+
+- Fixes a bug where we might try to send AWS an empty batch request, which it does not like
+
 ## [0.5.18] - 2024-07-31
 
 ### Changed
