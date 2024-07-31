@@ -1,3 +1,10 @@
+## [0.5.16] - 2024-07-31
+
+### Changed
+
+- Various Dependabot updates
+- Added retries, batching, and error-logging around SQS deletion and change-visibility operations
+
 ## [0.5.11] - 2023-04-21
 
 ### Changed
