@@ -16,10 +16,13 @@ ineffectively.
 Ref: https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/sqs.html
 """
 import datetime
+import logging
 import uuid
 from typing import Any, Dict, List
 
 import attr
+
+logger = logging.getLogger(__name__)
 
 
 @attr.s
@@ -269,3 +272,15 @@ class MemoryMessage:
         return MemoryMessage(
             queue_impl, body, message_atttributes, attributes, execute_at
         )
+
+    def change_visibility(self, VisibilityTimeout="0", **kwargs):
+        if self.message_id in self.queue_impl.in_flight:
+            now = datetime.datetime.utcnow()
+            sec = int(VisibilityTimeout)
+            execute_at = now + datetime.timedelta(seconds=sec)
+            updated_message = attr.evolve(self, execute_at=execute_at)
+            updated_message.attributes["ApproximateReceiveCount"] += 1
+            self.queue_impl.messages.append(updated_message)
+            self.queue_impl.in_flight.pop(self.message_id)
+        else:
+            logger.warning("Tried to change visibility of message not in flight")
