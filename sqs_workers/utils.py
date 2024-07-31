@@ -1,7 +1,8 @@
 import importlib
 import logging
 from inspect import Signature
-from typing import Any
+from itertools import islice
+from typing import Any, Iterable
 
 logger = logging.getLogger(__name__)
 
@@ -121,3 +122,10 @@ def ensure_string(obj: Any, encoding="utf-8", errors="strict") -> str:
         return obj.decode(encoding, errors)
     else:
         return str(obj)
+
+
+def batcher(iterable, batch_size) -> Iterable[Iterable[Any]]:
+    """Cuts an iterable up into sub-iterables of size batch_size."""
+    iterator = iter(iterable)
+    while batch := list(islice(iterator, batch_size)):
+        yield batch

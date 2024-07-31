@@ -10,9 +10,11 @@ from typing import (
     Callable,
     Dict,
     Generator,
+    Iterable,
     List,
     Literal,
     Optional,
+    Tuple,
     TypeVar,
 )
 
@@ -27,6 +29,7 @@ from sqs_workers.core import BatchProcessingResult, get_job_name
 from sqs_workers.exceptions import SQSError
 from sqs_workers.processors import DEFAULT_CONTEXT_VAR, Processor
 from sqs_workers.shutdown_policies import NEVER_SHUTDOWN
+from sqs_workers.utils import batcher
 
 DEFAULT_MESSAGE_GROUP_ID = "default"
 SEND_BATCH_SIZE = 10
@@ -85,53 +88,84 @@ class GenericQueue:
                 )
                 break
 
-    def process_batch(self, wait_seconds=0) -> BatchProcessingResult:
+    def process_batch(self, wait_seconds: int = 0) -> BatchProcessingResult:
         """
         Process a batch of messages from the queue (10 messages at most), return
         the number of successfully processed messages, and exit
         """
+        if self.batching_policy.batching_enabled:
+            messages = self.get_raw_messages(
+                wait_seconds, self.batching_policy.batch_size
+            )
+            success = self.process_messages(messages)
+            messages_with_success = ((m, success) for m in messages)
+        else:
+            messages = self.get_raw_messages(wait_seconds)
+            success = [self.process_message(message) for message in messages]
+            messages_with_success = zip(messages, success)
+
+        return self._handle_processed(messages_with_success)
+
+    def _handle_processed(self, messages_with_success: Iterable[Tuple[Any, bool]]):
+        """
+        Handles the results of processing messages.
+
+        For successful messages, we delete the message ID from the queue, which is
+        equivalent to acknowledging it.
+
+        For failed messages, we change the visibility of the message, in order to
+        keep it un-consumeable for a little while (a form of backoff).
+
+        In each case (delete or change-viz), we batch the API calls to AWS in order
+        to try to avoid getting throttled, with batches of size 10 (the limit). The
+        config (see sqs_env.py) should also retry in the event of exceptions.
+        """
         queue = self.get_queue()
 
-        if self.batching_policy.batching_enabled:
-            return self._process_messages_in_batch(queue, wait_seconds)
-
-        return self._process_messages_individually(queue, wait_seconds)
-
-    def _process_messages_in_batch(self, queue, wait_seconds):
-        messages = self.get_raw_messages(wait_seconds, self.batching_policy.batch_size)
         result = BatchProcessingResult(self.name)
 
-        success = self.process_messages(messages)
+        for subgroup in batcher(messages_with_success, batch_size=10):
+            entries_to_ack = []
+            entries_to_change_viz = []
 
-        for message in messages:
-            result.update_with_message(message, success)
-            if success:
-                entry = {
-                    "Id": message.message_id,
-                    "ReceiptHandle": message.receipt_handle,
-                }
-                queue.delete_messages(Entries=[entry])
-            else:
-                timeout = self.backoff_policy.get_visibility_timeout(message)
-                message.change_visibility(VisibilityTimeout=timeout)
-        return result
+            for m, success in subgroup:
+                result.update_with_message(m, success)
+                if success:
+                    entries_to_ack.append(
+                        {
+                            "Id": m.message_id,
+                            "ReceiptHandle": m.receipt_handle,
+                        }
+                    )
+                else:
+                    entries_to_change_viz.append(
+                        {
+                            "Id": m.message_id,
+                            "ReceiptHandle": m.receipt_handle,
+                            "VisibilityTimeout": self.backoff_policy.get_visibility_timeout(
+                                m
+                            ),
+                        }
+                    )
 
-    def _process_messages_individually(self, queue, wait_seconds):
-        messages = self.get_raw_messages(wait_seconds)
-        result = BatchProcessingResult(self.name)
+            ack_response = queue.delete_messages(Entries=entries_to_ack)
 
-        for message in messages:
-            success = self.process_message(message)
-            result.update_with_message(message, success)
-            if success:
-                entry = {
-                    "Id": message.message_id,
-                    "ReceiptHandle": message.receipt_handle,
-                }
-                queue.delete_messages(Entries=[entry])
-            else:
-                timeout = self.backoff_policy.get_visibility_timeout(message)
-                message.change_visibility(VisibilityTimeout=timeout)
+            if ack_response.get("Failed"):
+                logger.warning(
+                    "Failed to delete processed messages from queue",
+                    extra={"queue": self.name, "failures": ack_response["Failed"]},
+                )
+
+            viz_response = queue.change_message_visibility_batch(
+                Entries=entries_to_change_viz,
+            )
+
+            if viz_response.get("Failed"):
+                logger.warning(
+                    "Failed to change visibility of messages which failed to process",
+                    extra={"queue": self.name, "failures": viz_response["Failed"]},
+                )
+
         return result
 
     def process_message(self, message: Any) -> bool:
@@ -151,15 +185,16 @@ class GenericQueue:
         """
         raise NotImplementedError()
 
-    def get_raw_messages(self, wait_seconds, max_messages=10):
+    def get_raw_messages(self, wait_seconds: int, max_messages: int = 10) -> List[Any]:
         """Return raw messages from the queue, addressed by its name"""
+        queue = self.get_queue()
+
         kwargs = {
             "WaitTimeSeconds": wait_seconds,
             "MaxNumberOfMessages": max_messages if max_messages <= 10 else 10,
             "MessageAttributeNames": ["All"],
             "AttributeNames": ["All"],
         }
-        queue = self.get_queue()
 
         if max_messages <= 10:
             return queue.receive_messages(**kwargs)
@@ -180,16 +215,29 @@ class GenericQueue:
     def drain_queue(self, wait_seconds=0):
         """Delete all messages from the queue without calling purge()."""
         queue = self.get_queue()
+
         deleted_count = 0
         while True:
             messages = self.get_raw_messages(wait_seconds)
             if not messages:
                 break
+
             entries = [
                 {"Id": msg.message_id, "ReceiptHandle": msg.receipt_handle}
                 for msg in messages
             ]
-            queue.delete_messages(Entries=entries)
+
+            ack_response = queue.delete_messages(Entries=entries)
+
+            if ack_response.get("Failed"):
+                logger.warning(
+                    "Failed to delete processed messages from queue",
+                    extra={
+                        "queue": self.name,
+                        "failures": ack_response["Failed"],
+                    },
+                )
+
             deleted_count += len(messages)
         return deleted_count
 
