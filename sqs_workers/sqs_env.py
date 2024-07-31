@@ -46,6 +46,10 @@ class SQSEnv:
     queue_prefix = attr.ib(default="")
     codec: str = attr.ib(default=codecs.DEFAULT_CONTENT_TYPE)
 
+    # retry settings for internal boto
+    retry_max_attempts: int = attr.ib(default=3)
+    retry_mode: str = attr.ib(default="standard")
+
     # queue-specific settings
     backoff_policy = attr.ib(default=DEFAULT_BACKOFF)
 
@@ -62,7 +66,8 @@ class SQSEnv:
     def __attrs_post_init__(self):
         self.context = self.context_maker()
         # https://boto3.amazonaws.com/v1/documentation/api/latest/guide/retries.html
-        retry_config = Config(retries={"max_attempts": 3, "mode": "standard"})
+        retry_dict = {"max_attempts": self.retry_max_attempts, "mode": self.retry_mode}
+        retry_config = Config(retries=retry_dict)
         if not self.sqs_client:
             self.sqs_client = self.session.client("sqs", config=retry_config)
         if not self.sqs_resource:

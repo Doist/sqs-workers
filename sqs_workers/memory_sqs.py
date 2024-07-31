@@ -181,12 +181,13 @@ class MemoryQueue:
         found_entries = []
         not_found_entries = []
 
+        now = datetime.datetime.utcnow()
+
         for e in Entries:
             if e["Id"] in self.in_flight:
                 found_entries.append(e)
                 in_flight_message = self.in_flight[e["Id"]]
                 sec = int(e["VisibilityTimeout"])
-                now = datetime.datetime.utcnow()
                 execute_at = now + datetime.timedelta(seconds=sec)
                 updated_message = attr.evolve(in_flight_message, execute_at=execute_at)
                 updated_message.attributes["ApproximateReceiveCount"] += 1
