@@ -148,23 +148,25 @@ class GenericQueue:
                         }
                     )
 
-            ack_response = queue.delete_messages(Entries=entries_to_ack)
+            if len(entries_to_ack) > 0:
+                ack_response = queue.delete_messages(Entries=entries_to_ack)
 
-            if ack_response.get("Failed"):
-                logger.warning(
-                    "Failed to delete processed messages from queue",
-                    extra={"queue": self.name, "failures": ack_response["Failed"]},
+                if ack_response.get("Failed"):
+                    logger.warning(
+                        "Failed to delete processed messages from queue",
+                        extra={"queue": self.name, "failures": ack_response["Failed"]},
+                    )
+
+            if len(entries_to_change_viz) > 0:
+                viz_response = queue.change_message_visibility_batch(
+                    Entries=entries_to_change_viz,
                 )
 
-            viz_response = queue.change_message_visibility_batch(
-                Entries=entries_to_change_viz,
-            )
-
-            if viz_response.get("Failed"):
-                logger.warning(
-                    "Failed to change visibility of messages which failed to process",
-                    extra={"queue": self.name, "failures": viz_response["Failed"]},
-                )
+                if viz_response.get("Failed"):
+                    logger.warning(
+                        "Failed to change visibility of messages which failed to process",
+                        extra={"queue": self.name, "failures": viz_response["Failed"]},
+                    )
 
         return result
 
