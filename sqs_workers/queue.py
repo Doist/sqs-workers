@@ -98,11 +98,13 @@ class GenericQueue:
                 wait_seconds, self.batching_policy.batch_size
             )
             success = self.process_messages(messages)
-            messages_with_success = ((m, success) for m in messages)
+            messages_with_success: Iterable[tuple[Any, bool]] = (
+                (m, success) for m in messages
+            )
         else:
             messages = self.get_raw_messages(wait_seconds)
-            success = [self.process_message(message) for message in messages]
-            messages_with_success = zip(messages, success)
+            successes = [self.process_message(message) for message in messages]
+            messages_with_success = zip(messages, successes)
 
         return self._handle_processed(messages_with_success)
 
@@ -202,7 +204,7 @@ class GenericQueue:
             return queue.receive_messages(**kwargs)
 
         messages_left_on_queue = True
-        received_messages = []
+        received_messages: list[Any] = []
 
         # receive_messages will only return a maximum batch of 10 messages per call
         # if the client requests more than that we must poll multiple times
