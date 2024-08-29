@@ -1,7 +1,17 @@
 from __future__ import annotations
 
 from contextlib import contextmanager
-from typing import TYPE_CHECKING, Any, Callable, Generator, Generic, NoReturn, Optional
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    Generator,
+    Generic,
+    NoReturn,
+    NotRequired,
+    Optional,
+    TypedDict,
+)
 
 from typing_extensions import ParamSpec
 
@@ -12,6 +22,12 @@ if TYPE_CHECKING:
 
 
 P = ParamSpec("P")
+
+
+class AsyncTaskDelayArgs(TypedDict):
+    _delay_seconds: NotRequired[float]
+    _deduplication_id: NotRequired[str]
+    _group_id: NotRequired[str]
 
 
 class AsyncTask(Generic[P]):
