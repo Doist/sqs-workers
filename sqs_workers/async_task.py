@@ -8,12 +8,11 @@ from typing import (
     Generator,
     Generic,
     NoReturn,
-    NotRequired,
     Optional,
     TypedDict,
 )
 
-from typing_extensions import ParamSpec
+from typing_extensions import NotRequired, ParamSpec
 
 from sqs_workers.utils import bind_arguments
 
