@@ -24,6 +24,14 @@ P = ParamSpec("P")
 
 
 class AsyncTaskDelayArgs(TypedDict):
+    """
+    Extra arguments accepted by `AsyncTask.delay`. This mapping can be used with `Unpack` to
+    improve typing of task function when `delay` is used.
+
+    `def task(..., **_delay_args: Unpack[AsyncTaskDelayArgs]) -> None: ...`
+    """
+
+    _content_type: NotRequired[str]
     _delay_seconds: NotRequired[float]
     _deduplication_id: NotRequired[str]
     _group_id: NotRequired[str]
