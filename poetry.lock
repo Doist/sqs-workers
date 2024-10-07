@@ -182,12 +182,12 @@ files = [
 
 [[package]]
 name = "localstack-client"
-version = "1.39"
+version = "2.6"
 description = "A lightweight Python client for LocalStack."
 optional = false
 python-versions = "*"
 files = [
-    {file = "localstack-client-1.39.tar.gz", hash = "sha256:71124983d15418c90ec9a82c4bde0460b29c62896cd44527b4b3346f8d5f8a89"},
+    {file = "localstack_client-2.6.tar.gz", hash = "sha256:67c9da9ea04152b142ecd1ac9a2ae2e231c2a8fcff542faf02d7f9f80843f215"},
 ]
 
 [package.dependencies]
@@ -575,4 +575,4 @@ test = ["covdefaults (>=2.3)", "coverage (>=7.2.7)", "coverage-enable-subprocess
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.8,<3.13"
-content-hash = "fccc949930e94db2af0388fc0759e76b1058c6fcb81a6d85acec5a7ead538732"
+content-hash = "4adb395ed4c066fa852c5f14e9bedf578c83a2b01225aaefa30d1b27730aecb1"
