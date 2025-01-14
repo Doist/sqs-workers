@@ -5,9 +5,11 @@ now = datetime.datetime.utcnow
 
 
 class ShutdownPolicy(Protocol):
-    def update_state(self, batch_processing_result) -> None: ...
+    def update_state(self, batch_processing_result) -> None:
+        ...
 
-    def need_shutdown(self) -> bool: ...
+    def need_shutdown(self) -> bool:
+        ...
 
 
 class NeverShutdown:

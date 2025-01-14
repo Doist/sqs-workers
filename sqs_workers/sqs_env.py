@@ -80,7 +80,8 @@ class SQSEnv:
         queue_maker: Union[Type[JobQueue], Callable[..., JobQueue]] = JobQueue,
         batching_policy: BatchingConfiguration = NoBatching(),
         backoff_policy: Optional["BackoffPolicy"] = None,
-    ) -> JobQueue: ...
+    ) -> JobQueue:
+        ...
 
     @overload
     def queue(
@@ -89,7 +90,8 @@ class SQSEnv:
         queue_maker: Union[Type[AnyQueueT], Callable[..., AnyQueueT]],
         batching_policy: BatchingConfiguration = NoBatching(),
         backoff_policy: Optional["BackoffPolicy"] = None,
-    ) -> AnyQueueT: ...
+    ) -> AnyQueueT:
+        ...
 
     def queue(
         self,
