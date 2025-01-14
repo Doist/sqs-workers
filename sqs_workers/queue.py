@@ -28,7 +28,7 @@ from sqs_workers.batching import BatchingConfiguration, NoBatching
 from sqs_workers.core import BatchProcessingResult, get_job_name
 from sqs_workers.exceptions import SQSError
 from sqs_workers.processors import DEFAULT_CONTEXT_VAR, Processor
-from sqs_workers.shutdown_policies import NEVER_SHUTDOWN
+from sqs_workers.shutdown_policies import NEVER_SHUTDOWN, ShutdownPolicy
 from sqs_workers.utils import batcher
 
 DEFAULT_MESSAGE_GROUP_ID = "default"
@@ -62,7 +62,9 @@ class GenericQueue:
     def maker(cls, **kwargs):
         return partial(cls, **kwargs)
 
-    def process_queue(self, shutdown_policy=NEVER_SHUTDOWN, wait_second=10):
+    def process_queue(
+        self, shutdown_policy: ShutdownPolicy = NEVER_SHUTDOWN, wait_second=10
+    ):
         """Run worker to process one queue in the infinite loop"""
         logger.debug(
             "Start processing queue %s",

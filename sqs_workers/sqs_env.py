@@ -24,7 +24,7 @@ from sqs_workers.batching import BatchingConfiguration, NoBatching
 from sqs_workers.core import RedrivePolicy
 from sqs_workers.processors import DEFAULT_CONTEXT_VAR
 from sqs_workers.queue import GenericQueue, JobQueue
-from sqs_workers.shutdown_policies import NeverShutdown
+from sqs_workers.shutdown_policies import NeverShutdown, ShutdownPolicy
 
 if TYPE_CHECKING:
     from sqs_workers.backoff_policies import BackoffPolicy
@@ -80,8 +80,7 @@ class SQSEnv:
         queue_maker: Union[Type[JobQueue], Callable[..., JobQueue]] = JobQueue,
         batching_policy: BatchingConfiguration = NoBatching(),
         backoff_policy: Optional["BackoffPolicy"] = None,
-    ) -> JobQueue:
-        ...
+    ) -> JobQueue: ...
 
     @overload
     def queue(
@@ -90,8 +89,7 @@ class SQSEnv:
         queue_maker: Union[Type[AnyQueueT], Callable[..., AnyQueueT]],
         batching_policy: BatchingConfiguration = NoBatching(),
         backoff_policy: Optional["BackoffPolicy"] = None,
-    ) -> AnyQueueT:
-        ...
+    ) -> AnyQueueT: ...
 
     def queue(
         self,
@@ -156,7 +154,11 @@ class SQSEnv:
             **job_kwargs,
         )
 
-    def process_queues(self, queue_names=None, shutdown_policy_maker=NeverShutdown):
+    def process_queues(
+        self,
+        queue_names=None,
+        shutdown_policy_maker: Callable[[], ShutdownPolicy] = NeverShutdown,
+    ):
         """
         Use multiprocessing to process multiple queues at once. If queue names
         are not set, process all known queues

@@ -1,6 +1,13 @@
 import datetime
+from typing import Protocol
 
 now = datetime.datetime.utcnow
+
+
+class ShutdownPolicy(Protocol):
+    def update_state(self, batch_processing_result) -> None: ...
+
+    def need_shutdown(self) -> bool: ...
 
 
 class NeverShutdown:
