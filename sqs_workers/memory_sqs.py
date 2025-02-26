@@ -141,7 +141,7 @@ class MemoryQueue:
         ready_messages = []
         push_back_messages = []
 
-        now = datetime.datetime.utcnow()
+        now = datetime.datetime.now(tz=datetime.UTC)
         threshold = now + datetime.timedelta(seconds=wait_seconds)
 
         # before retrieving messages, go through in_flight and return any
@@ -197,7 +197,7 @@ class MemoryQueue:
         found_entries = []
         not_found_entries = []
 
-        now = datetime.datetime.utcnow()
+        now = datetime.datetime.now(tz=datetime.UTC)
 
         for e in Entries:
             if e["Id"] in self.in_flight:
@@ -247,7 +247,7 @@ class MemoryMessage:
     attributes: Dict[str, Any] = attr.ib(factory=dict)
 
     # Internal attribute which contains the execution time.
-    visible_at: datetime.datetime = attr.ib(factory=datetime.datetime.utcnow)
+    visible_at: datetime.datetime = attr.ib(factory=lambda: datetime.datetime.now(tz=datetime.UTC))
 
     # A unique identifier for the message
     message_id: str = attr.ib(factory=lambda: uuid.uuid4().hex)
@@ -275,7 +275,7 @@ class MemoryMessage:
         if "MessageGroupId" in kwargs:
             attributes["MessageGroupId"] = kwargs["MessageGroupId"]
 
-        visible_at = datetime.datetime.utcnow()
+        visible_at = datetime.datetime.now(tz=datetime.UTC)
         if "DelaySeconds" in kwargs:
             delay_seconds_int = int(kwargs["DelaySeconds"])
             visible_at += datetime.timedelta(seconds=delay_seconds_int)
@@ -286,7 +286,7 @@ class MemoryMessage:
 
     def change_visibility(self, VisibilityTimeout="0", **kwargs):
         if self.message_id in self.queue_impl.in_flight:
-            now = datetime.datetime.utcnow()
+            now = datetime.datetime.now(tz=datetime.UTC)
             sec = int(VisibilityTimeout)
             visible_at = now + datetime.timedelta(seconds=sec)
             updated_message = attr.evolve(self, visible_at=visible_at)

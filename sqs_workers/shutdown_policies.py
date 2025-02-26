@@ -1,7 +1,7 @@
 import datetime
 from typing import Protocol
 
-now = datetime.datetime.utcnow
+now = lambda: datetime.datetime.now(tz=datetime.UTC)
 
 
 class ShutdownPolicy(Protocol):

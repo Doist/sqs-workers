@@ -1,4 +1,4 @@
-import datetime
+from datetime import datetime, UTC
 import random
 import string
 
@@ -22,7 +22,7 @@ def sqs_session(request):
 
 @pytest.fixture
 def sqs(sqs_session):
-    queue_prefix = f"sqs_workers_tests_{datetime.datetime.utcnow():%Y%m%d}_"
+    queue_prefix = f"sqs_workers_tests_{datetime.now(tz=UTC):%Y%m%d}_"
     sqs = SQSEnv(session=sqs_session, queue_prefix=queue_prefix)
     return sqs
 
