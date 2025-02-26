@@ -15,9 +15,9 @@ ineffectively.
 
 Ref: https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/sqs.html
 """
-import datetime
 import logging
 import uuid
+from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List
 
 import attr
@@ -141,8 +141,8 @@ class MemoryQueue:
         ready_messages = []
         push_back_messages = []
 
-        now = datetime.datetime.now(tz=datetime.UTC)
-        threshold = now + datetime.timedelta(seconds=wait_seconds)
+        now = datetime.now(tz=timezone.utc)
+        threshold = now + timedelta(seconds=wait_seconds)
 
         # before retrieving messages, go through in_flight and return any
         # messages whose "invisible" timeout has expired back to the pool
@@ -197,14 +197,14 @@ class MemoryQueue:
         found_entries = []
         not_found_entries = []
 
-        now = datetime.datetime.now(tz=datetime.UTC)
+        now = datetime.now(tz=timezone.utc)
 
         for e in Entries:
             if e["Id"] in self.in_flight:
                 found_entries.append(e)
                 in_flight_message = self.in_flight[e["Id"]]
                 sec = int(e["VisibilityTimeout"])
-                visible_at = now + datetime.timedelta(seconds=sec)
+                visible_at = now + timedelta(seconds=sec)
                 updated_message = attr.evolve(in_flight_message, visible_at=visible_at)
                 self.in_flight[e["Id"]] = updated_message
             else:
@@ -247,9 +247,7 @@ class MemoryMessage:
     attributes: Dict[str, Any] = attr.ib(factory=dict)
 
     # Internal attribute which contains the execution time.
-    visible_at: datetime.datetime = attr.ib(
-        factory=lambda: datetime.datetime.now(tz=datetime.UTC)
-    )
+    visible_at: datetime = attr.ib(factory=lambda: datetime.now(tz=timezone.utc))
 
     # A unique identifier for the message
     message_id: str = attr.ib(factory=lambda: uuid.uuid4().hex)
@@ -277,10 +275,10 @@ class MemoryMessage:
         if "MessageGroupId" in kwargs:
             attributes["MessageGroupId"] = kwargs["MessageGroupId"]
 
-        visible_at = datetime.datetime.now(tz=datetime.UTC)
+        visible_at = datetime.now(tz=timezone.utc)
         if "DelaySeconds" in kwargs:
             delay_seconds_int = int(kwargs["DelaySeconds"])
-            visible_at += datetime.timedelta(seconds=delay_seconds_int)
+            visible_at += timedelta(seconds=delay_seconds_int)
 
         return MemoryMessage(
             queue_impl, body, message_atttributes, attributes, visible_at
@@ -288,9 +286,9 @@ class MemoryMessage:
 
     def change_visibility(self, VisibilityTimeout="0", **kwargs):
         if self.message_id in self.queue_impl.in_flight:
-            now = datetime.datetime.now(tz=datetime.UTC)
+            now = datetime.now(tz=timezone.utc)
             sec = int(VisibilityTimeout)
-            visible_at = now + datetime.timedelta(seconds=sec)
+            visible_at = now + timedelta(seconds=sec)
             updated_message = attr.evolve(self, visible_at=visible_at)
             self.queue_impl.in_flight[self.message_id] = updated_message
         else:
