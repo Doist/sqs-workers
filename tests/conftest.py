@@ -1,6 +1,6 @@
-from datetime import datetime, UTC
 import random
 import string
+from datetime import UTC, datetime
 
 import boto3
 import localstack_client.session

@@ -247,7 +247,9 @@ class MemoryMessage:
     attributes: Dict[str, Any] = attr.ib(factory=dict)
 
     # Internal attribute which contains the execution time.
-    visible_at: datetime.datetime = attr.ib(factory=lambda: datetime.datetime.now(tz=datetime.UTC))
+    visible_at: datetime.datetime = attr.ib(
+        factory=lambda: datetime.datetime.now(tz=datetime.UTC)
+    )
 
     # A unique identifier for the message
     message_id: str = attr.ib(factory=lambda: uuid.uuid4().hex)

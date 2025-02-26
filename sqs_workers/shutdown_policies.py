@@ -1,8 +1,6 @@
 import datetime
 from typing import Protocol
 
-now = lambda: datetime.datetime.now(tz=datetime.UTC)
-
 
 class ShutdownPolicy(Protocol):
     def update_state(self, batch_processing_result) -> None:
@@ -32,7 +30,7 @@ class IdleShutdown:
         self.idle_seconds = idle_seconds
         self._idle_delta = datetime.timedelta(seconds=idle_seconds)
         self._is_idle = False
-        self._last_seen = now()
+        self._last_seen = datetime.datetime.now(tz=datetime.UTC)
 
     def update_state(self, batch_processing_result) -> None:
         """Update internal state of the shutdown policy"""
@@ -40,12 +38,13 @@ class IdleShutdown:
             self._is_idle = True
         else:
             self._is_idle = False
-            self._last_seen = now()
+            self._last_seen = datetime.datetime.now(tz=datetime.UTC)
 
     def need_shutdown(self) -> bool:
         if not self._is_idle:
             return False
-        return now() - self._last_seen >= self._idle_delta
+        now = datetime.datetime.now(tz=datetime.UTC)
+        return (now - self._last_seen) >= self._idle_delta
 
     def __repr__(self) -> str:
         return f"IdleShutdown({self.idle_seconds})"
