@@ -1,3 +1,9 @@
+## [0.5.22] - 2025-02-28
+
+### Changed
+
+- Removes uses of naive datetimes, which should result in 0 warnings when run on Python 3.12
+
 ## [0.5.19] - 2024-07-31
 
 ### Changed
