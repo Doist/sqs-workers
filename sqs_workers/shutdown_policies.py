@@ -1,7 +1,5 @@
-import datetime
+from datetime import datetime, timedelta, timezone
 from typing import Protocol
-
-now = datetime.datetime.utcnow
 
 
 class ShutdownPolicy(Protocol):
@@ -30,9 +28,9 @@ class IdleShutdown:
 
     def __init__(self, idle_seconds: int) -> None:
         self.idle_seconds = idle_seconds
-        self._idle_delta = datetime.timedelta(seconds=idle_seconds)
+        self._idle_delta = timedelta(seconds=idle_seconds)
         self._is_idle = False
-        self._last_seen = now()
+        self._last_seen = datetime.now(tz=timezone.utc)
 
     def update_state(self, batch_processing_result) -> None:
         """Update internal state of the shutdown policy"""
@@ -40,12 +38,12 @@ class IdleShutdown:
             self._is_idle = True
         else:
             self._is_idle = False
-            self._last_seen = now()
+            self._last_seen = datetime.now(tz=timezone.utc)
 
     def need_shutdown(self) -> bool:
         if not self._is_idle:
             return False
-        return now() - self._last_seen >= self._idle_delta
+        return (datetime.now(tz=timezone.utc) - self._last_seen) >= self._idle_delta
 
     def __repr__(self) -> str:
         return f"IdleShutdown({self.idle_seconds})"
