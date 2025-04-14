@@ -20,18 +20,18 @@ readme = "README.md"
 exclude = ['tests/']
 
 [tool.poetry.dependencies]
-python = "^3.8,<3.13"
-boto3 = "^1.24.62"
+python = "^3.9,<3.14"
+boto3 = "^1.27.33"
 attrs = "^23.1.0"
 
-[tool.poetry.dev-dependencies]
-pytest-runner = "^6.0.0"
-pytest = "^8.1.1"
-localstack-client = "^1.7"
-pre-commit = "^2.20.0"
-ruff = "^0.5.1"
+[tool.poetry.group.dev.dependencies]
+pytest-runner = "^6.0.1"
+pytest = "^8.3.5"
+localstack-client = "^2.10"
+pre-commit = "^4.2.0"
+ruff = "^0.11.5"
 tox = "^4.15.1"
-typing-extensions = "^4.0.0"
+typing-extensions = "^4.13.2"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
