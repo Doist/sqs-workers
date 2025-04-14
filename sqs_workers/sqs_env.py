@@ -1,19 +1,17 @@
 import logging
 import multiprocessing
 import warnings
+from dataclasses import dataclass, field
 from typing import (
     TYPE_CHECKING,
     Any,
     Callable,
-    Dict,
     Optional,
-    Type,
     TypeVar,
     Union,
     overload,
 )
 
-import attr
 import boto3
 from botocore.config import Config
 from typing_extensions import ParamSpec
@@ -40,30 +38,30 @@ P = ParamSpec("P")
 R = TypeVar("R")
 
 
-@attr.s
+@dataclass
 class SQSEnv:
-    session = attr.ib(default=boto3)
-    queue_prefix = attr.ib(default="")
-    codec: str = attr.ib(default=codecs.DEFAULT_CONTENT_TYPE)
+    session: Any = field(default=boto3)
+    queue_prefix: str = field(default="")
+    codec: str = field(default=codecs.DEFAULT_CONTENT_TYPE)
 
     # retry settings for internal boto
-    retry_max_attempts: int = attr.ib(default=3)
-    retry_mode: str = attr.ib(default="standard")
+    retry_max_attempts: int = field(default=3)
+    retry_mode: str = field(default="standard")
 
     # queue-specific settings
-    backoff_policy = attr.ib(default=DEFAULT_BACKOFF)
+    backoff_policy: Any = field(default=DEFAULT_BACKOFF)
 
     # jobqueue-specific settings
-    processor_maker = attr.ib(default=processors.Processor)
-    context_maker = attr.ib(default=context.SQSContext)
+    processor_maker: Any = field(default=processors.Processor)
+    context_maker: Any = field(default=context.SQSContext)
 
     # internal attributes
-    context = attr.ib(default=None)
-    sqs_client = attr.ib(default=None)
-    sqs_resource = attr.ib(default=None)
-    queues: Dict[str, AnyQueue] = attr.ib(init=False, factory=dict)
+    context: Any = field(default=None)
+    sqs_client: Any = field(default=None)
+    sqs_resource: Any = field(default=None)
+    queues: dict[str, AnyQueue] = field(default_factory=dict)
 
-    def __attrs_post_init__(self):
+    def __post_init__(self):
         self.context = self.context_maker()
         # https://boto3.amazonaws.com/v1/documentation/api/latest/guide/retries.html
         retry_dict = {"max_attempts": self.retry_max_attempts, "mode": self.retry_mode}
@@ -77,26 +75,24 @@ class SQSEnv:
     def queue(
         self,
         queue_name: str,
-        queue_maker: Union[Type[JobQueue], Callable[..., JobQueue]] = JobQueue,
+        queue_maker: Union[type[JobQueue], Callable[..., JobQueue]] = JobQueue,
         batching_policy: BatchingConfiguration = NoBatching(),
         backoff_policy: Optional["BackoffPolicy"] = None,
-    ) -> JobQueue:
-        ...
+    ) -> JobQueue: ...
 
     @overload
     def queue(
         self,
         queue_name: str,
-        queue_maker: Union[Type[AnyQueueT], Callable[..., AnyQueueT]],
+        queue_maker: Union[type[AnyQueueT], Callable[..., AnyQueueT]],
         batching_policy: BatchingConfiguration = NoBatching(),
         backoff_policy: Optional["BackoffPolicy"] = None,
-    ) -> AnyQueueT:
-        ...
+    ) -> AnyQueueT: ...
 
     def queue(
         self,
         queue_name: str,
-        queue_maker: Union[Type[AnyQueue], Callable[..., AnyQueue]] = JobQueue,
+        queue_maker: Union[type[AnyQueue], Callable[..., AnyQueue]] = JobQueue,
         batching_policy: BatchingConfiguration = NoBatching(),
         backoff_policy: Optional["BackoffPolicy"] = None,
     ) -> AnyQueue:

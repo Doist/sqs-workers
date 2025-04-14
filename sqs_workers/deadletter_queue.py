@@ -1,8 +1,7 @@
 import logging
+from dataclasses import dataclass, field
 from functools import partial
-from typing import TYPE_CHECKING
-
-import attr
+from typing import TYPE_CHECKING, Optional
 
 from sqs_workers import RawQueue
 
@@ -13,7 +12,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-@attr.s
+@dataclass
 class DeadLetterQueue(RawQueue):
     """
     Queue to push back messages to the upstream.
@@ -36,7 +35,7 @@ class DeadLetterQueue(RawQueue):
     and quit.
     """
 
-    upstream_queue: "GenericQueue" = attr.ib(default=None)
+    upstream_queue: Optional["GenericQueue"] = field(default=None)
 
     @classmethod
     def maker(cls, upstream_queue, **kwargs):
@@ -46,11 +45,15 @@ class DeadLetterQueue(RawQueue):
         )
 
 
-@attr.s
+@dataclass
 class PushBackSender:
-    upstream_queue: "GenericQueue" = attr.ib(default=None)
+    upstream_queue: Optional["GenericQueue"] = field(default=None)
 
     def __call__(self, message):
+        # We know upstream_queue is set when called
+        if self.upstream_queue is None:
+            raise ValueError("upstream_queue not set")
+
         kwargs = {
             "MessageBody": message.body,
             "MessageAttributes": message.message_attributes or {},

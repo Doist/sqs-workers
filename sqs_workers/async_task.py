@@ -1,11 +1,11 @@
 from __future__ import annotations
 
+from collections.abc import Generator
 from contextlib import contextmanager
 from typing import (
     TYPE_CHECKING,
     Any,
     Callable,
-    Generator,
     Generic,
     NoReturn,
     Optional,
@@ -63,10 +63,10 @@ class AsyncTask(Generic[P]):
             if len(args) > 0:
                 raise TypeError("Must use keyword arguments only for batch read queues")
             kwargs = bind_arguments(self.processor, [[kwargs]], {})
-            return self.processor(**kwargs)
+            return self.processor(**kwargs)  # type:ignore[call-arg]
         else:
             kwargs = bind_arguments(self.processor, args, kwargs)
-            return self.processor(**kwargs)
+            return self.processor(**kwargs)  # type:ignore[call-arg]
 
     @contextmanager
     def batch(self) -> Generator[None, None, None]:
@@ -118,4 +118,4 @@ class BakedAsyncTask:
         self.async_task.delay(*self.args, **self.kwargs)
 
     def __repr__(self) -> str:
-        return "BakedAsyncTask(%r, ...)" % self.async_task
+        return f"BakedAsyncTask({self.async_task!r}, ...)"

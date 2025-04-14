@@ -1,8 +1,9 @@
 import importlib
 import logging
+from collections.abc import Iterable
 from inspect import Signature
 from itertools import islice
-from typing import Any, Iterable
+from typing import Any
 
 logger = logging.getLogger(__name__)
 

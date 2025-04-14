@@ -1,43 +1,25 @@
-"""
-In memory mockup implementation of essential parts of boto3 SQS objects.
-
-Used for faster and more predictable processing in tests.
-
-Lacks some features of "real sqs", and some other features implemented
-ineffectively.
-
-- Redrive policy doesn't work
-- There is no differences between standard and FIFO queues
-- FIFO queues don't support content-based deduplication
-- Delayed tasks executed ineffectively: the task is gotten from the queue,
-  and if the time hasn't come yet, the task is put back.
-- API can return slightly different results
-
-Ref: https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/sqs.html
-"""
 import logging
 import uuid
+from dataclasses import dataclass, field, replace
 from datetime import datetime, timedelta, timezone
-from typing import Any, Dict, List
-
-import attr
+from typing import Any, Optional
 
 logger = logging.getLogger(__name__)
 
 
-@attr.s
+@dataclass
 class MemoryAWS:
     """In-memory AWS as a whole."""
 
-    client: "MemoryClient" = attr.ib(
-        repr=False,
-        default=attr.Factory(lambda self: MemoryClient(self), takes_self=True),
-    )
-    resource: "ServiceResource" = attr.ib(
-        repr=False,
-        default=attr.Factory(lambda self: ServiceResource(self), takes_self=True),
-    )
-    queues: List["MemoryQueue"] = attr.ib(factory=list)
+    client: Optional["MemoryClient"] = field(repr=False, default=None)
+    resource: Optional["ServiceResource"] = field(repr=False, default=None)
+    queues: list["MemoryQueue"] = field(default_factory=list)
+
+    def __post_init__(self):
+        if self.client is None:
+            self.client = MemoryClient(self)
+        if self.resource is None:
+            self.resource = ServiceResource(self)
 
     def create_queue(self, QueueName: str, Attributes) -> "MemoryQueue":
         queue = MemoryQueue(self, QueueName, Attributes)
@@ -48,11 +30,11 @@ class MemoryAWS:
         self.queues = [queue for queue in self.queues if queue.url != QueueUrl]
 
 
-@attr.s
+@dataclass
 class MemorySession:
     """In memory AWS session."""
 
-    aws = attr.ib(repr=False, factory=MemoryAWS)
+    aws: MemoryAWS = field(repr=False, default_factory=MemoryAWS)
 
     def client(self, service_name: str, **kwargs):
         assert service_name == "sqs"
@@ -63,9 +45,9 @@ class MemorySession:
         return self.aws.resource
 
 
-@attr.s
+@dataclass
 class MemoryClient:
-    aws = attr.ib(repr=False)
+    aws: Any = field(repr=False)
 
     def create_queue(self, QueueName: str, Attributes):
         return self.aws.create_queue(QueueName, Attributes)
@@ -83,9 +65,9 @@ class MemoryClient:
         }
 
 
-@attr.s
+@dataclass
 class ServiceResource:
-    aws: MemoryAWS = attr.ib(repr=False)
+    aws: MemoryAWS = field(repr=False)
 
     def create_queue(self, QueueName: str, Attributes):
         return self.aws.create_queue(QueueName, Attributes)
@@ -97,7 +79,7 @@ class ServiceResource:
         return None
 
 
-@attr.s
+@dataclass
 class MemoryQueue:
     """
     In-memory queue which mimics the subset of SQS Queue object.
@@ -106,13 +88,13 @@ class MemoryQueue:
          services/sqs.html#queue
     """
 
-    aws: MemoryAWS = attr.ib(repr=False)
-    name: str = attr.ib()
-    attributes: Dict[str, Dict[str, str]] = attr.ib()
-    messages: List["MemoryMessage"] = attr.ib(factory=list)
-    in_flight: Dict[str, "MemoryMessage"] = attr.ib(factory=dict)
+    aws: MemoryAWS = field(repr=False)
+    name: str = field()
+    attributes: dict[str, dict[str, str]] = field()
+    messages: list["MemoryMessage"] = field(default_factory=list)
+    in_flight: dict[str, "MemoryMessage"] = field(default_factory=dict)
 
-    def __attrs_post_init__(self):
+    def __post_init__(self):
         self.attributes["QueueArn"] = self.name
 
     @property
@@ -205,7 +187,7 @@ class MemoryQueue:
                 in_flight_message = self.in_flight[e["Id"]]
                 sec = int(e["VisibilityTimeout"])
                 visible_at = now + timedelta(seconds=sec)
-                updated_message = attr.evolve(in_flight_message, visible_at=visible_at)
+                updated_message = replace(in_flight_message, visible_at=visible_at)
                 self.in_flight[e["Id"]] = updated_message
             else:
                 not_found_entries.append(e)
@@ -225,7 +207,7 @@ class MemoryQueue:
         return self.__dict__()[item]
 
 
-@attr.s(frozen=True)
+@dataclass(frozen=True)
 class MemoryMessage:
     """
     A mock class to mimic the AWS message
@@ -234,26 +216,26 @@ class MemoryMessage:
          services/sqs.html#SQS.Message
     """
 
-    queue_impl: MemoryQueue = attr.ib(repr=False)
+    queue_impl: MemoryQueue = field(repr=False)
 
     # The message's contents (not URL-encoded).
-    body: bytes = attr.ib()
+    body: bytes = field()
 
     # Each message attribute consists of a Name, Type, and Value.
-    message_attributes: Dict[str, Dict[str, str]] = attr.ib(factory=dict)
+    message_attributes: dict[str, dict[str, str]] = field(default_factory=dict)
 
     # A map of the attributes requested in `` ReceiveMessage `` to their
     # respective values.
-    attributes: Dict[str, Any] = attr.ib(factory=dict)
+    attributes: dict[str, Any] = field(default_factory=dict)
 
     # Internal attribute which contains the execution time.
-    visible_at: datetime = attr.ib(factory=lambda: datetime.now(tz=timezone.utc))
+    visible_at: datetime = field(default_factory=lambda: datetime.now(tz=timezone.utc))
 
     # A unique identifier for the message
-    message_id: str = attr.ib(factory=lambda: uuid.uuid4().hex)
+    message_id: str = field(default_factory=lambda: uuid.uuid4().hex)
 
     # The Message's receipt_handle identifier
-    receipt_handle: str = attr.ib(factory=lambda: uuid.uuid4().hex)
+    receipt_handle: str = field(default_factory=lambda: uuid.uuid4().hex)
 
     @classmethod
     def from_kwargs(cls, queue_impl, kwargs):
@@ -289,7 +271,7 @@ class MemoryMessage:
             now = datetime.now(tz=timezone.utc)
             sec = int(VisibilityTimeout)
             visible_at = now + timedelta(seconds=sec)
-            updated_message = attr.evolve(self, visible_at=visible_at)
+            updated_message = replace(self, visible_at=visible_at)
             self.queue_impl.in_flight[self.message_id] = updated_message
         else:
             logger.warning("Tried to change visibility of message not in flight")

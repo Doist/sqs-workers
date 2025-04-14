@@ -42,7 +42,7 @@ class ExponentialBackoff(BackoffPolicy):
         visibility_timeout = random.normalvariate(mu, sigma)
         visibility_timeout = max(self.min_visibility_timeout, visibility_timeout)
         visibility_timeout = min(self.max_visibility_timeout, visibility_timeout)
-        return int(round(visibility_timeout))
+        return round(visibility_timeout)
 
 
 DEFAULT_BACKOFF = ExponentialBackoff()

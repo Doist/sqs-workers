@@ -1,8 +1,7 @@
 import logging
+from dataclasses import dataclass, field, replace
 from functools import partial
 from typing import TYPE_CHECKING, Callable, Optional
-
-import attr
 
 from sqs_workers import codecs
 from sqs_workers.context import SQSContext
@@ -16,7 +15,7 @@ logger = logging.getLogger(__name__)
 DEFAULT_CONTEXT_VAR = "context"
 
 
-@attr.s
+@dataclass
 class Processor:
     """
     Processor which calls its function for each incoming message.
@@ -25,11 +24,11 @@ class Processor:
     SQS message
     """
 
-    queue: "GenericQueue" = attr.ib()
-    fn: Optional[Callable] = attr.ib(default=None)
-    job_name: str = attr.ib(default="")
-    pass_context: bool = attr.ib(default=False)
-    context_var: str = attr.ib(default=DEFAULT_CONTEXT_VAR)
+    queue: "GenericQueue" = field()
+    fn: Optional[Callable] = field(default=None)
+    job_name: str = field(default="")
+    pass_context: bool = field(default=False)
+    context_var: str = field(default=DEFAULT_CONTEXT_VAR)
 
     @classmethod
     def maker(cls, **kwargs):
@@ -111,7 +110,7 @@ class Processor:
         Create a new instance of the processor, optionally updating
         arguments of the constructor from update_kwargs
         """
-        return attr.evolve(self, **kwargs)
+        return replace(self, **kwargs)
 
     @staticmethod
     def deserialize_message(message):

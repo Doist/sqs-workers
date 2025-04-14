@@ -2,23 +2,19 @@ import json
 import logging
 import uuid
 from collections import defaultdict
+from collections.abc import Generator, Iterable
 from contextlib import contextmanager
+from dataclasses import dataclass, field
 from functools import partial
 from typing import (
     TYPE_CHECKING,
     Any,
     Callable,
-    Dict,
-    Generator,
-    Iterable,
-    List,
     Literal,
     Optional,
-    Tuple,
     TypeVar,
 )
 
-import attr
 from typing_extensions import ParamSpec
 
 from sqs_workers import DEFAULT_BACKOFF, codecs
@@ -50,13 +46,13 @@ class SQSBatchError(SQSError):
         self.errors = errors
 
 
-@attr.s
+@dataclass
 class GenericQueue:
-    env: "SQSEnv" = attr.ib(repr=False)
-    name: str = attr.ib()
-    backoff_policy: BackoffPolicy = attr.ib(default=DEFAULT_BACKOFF)
-    batching_policy: BatchingConfiguration = attr.ib(default=NoBatching())
-    _queue = attr.ib(repr=False, default=None)
+    env: "SQSEnv" = field(repr=False)
+    name: str = field()
+    backoff_policy: BackoffPolicy = field(default=DEFAULT_BACKOFF)
+    batching_policy: BatchingConfiguration = field(default_factory=lambda: NoBatching())
+    _queue: Any = field(repr=False, default=None)
 
     @classmethod
     def maker(cls, **kwargs):
@@ -110,7 +106,7 @@ class GenericQueue:
 
         return self._handle_processed(messages_with_success)
 
-    def _handle_processed(self, messages_with_success: Iterable[Tuple[Any, bool]]):
+    def _handle_processed(self, messages_with_success: Iterable[tuple[Any, bool]]):
         """
         Handles the results of processing messages.
 
@@ -182,7 +178,7 @@ class GenericQueue:
         """
         raise NotImplementedError()
 
-    def process_messages(self, messages: List[Any]) -> bool:
+    def process_messages(self, messages: list[Any]) -> bool:
         """
         Process a batch of messages.
 
@@ -191,7 +187,7 @@ class GenericQueue:
         """
         raise NotImplementedError()
 
-    def get_raw_messages(self, wait_seconds: int, max_messages: int = 10) -> List[Any]:
+    def get_raw_messages(self, wait_seconds: int, max_messages: int = 10) -> list[Any]:
         """Return raw messages from the queue, addressed by its name"""
         queue = self.get_queue()
 
@@ -264,9 +260,9 @@ class GenericQueue:
         return self._queue
 
 
-@attr.s
+@dataclass
 class RawQueue(GenericQueue):
-    processor: Optional[Callable] = attr.ib(default=None)
+    processor: Optional[Callable] = field(default=None)
 
     def raw_processor(self):
         """
@@ -356,7 +352,7 @@ class RawQueue(GenericQueue):
         else:
             return True
 
-    def process_messages(self, messages: List[Any]) -> bool:
+    def process_messages(self, messages: list[Any]) -> bool:
         """
         Sends a list of messages to the call handler
 
@@ -393,12 +389,12 @@ class RawQueue(GenericQueue):
             return True
 
 
-@attr.s
+@dataclass
 class JobQueue(GenericQueue):
-    processors: Dict[str, Processor] = attr.ib(factory=dict)
+    processors: dict[str, Processor] = field(default_factory=dict)
 
-    _batch_level: int = attr.ib(default=0, repr=False)
-    _batched_messages: List[Dict] = attr.ib(factory=list, repr=False)
+    _batch_level: int = field(default=0, repr=False)
+    _batched_messages: list[dict] = field(default_factory=list, repr=False)
 
     def processor(
         self, job_name: str, pass_context: bool = False, context_var=DEFAULT_CONTEXT_VAR
@@ -657,7 +653,7 @@ class JobQueue(GenericQueue):
         else:
             return self.process_message_fallback(job_name)  # type: ignore
 
-    def process_messages(self, messages: List[Any]) -> bool:
+    def process_messages(self, messages: list[Any]) -> bool:
         """
         Sends a list of messages to the call handler
 
