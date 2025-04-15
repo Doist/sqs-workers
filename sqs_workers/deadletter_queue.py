@@ -1,5 +1,5 @@
 import logging
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from functools import partial
 from typing import TYPE_CHECKING, Optional
 
@@ -35,7 +35,7 @@ class DeadLetterQueue(RawQueue):
     and quit.
     """
 
-    upstream_queue: Optional["GenericQueue"] = field(default=None)
+    upstream_queue: Optional["GenericQueue"] = None
 
     @classmethod
     def maker(cls, upstream_queue, **kwargs):
@@ -47,7 +47,7 @@ class DeadLetterQueue(RawQueue):
 
 @dataclass
 class PushBackSender:
-    upstream_queue: Optional["GenericQueue"] = field(default=None)
+    upstream_queue: Optional["GenericQueue"] = None
 
     def __call__(self, message):
         # We know upstream_queue is set when called

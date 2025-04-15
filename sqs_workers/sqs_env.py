@@ -40,25 +40,25 @@ R = TypeVar("R")
 
 @dataclass
 class SQSEnv:
-    session: Any = field(default=boto3)
-    queue_prefix: str = field(default="")
-    codec: str = field(default=codecs.DEFAULT_CONTENT_TYPE)
+    session: Any = boto3
+    queue_prefix: str = ""
+    codec: str = codecs.DEFAULT_CONTENT_TYPE
 
     # retry settings for internal boto
-    retry_max_attempts: int = field(default=3)
-    retry_mode: str = field(default="standard")
+    retry_max_attempts: int = 3
+    retry_mode: str = "standard"
 
     # queue-specific settings
-    backoff_policy: Any = field(default=DEFAULT_BACKOFF)
+    backoff_policy: Any = DEFAULT_BACKOFF
 
     # jobqueue-specific settings
-    processor_maker: Any = field(default=processors.Processor)
-    context_maker: Any = field(default=context.SQSContext)
+    processor_maker: Any = processors.Processor
+    context_maker: Any = context.SQSContext
 
     # internal attributes
-    context: Any = field(default=None)
-    sqs_client: Any = field(default=None)
-    sqs_resource: Any = field(default=None)
+    context: Any = None
+    sqs_client: Any = None
+    sqs_resource: Any = None
     queues: dict[str, AnyQueue] = field(default_factory=dict)
 
     def __post_init__(self):

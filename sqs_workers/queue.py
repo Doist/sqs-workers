@@ -50,7 +50,7 @@ class SQSBatchError(SQSError):
 class GenericQueue:
     env: "SQSEnv" = field(repr=False)
     name: str = field()
-    backoff_policy: BackoffPolicy = field(default=DEFAULT_BACKOFF)
+    backoff_policy: BackoffPolicy = DEFAULT_BACKOFF
     batching_policy: BatchingConfiguration = field(default_factory=lambda: NoBatching())
     _queue: Any = field(repr=False, default=None)
 
@@ -262,7 +262,7 @@ class GenericQueue:
 
 @dataclass
 class RawQueue(GenericQueue):
-    processor: Optional[Callable] = field(default=None)
+    processor: Optional[Callable] = None
 
     def raw_processor(self):
         """
@@ -393,7 +393,7 @@ class RawQueue(GenericQueue):
 class JobQueue(GenericQueue):
     processors: dict[str, Processor] = field(default_factory=dict)
 
-    _batch_level: int = field(default=0, repr=False)
+    _batch_level: int = field(repr=False, default=0)
     _batched_messages: list[dict] = field(default_factory=list, repr=False)
 
     def processor(

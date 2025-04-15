@@ -25,10 +25,10 @@ class Processor:
     """
 
     queue: "GenericQueue" = field()
-    fn: Optional[Callable] = field(default=None)
-    job_name: str = field(default="")
-    pass_context: bool = field(default=False)
-    context_var: str = field(default=DEFAULT_CONTEXT_VAR)
+    fn: Optional[Callable] = None
+    job_name: str = ""
+    pass_context: bool = False
+    context_var: str = DEFAULT_CONTEXT_VAR
 
     @classmethod
     def maker(cls, **kwargs):

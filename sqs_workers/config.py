@@ -14,7 +14,7 @@ class Config:
 
     parent: Optional["Config"] = field(repr=False, default=None)
     options: dict[str, Any] = field(default_factory=dict)
-    maker_key: str = field(default="maker")
+    maker_key: str = "maker"
 
     def __setitem__(self, key: str, value):
         self.options.__setitem__(key, value)
