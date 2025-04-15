@@ -1,8 +1,9 @@
+from __future__ import annotations
+
 import json
 import logging
 import uuid
 from collections import defaultdict
-from collections.abc import Generator, Iterable
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from functools import partial
@@ -11,7 +12,6 @@ from typing import (
     Any,
     Callable,
     Literal,
-    Optional,
     TypeVar,
 )
 
@@ -19,7 +19,6 @@ from typing_extensions import ParamSpec
 
 from sqs_workers import DEFAULT_BACKOFF, codecs
 from sqs_workers.async_task import AsyncTask
-from sqs_workers.backoff_policies import BackoffPolicy
 from sqs_workers.batching import BatchingConfiguration, NoBatching
 from sqs_workers.core import BatchProcessingResult, get_job_name
 from sqs_workers.exceptions import SQSError
@@ -32,7 +31,10 @@ SEND_BATCH_SIZE = 10
 MAX_MESSAGE_LENGTH = 262144  # 256 KiB
 
 if TYPE_CHECKING:
+    from collections.abc import Generator, Iterable
+
     from sqs_workers import SQSEnv
+    from sqs_workers.backoff_policies import BackoffPolicy
 
 logger = logging.getLogger(__name__)
 
@@ -48,7 +50,7 @@ class SQSBatchError(SQSError):
 
 @dataclass
 class GenericQueue:
-    env: "SQSEnv" = field(repr=False)
+    env: SQSEnv = field(repr=False)
     name: str = field()
     backoff_policy: BackoffPolicy = DEFAULT_BACKOFF
     batching_policy: BatchingConfiguration = field(default_factory=lambda: NoBatching())
@@ -193,7 +195,7 @@ class GenericQueue:
 
         kwargs = {
             "WaitTimeSeconds": wait_seconds,
-            "MaxNumberOfMessages": max_messages if max_messages <= 10 else 10,
+            "MaxNumberOfMessages": min(max_messages, 10),
             "MessageAttributeNames": ["All"],
             "AttributeNames": ["All"],
         }
@@ -262,7 +264,7 @@ class GenericQueue:
 
 @dataclass
 class RawQueue(GenericQueue):
-    processor: Optional[Callable] = None
+    processor: Callable | None = None
 
     def raw_processor(self):
         """
@@ -300,7 +302,7 @@ class RawQueue(GenericQueue):
         self,
         message_body: str,
         delay_seconds: int = 0,
-        deduplication_id: Optional[str] = None,
+        deduplication_id: str | None = None,
         group_id: str = DEFAULT_MESSAGE_GROUP_ID,
     ):
         """Add raw message to the queue."""
@@ -462,7 +464,7 @@ class JobQueue(GenericQueue):
         )
         return AsyncTask(self, job_name, processor)
 
-    def get_processor(self, job_name: str) -> Optional[Processor]:
+    def get_processor(self, job_name: str) -> Processor | None:
         """Helper function to return a processor for the queue."""
         return self.processors.get(job_name)
 
@@ -506,7 +508,8 @@ class JobQueue(GenericQueue):
         if self._estimated_message_length(self._batched_messages) > MAX_MESSAGE_LENGTH:
             list_length = len(self._batched_messages)
             logger.info(
-                f"Flushing SQS batch on oversized message list with only {list_length} items"
+                "Flushing SQS batch on oversized message list",
+                extra={"number_of_items": list_length},
             )
             return True
 
@@ -538,19 +541,6 @@ class JobQueue(GenericQueue):
                 # Progressively reduce the batch size until it fits.
                 send_batch_size -= 1
 
-            # XXX: temporary logging while we check the length estimates against what
-            # the SQS service reports. Remove if still here after 2024-02-25.
-            message_length = self._estimated_message_length(
-                self._batched_messages[:send_batch_size]
-            )
-            if message_length > MAX_MESSAGE_LENGTH:
-                # We log here so we can match up with the corresponding error message
-                # from SQS. Note, SQS errors are dynamic and difficult to catch
-                # explicitly and its not worth the trouble here.
-                logger.warning(
-                    f"SQS Message is probably too long: {message_length} bytes",
-                )
-
             msgs = self._batched_messages[:send_batch_size]
             self._batched_messages = self._batched_messages[send_batch_size:]
 
@@ -573,12 +563,12 @@ class JobQueue(GenericQueue):
     def add_job(
         self,
         job_name: str,
-        _content_type: Optional[str] = None,
-        _delay_seconds: Optional[int] = None,
+        _content_type: str | None = None,
+        _delay_seconds: int | None = None,
         _deduplication_id=None,
-        _group_id: Optional[str] = None,
+        _group_id: str | None = None,
         **job_kwargs,
-    ) -> Optional[str]:
+    ) -> str | None:
         """
         Add job to the queue. The body of the job will be converted to the text
         with one of the codecs (by default it's "pickle_compat").
@@ -606,8 +596,8 @@ class JobQueue(GenericQueue):
         content_type,
         delay_seconds,
         deduplication_id,
-        group_id: Optional[str],
-    ) -> Optional[str]:
+        group_id: str | None,
+    ) -> str | None:
         """Low-level function to put message to the queue."""
         # if queue name ends with .fifo, then according to the AWS specs,
         # it's a FIFO queue, and requires group_id.
@@ -635,9 +625,8 @@ class JobQueue(GenericQueue):
             self._batched_messages.append(kwargs)
             self._flush_batch_if_needed()
             return None
-        else:
-            ret = queue.send_message(**kwargs)
-            return ret["MessageId"]
+        ret = queue.send_message(**kwargs)
+        return ret["MessageId"]
 
     def process_message(self, message: Any) -> bool:
         """
@@ -646,11 +635,10 @@ class JobQueue(GenericQueue):
         Return True if processing went successful
         """
         job_name = get_job_name(message)
-        processor = self.get_processor(job_name)  # type: ignore
+        processor = self.get_processor(job_name)  # type: ignore[arg-type]
         if processor:
             return processor.process_message(message)
-        else:
-            return self.process_message_fallback(job_name)  # type: ignore
+        return self.process_message_fallback(job_name)  # type: ignore[arg-type]
 
     def process_messages(self, messages: list[Any]) -> bool:
         """
@@ -666,12 +654,12 @@ class JobQueue(GenericQueue):
         results = []
 
         for job_name, grouped_messages in messages_by_job_name.items():
-            processor = self.get_processor(job_name)  # type: ignore
+            processor = self.get_processor(job_name)  # type: ignore[arg-type]
             if processor:
                 result = processor.process_messages(grouped_messages)
                 results.append(result)
             else:
-                result = self.process_message_fallback(job_name)  # type: ignore
+                result = self.process_message_fallback(job_name)  # type: ignore[arg-type]
                 results.append(result)
 
         return all(results)
@@ -687,7 +675,7 @@ class JobQueue(GenericQueue):
         )
         return False
 
-    def copy_processors(self, dst_queue: "JobQueue") -> None:
+    def copy_processors(self, dst_queue: JobQueue) -> None:
         """
         Copy processors from self to dst_queue. Can be helpful to process d
         ead-letter queue with processors from the main queue.

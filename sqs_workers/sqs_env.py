@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import logging
 import multiprocessing
 import warnings
@@ -6,7 +8,6 @@ from typing import (
     TYPE_CHECKING,
     Any,
     Callable,
-    Optional,
     TypeVar,
     Union,
     overload,
@@ -17,7 +18,6 @@ from botocore.config import Config
 from typing_extensions import ParamSpec
 
 from sqs_workers import DEFAULT_BACKOFF, RawQueue, codecs, context, processors
-from sqs_workers.async_task import AsyncTask
 from sqs_workers.batching import BatchingConfiguration, NoBatching
 from sqs_workers.core import RedrivePolicy
 from sqs_workers.processors import DEFAULT_CONTEXT_VAR
@@ -25,10 +25,13 @@ from sqs_workers.queue import GenericQueue, JobQueue
 from sqs_workers.shutdown_policies import NeverShutdown, ShutdownPolicy
 
 if TYPE_CHECKING:
+    from sqs_workers.async_task import AsyncTask
     from sqs_workers.backoff_policies import BackoffPolicy
 
 
 logger = logging.getLogger(__name__)
+
+POLICY_NO_BATCHING = NoBatching()
 
 
 AnyQueue = Union[GenericQueue, JobQueue, RawQueue]
@@ -75,26 +78,26 @@ class SQSEnv:
     def queue(
         self,
         queue_name: str,
-        queue_maker: Union[type[JobQueue], Callable[..., JobQueue]] = JobQueue,
-        batching_policy: BatchingConfiguration = NoBatching(),
-        backoff_policy: Optional["BackoffPolicy"] = None,
+        queue_maker: type[JobQueue] | Callable[..., JobQueue] = JobQueue,
+        batching_policy: BatchingConfiguration = POLICY_NO_BATCHING,
+        backoff_policy: BackoffPolicy | None = None,
     ) -> JobQueue: ...
 
     @overload
     def queue(
         self,
         queue_name: str,
-        queue_maker: Union[type[AnyQueueT], Callable[..., AnyQueueT]],
-        batching_policy: BatchingConfiguration = NoBatching(),
-        backoff_policy: Optional["BackoffPolicy"] = None,
+        queue_maker: type[AnyQueueT] | Callable[..., AnyQueueT],
+        batching_policy: BatchingConfiguration = POLICY_NO_BATCHING,
+        backoff_policy: BackoffPolicy | None = None,
     ) -> AnyQueueT: ...
 
     def queue(
         self,
         queue_name: str,
-        queue_maker: Union[type[AnyQueue], Callable[..., AnyQueue]] = JobQueue,
-        batching_policy: BatchingConfiguration = NoBatching(),
-        backoff_policy: Optional["BackoffPolicy"] = None,
+        queue_maker: type[AnyQueue] | Callable[..., AnyQueue] = JobQueue,
+        batching_policy: BatchingConfiguration = POLICY_NO_BATCHING,
+        backoff_policy: BackoffPolicy | None = None,
     ) -> AnyQueue:
         """Get a queue object, initializing it with queue_maker if necessary."""
         if queue_name not in self.queues:
@@ -115,14 +118,14 @@ class SQSEnv:
         context_var=DEFAULT_CONTEXT_VAR,
     ) -> Callable[[Callable[P, Any]], AsyncTask[P]]:
         """Decorator to attach processor to all jobs "job_name" of the queue "queue_name"."""
-        q: JobQueue = self.queue(queue_name, queue_maker=JobQueue)  # type: ignore
+        q: JobQueue = self.queue(queue_name, queue_maker=JobQueue)
         return q.processor(
             job_name=job_name, pass_context=pass_context, context_var=context_var
         )
 
     def raw_processor(self, queue_name: str):
         """Decorator to attach raw processor to all jobs of the queue "queue_name"."""
-        q: RawQueue = self.queue(queue_name, queue_maker=RawQueue)  # type: ignore
+        q: RawQueue = self.queue(queue_name, queue_maker=RawQueue)
         return q.raw_processor()
 
     def add_job(
@@ -139,6 +142,7 @@ class SQSEnv:
         warnings.warn(
             "sqs.add_job() is deprecated. Use sqs.queue(...).add_job() instead",
             DeprecationWarning,
+            stacklevel=2,
         )
         if not _content_type:
             _content_type = self.codec
@@ -183,7 +187,7 @@ class SQSEnv:
             p.join()
 
     def get_all_known_queues(self):
-        resp = self.sqs_client.list_queues(**{"QueueNamePrefix": self.queue_prefix})
+        resp = self.sqs_client.list_queues(QueueNamePrefix=self.queue_prefix)
         if "QueueUrls" not in resp:
             return []
         urls = resp["QueueUrls"]

@@ -62,8 +62,7 @@ def _bind_args(callback, args, kwargs, drop_extra):
                 },
             )
 
-    bound_args = sig.bind(*bind_args, **bind_kwargs)
-    return bound_args
+    return sig.bind(*bind_args, **bind_kwargs)
 
 
 def validate_arguments(callback, args, kwargs, drop_extra: bool = True):
@@ -119,10 +118,9 @@ def ensure_string(obj: Any, encoding="utf-8", errors="strict") -> str:
     """Make sure an object is converted to a proper string representation."""
     if isinstance(obj, str):
         return obj
-    elif isinstance(obj, bytes):
+    if isinstance(obj, bytes):
         return obj.decode(encoding, errors)
-    else:
-        return str(obj)
+    return str(obj)
 
 
 def batcher(iterable, batch_size) -> Iterable[Iterable[Any]]:

@@ -1,6 +1,7 @@
+from __future__ import annotations
+
 import contextlib
 import time
-from typing import Optional
 
 import botocore
 import pytest
@@ -19,7 +20,7 @@ from sqs_workers.memory_sqs import MemorySession
 from sqs_workers.processors import Processor
 from sqs_workers.queue import RawQueue
 
-worker_results: dict[str, Optional[str]] = {"say_hello": None}
+worker_results: dict[str, str | None] = {"say_hello": None}
 
 batch_results: list[str] = []
 

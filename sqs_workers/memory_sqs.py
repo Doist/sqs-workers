@@ -107,10 +107,8 @@ class MemoryQueue:
         return {"MessageId": message.message_id, "SequenceNumber": 0}
 
     def send_messages(self, Entries):
-        res = []
-        for message in Entries:
-            res.append(self.send_message(**message))
-        return {"Successful": res, "Failed": []}
+        messages = [self.send_message(**message) for message in Entries]
+        return {"Successful": messages, "Failed": []}
 
     def receive_messages(self, WaitTimeSeconds="0", MaxNumberOfMessages="10", **kwargs):
         """

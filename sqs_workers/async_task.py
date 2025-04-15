@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from collections.abc import Generator
 from contextlib import contextmanager
 from typing import (
     TYPE_CHECKING,
@@ -16,6 +15,8 @@ from typing_extensions import NotRequired, ParamSpec
 from sqs_workers.utils import bind_arguments
 
 if TYPE_CHECKING:
+    from collections.abc import Generator
+
     from sqs_workers.queue import JobQueue
 
 
@@ -63,9 +64,8 @@ class AsyncTask(Generic[P]):
                 raise TypeError("Must use keyword arguments only for batch read queues")
             kwargs = bind_arguments(self.processor, [[kwargs]], {})
             return self.processor(**kwargs)  # type:ignore[call-arg]
-        else:
-            kwargs = bind_arguments(self.processor, args, kwargs)
-            return self.processor(**kwargs)  # type:ignore[call-arg]
+        kwargs = bind_arguments(self.processor, args, kwargs)
+        return self.processor(**kwargs)  # type:ignore[call-arg]
 
     @contextmanager
     def batch(self) -> Generator[None, None, None]:
@@ -75,10 +75,10 @@ class AsyncTask(Generic[P]):
 
     def delay(self, *args: P.args, **kwargs: P.kwargs) -> str | None:
         """Run the task asynchronously."""
-        _content_type = kwargs.pop("_content_type", self.queue.env.codec)  # type: ignore
-        _delay_seconds = kwargs.pop("_delay_seconds", None)  # type: ignore
-        _deduplication_id = kwargs.pop("_deduplication_id", None)  # type: ignore
-        _group_id = kwargs.pop("_group_id", None)  # type: ignore
+        _content_type = kwargs.pop("_content_type", self.queue.env.codec)
+        _delay_seconds = kwargs.pop("_delay_seconds", None)
+        _deduplication_id = kwargs.pop("_deduplication_id", None)
+        _group_id = kwargs.pop("_group_id", None)
 
         if self.queue.batching_policy.batching_enabled:
             if len(args) > 0:
@@ -88,10 +88,10 @@ class AsyncTask(Generic[P]):
 
         return self.queue.add_job(
             self.job_name,
-            _content_type=_content_type,  # type: ignore
-            _delay_seconds=_delay_seconds,  # type: ignore
+            _content_type=_content_type,  # type: ignore[arg-type]
+            _delay_seconds=_delay_seconds,  # type: ignore[arg-type]
             _deduplication_id=_deduplication_id,
-            _group_id=_group_id,  # type: ignore
+            _group_id=_group_id,  # type: ignore[arg-type]
             **kwargs,
         )
 

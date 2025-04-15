@@ -42,19 +42,40 @@ extend-exclude = ["env", "runtime"]
 
 [tool.ruff.lint]
 select = [
+  "A",     # flake8-builtins
   "ASYNC", # flake8-async
+  "B",     # flake8-bugbear
   "C4",    # flake8-comprehensions
   "D",     # pydocstyle,
+  "DTZ",   # flake8-datetimez,
   "E",     # pycodestyle errors
   "W",     # pycodestyle warnings
-  "W",     # pycodestyle
   "F",     # pyflakes
   "I",     # isort
   "PL",    # pylint
   "RUF",   # ruff
   "S",     # flake8-bandit
+  "T20",   # flake8-print
   "SIM",   # flake8-simplify
   "UP",    # pyupgrade
+  "TC",    # flake8-type-checking
+  "BLE",   # flake8-blind-except
+  "FA",    # flake8-future-annotations
+  "FIX",   # flake8-fixme
+  "ICN",   # flake8-import-conventions
+  "LOG",   # flake8-logging
+  "G",     # flake8-logging-format
+  "RET",   # flake8-logging-return
+  "ISC",   # flake8-implicit-str-concat
+  "INP",   # flake8-no-pep420
+  "PIE",   # flake8-pie
+  "PT",    # flake8-pytest-style
+  "TID",   # flake8-tidy-imports
+  "PTH",   # flake8-user-pathlib
+  "PERF",  # perflint
+  "FURB",  # refurb
+  "PGH",   # pygrep-hooks
+  "PYI",   # flake8-pyi
 ]
 
 ignore = [
