@@ -42,8 +42,7 @@ class Config:
         value = self[item]
         if isinstance(value, dict):
             return instantiate_from_dict(value, maker_key=self.maker_key, **kwargs)
-        else:
-            return instantiate_from_string(value, **kwargs)
+        return instantiate_from_string(value, **kwargs)
 
     def make_child(self, options=None):
         if options is None:

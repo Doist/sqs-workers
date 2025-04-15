@@ -89,8 +89,8 @@ class MemoryQueue:
     """
 
     aws: MemoryAWS = field(repr=False)
-    name: str = field()
-    attributes: dict[str, dict[str, str]] = field()
+    name: str
+    attributes: dict[str, dict[str, str]]
     messages: list["MemoryMessage"] = field(default_factory=list)
     in_flight: dict[str, "MemoryMessage"] = field(default_factory=dict)
 
@@ -107,15 +107,13 @@ class MemoryQueue:
         return {"MessageId": message.message_id, "SequenceNumber": 0}
 
     def send_messages(self, Entries):
-        res = []
-        for message in Entries:
-            res.append(self.send_message(**message))
-        return {"Successful": res, "Failed": []}
+        messages = [self.send_message(**message) for message in Entries]
+        return {"Successful": messages, "Failed": []}
 
     def receive_messages(self, WaitTimeSeconds="0", MaxNumberOfMessages="10", **kwargs):
         """
         Helper function which returns at most max_messages from the
-        queue. Used in an infinite loop inside `get_raw_messages`
+        queue. Used in an infinite loop inside `get_raw_messages`.
         """
         wait_seconds = int(WaitTimeSeconds)
         max_messages = int(MaxNumberOfMessages)
@@ -174,7 +172,7 @@ class MemoryQueue:
     def change_message_visibility_batch(self, Entries):
         """
         Changes message visibility by looking at in-flight messages, setting
-        a new visible_at, when it will return to the pool of messages
+        a new visible_at, when it will return to the pool of messages.
         """
         found_entries = []
         not_found_entries = []
@@ -210,7 +208,7 @@ class MemoryQueue:
 @dataclass(frozen=True)
 class MemoryMessage:
     """
-    A mock class to mimic the AWS message
+    A mock class to mimic the AWS message.
 
     Ref: https://boto3.amazonaws.com/v1/documentation/api/latest/reference/
          services/sqs.html#SQS.Message
@@ -219,7 +217,7 @@ class MemoryMessage:
     queue_impl: MemoryQueue = field(repr=False)
 
     # The message's contents (not URL-encoded).
-    body: bytes = field()
+    body: bytes
 
     # Each message attribute consists of a Name, Type, and Value.
     message_attributes: dict[str, dict[str, str]] = field(default_factory=dict)

@@ -14,17 +14,15 @@ from sqs_workers.memory_sqs import MemoryAWS, MemorySession
 def sqs_session(request):
     if request.param == "aws":
         return boto3.Session()
-    elif request.param == "localstack":
+    if request.param == "localstack":
         return localstack_client.session.Session()
-    else:
-        return MemorySession(MemoryAWS())
+    return MemorySession(MemoryAWS())
 
 
 @pytest.fixture
 def sqs(sqs_session):
     queue_prefix = f"sqs_workers_tests_{datetime.now(tz=timezone.utc):%Y%m%d}_"
-    sqs = SQSEnv(session=sqs_session, queue_prefix=queue_prefix)
-    return sqs
+    return SQSEnv(session=sqs_session, queue_prefix=queue_prefix)
 
 
 @pytest.fixture

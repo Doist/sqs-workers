@@ -1,7 +1,9 @@
+from __future__ import annotations
+
 import logging
-from dataclasses import dataclass, field, replace
+from dataclasses import dataclass, replace
 from functools import partial
-from typing import TYPE_CHECKING, Callable, Optional
+from typing import TYPE_CHECKING, Callable
 
 from sqs_workers import codecs
 from sqs_workers.context import SQSContext
@@ -24,8 +26,8 @@ class Processor:
     SQS message
     """
 
-    queue: "GenericQueue" = field()
-    fn: Optional[Callable] = None
+    queue: GenericQueue
+    fn: Callable | None = None
     job_name: str = ""
     pass_context: bool = False
     context_var: str = DEFAULT_CONTEXT_VAR
@@ -108,7 +110,7 @@ class Processor:
     def copy(self, **kwargs):
         """
         Create a new instance of the processor, optionally updating
-        arguments of the constructor from update_kwargs
+        arguments of the constructor from update_kwargs.
         """
         return replace(self, **kwargs)
 
