@@ -472,12 +472,12 @@ Please see our guide [here](./CONTRIBUTING.md)
 
 ## Local Development
 
-We use Poetry for dependency management & packaging.  Please see [here for setup instructions](https://python-poetry.org/docs/#installation).
+We use uv for dependency management & packaging.  Please see [here for setup instructions](https://docs.astral.sh/uv/getting-started/installation/).
 
-Once you have Poetry installed, you can run the following to install the dependencies in a virtual environment:
+Once you have uv installed, you can run the following to install the dependencies in a virtual environment:
 
 ```bash
-poetry install
+uv sync
 ```
 
 ## Testing
@@ -491,13 +491,13 @@ If you just run `pytest` or `tox`, all tests will be run against AWS, localstack
 Make sure you have your boto3 client configured ([ref](https://boto3.readthedocs.io/en/latest/guide/quickstart.html#configuration)) and then run
 
 ```bash
-poetry run pytest -k aws
+uv run pytest -k aws
 ```
 
 Alternatively, to test all supported versions, run
 
 ```bash
-poetry run tox -- -k aws
+uv run tox -- -k aws
 ```
 
 ### Testing with localstack
@@ -507,19 +507,19 @@ Localstack tests should perform faster than testing against AWS, and besides, th
 Run [ElasticMQ](https://github.com/softwaremill/elasticmq) and make sure that the SQS endpoint is available by the address localhost:4566:
 
 ```bash
-docker run -p 4566:9324 --rm -it softwaremill/elasticmq-native
+uv run -p 4566:9324 --rm -it softwaremill/elasticmq-native
 ```
 
 Then run
 
 ```bash
-poetry run pytest -k localstack
+uv run pytest -k localstack
 ```
 
 or
 
 ```bash
-poetry run tox -- -k localstack
+uv run tox -- -k localstack
 ```
 
 ### Testing with MemorySession
@@ -529,13 +529,13 @@ MemorySession should be even faster, but has all the limitations documented abov
 Simply run
 
 ```bash
-poetry run pytest -k memory
+uv run pytest -k memory
 ```
 
 or
 
 ```bash
-poetry run tox -- -k memory
+uv run tox -- -k memory
 ```
 
 ## Releasing new versions
