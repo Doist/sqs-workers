@@ -1,5 +1,6 @@
 """Helper functions to create and delete queues on SQS."""
-from typing import Any, Dict
+
+from typing import Any
 
 
 def create_standard_queue(
@@ -10,7 +11,7 @@ def create_standard_queue(
     redrive_policy=None,
 ):
     """Create a new standard queue"""
-    attrs: Dict[str, Any] = {}
+    attrs: dict[str, Any] = {}
     kwargs = {"QueueName": env.get_sqs_queue_name(queue_name), "Attributes": attrs}
     if message_retention_period is not None:
         attrs["MessageRetentionPeriod"] = str(message_retention_period)

@@ -1,6 +1,5 @@
-from typing import Any, Dict, Optional
-
-import attr
+from dataclasses import dataclass, field
+from typing import Any, Optional
 
 from sqs_workers.utils import (
     instantiate_from_dict,
@@ -9,13 +8,13 @@ from sqs_workers.utils import (
 )
 
 
-@attr.s(frozen=True)
+@dataclass(frozen=True)
 class Config:
     """Config object with hierarchy support."""
 
-    parent: Optional["Config"] = attr.ib(repr=False, default=None)
-    options: Dict[str, Any] = attr.ib(factory=dict)
-    maker_key = attr.ib(default="maker")
+    parent: Optional["Config"] = field(repr=False, default=None)
+    options: dict[str, Any] = field(default_factory=dict)
+    maker_key: str = "maker"
 
     def __setitem__(self, key: str, value):
         self.options.__setitem__(key, value)

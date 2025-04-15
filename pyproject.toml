@@ -5,15 +5,15 @@ description = "An opinionated queue processor for Amazon SQS"
 authors = ["Doist Developers <dev@doist.com>"]
 license = "MIT"
 classifiers = [
-    "Development Status :: 5 - Production/Stable",
-    "License :: OSI Approved :: MIT License",
-    "Programming Language :: Python",
-    "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.8",
-    "Programming Language :: Python :: 3.9",
-    "Programming Language :: Python :: 3.10",
-    "Programming Language :: Python :: 3.11",
-    "Programming Language :: Python :: 3.12",
+  "Development Status :: 5 - Production/Stable",
+  "License :: OSI Approved :: MIT License",
+  "Programming Language :: Python",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.8",
+  "Programming Language :: Python :: 3.9",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
 ]
 homepage = "https://github.com/Doist/sqs-workers"
 readme = "README.md"
@@ -22,15 +22,15 @@ exclude = ['tests/']
 [tool.poetry.dependencies]
 python = "^3.9,<3.14"
 boto3 = "^1.27.33"
-attrs = "^23.1.0"
 
 [tool.poetry.group.dev.dependencies]
-pytest-runner = "^6.0.1"
+tox = "^4.15.1"
 pytest = "^8.3.5"
+pytest-runner = "^6.0.1"
 localstack-client = "^2.10"
 pre-commit = "^4.2.0"
+mypy = "1.15"
 ruff = "^0.11.5"
-tox = "^4.15.1"
 typing-extensions = "^4.13.2"
 
 [build-system]
@@ -38,34 +38,45 @@ requires = ["poetry-core>=1.0.0"]
 build-backend = "poetry.core.masonry.api"
 
 [tool.ruff]
-select = [
-  "ASYNC",      # flake8-async
-  "C4",         # flake8-comprehensions
-  "D",          # pydocstyle,
-  "E", "W",     # pycodestyle
-  "F",          # pyflakes
-  "I",          # isort
-  "PL",         # pylint
-  "RUF",        # ruff
-  "S",          # flake8-bandit
-  "SIM",        # flake8-simplify
-  "UP",         # pyupgrade
-]
+extend-exclude = ["env", "runtime"]
 
-# By default, always show source code snippets.
-show-source = true
+[tool.ruff.lint]
+select = [
+  "ASYNC", # flake8-async
+  "C4",    # flake8-comprehensions
+  "D",     # pydocstyle,
+  "E",     # pycodestyle errors
+  "W",     # pycodestyle warnings
+  "W",     # pycodestyle
+  "F",     # pyflakes
+  "I",     # isort
+  "PL",    # pylint
+  "RUF",   # ruff
+  "S",     # flake8-bandit
+  "SIM",   # flake8-simplify
+  "UP",    # pyupgrade
+]
 
 ignore = [
   ## D - pydocstyle ##
   # D1XX errors are OK. Don't force people into over-documenting.
-  "D100", "D101", "D102", "D103", "D104", "D105", "D107",
+  "D100",
+  "D101",
+  "D102",
+  "D103",
+  "D104",
+  "D105",
+  "D107",
   # These need to be fixed.
-  "D202", "D205", "D400", "D401",
+  "D202",
+  "D205",
+  "D400",
+  "D401",
 
   ## E / W - pycodestyle ##
-  "E501",  # line too long
-  "E203",  # whitespace-before-punctuation
-  "E741",  # ambiguous variable name
+  "E501", # line too long
+  "E203", # whitespace-before-punctuation
+  "E741", # ambiguous variable name
 
   ## PL - pylint ##
   # Commented-out rules are rules that we disable in pylint but are not supported by ruff yet.
@@ -73,7 +84,7 @@ ignore = [
   # Import order issues
   # "PLC0411",  # wrong-import-order
   # "PLC0412",  # wrong-import-position
-  "PLC0414",  # ungrouped-imports
+  "PLC0414", # ungrouped-imports
 
   # Documentation issues
   # "C0114",  # missing-module-docstring
@@ -83,69 +94,64 @@ ignore = [
   # "PLC0302",  # too-many-lines
   # "PLR1702",  # too-many-nested-blocks
   # "PLR0902",  # too-many-instance-attributes
-  "PLR0911",  # too-many-return-statements
-  "PLR0915",  # too-many-statements
-  "PLR0912",  # too-many-branches
+  "PLR0911", # too-many-return-statements
+  "PLR0915", # too-many-statements
+  "PLR0912", # too-many-branches
   # "PLR0903",  # too-few-public-methods
   # "PLR0914",  # too-many-locals
   # "PLC0301",  # line-too-long
-  "PLR0913",  # too-many-arguments
-  "PLR2004",  # magic-value-comparison
-  "PLR5501",  # collapsible-else-if
-  "PLW0603",  # global-statement
-  "PLW2901",  # redefined-loop-name
-  "PLC1901",  # compare-to-empty-string
+  "PLR0913", # too-many-arguments
+  "PLR2004", # magic-value-comparison
+  "PLR5501", # collapsible-else-if
+  "PLW0603", # global-statement
+  "PLW2901", # redefined-loop-name
+  "PLC1901", # compare-to-empty-string
 
   ## RUF - ruff ##
-  "RUF001",  # ambiguous-unicode-character-string
-  "RUF002",  # ambiguous-unicode-character-docstring
-  "RUF003",  # ambiguous-unicode-character-comment
-  "RUF012",  # mutable-class-default
+  "RUF001", # ambiguous-unicode-character-string
+  "RUF002", # ambiguous-unicode-character-docstring
+  "RUF003", # ambiguous-unicode-character-comment
+  "RUF012", # mutable-class-default
 
   # Enable when Poetry supports PEP 621 and we migrate our confguration to it.
   # See: https://github.com/python-poetry/poetry-core/pull/567
   "RUF200",
 
-  "S101",  # assert
-  "S104",  # hardcoded-bind-all-interfaces
-  "S105",  # hardcoded-password-string
-  "S106",  # hardcoded-password-func-arg
-  "S107",  # hardcoded-password-default
-  "S110",  # try-except-pass
-  "S301",  # suspicious-pickle-usage
-  "S303",  # suspicious-insecure-hash-usage
-  "S310",  # suspicious-url-open-usage
-  "S311",  # suspicious-non-cryptographic-random-usage
-  "S324",  # hashlib-insecure-hash-function
-  "S603",  # subprocess-without-shell-equals-true
-  "S607",  # start-process-with-partial-path
-  "S608",  # hardcoded-sql-expression
+  "S101", # assert
+  "S104", # hardcoded-bind-all-interfaces
+  "S105", # hardcoded-password-string
+  "S106", # hardcoded-password-func-arg
+  "S107", # hardcoded-password-default
+  "S110", # try-except-pass
+  "S301", # suspicious-pickle-usage
+  "S303", # suspicious-insecure-hash-usage
+  "S310", # suspicious-url-open-usage
+  "S311", # suspicious-non-cryptographic-random-usage
+  "S324", # hashlib-insecure-hash-function
+  "S603", # subprocess-without-shell-equals-true
+  "S607", # start-process-with-partial-path
+  "S608", # hardcoded-sql-expression
 
   ## SIM - flake8-simplify ##
-  "SIM102",  # collapsible-if
-  "SIM105",  # suppressible-exception
-  "SIM108",  # if-else-block-instead-of-if-exp
-  "SIM114",  # if-with-same-arms
-  "SIM116",  # if-else-block-instead-of-dict-lookup
-  "SIM117",  # multiple-with-statements
+  "SIM102", # collapsible-if
+  "SIM105", # suppressible-exception
+  "SIM108", # if-else-block-instead-of-if-exp
+  "SIM114", # if-with-same-arms
+  "SIM116", # if-else-block-instead-of-dict-lookup
+  "SIM117", # multiple-with-statements
 
   # Enable when the rule is out of preview and false-positives are handled.
   # See: https://docs.astral.sh/ruff/rules/in-dict-keys/
-  "SIM118",  # in-dict-keys
+  "SIM118", # in-dict-keys
 ]
 
-extend-exclude = [
-  "env",
-  "runtime",
-]
-
-[tool.ruff.per-file-ignores]
+[tool.ruff.lint.per-file-ignores]
 # These files have only a bunch of imports in them to force code loading.
 "todoist/workers/todoist_handlers.py" = ["F401"]
 "todoist/signals/signal_handlers.py" = ["F401"]
 "todoist/workers/scripts_handlers.py" = ["F401"]
-"scripts/**" = ["S101"] # Allow assert statement in scripts.
-"tests/**" = ["S101"] # Allow assert statement in tests.
+"scripts/**" = ["S101"]                          # Allow assert statement in scripts.
+"tests/**" = ["S101"]                            # Allow assert statement in tests.
 
 # We allow module-level imports to be not at the top of scripts, cron,
 # and configs because we initialize Todoist environment there
@@ -160,13 +166,9 @@ extend-exclude = [
 # Importing and using the fixture makes it be shadowed.
 "test_*.py" = ["F401", "F811"]
 
-"tests/minimal/conftest.py" = [
-  "E402",
-  "F401",
-  "F403",
-]
+"tests/minimal/conftest.py" = ["E402", "F401", "F403"]
 
-[tool.ruff.isort]
+[tool.ruff.lint.isort]
 section-order = [
   "future",
   "standard-library",
@@ -178,12 +180,12 @@ section-order = [
   "local-folder",
 ]
 
-[tool.ruff.isort.sections]
+[tool.ruff.lint.isort.sections]
 "parts" = ["parts"]
 "td-models" = ["todoist.models"]
 "td-apps" = ["todoist.apps"]
 
-[tool.ruff.pydocstyle]
+[tool.ruff.lint.pydocstyle]
 convention = "pep257"
 
 [tool.ruff.lint.pyupgrade]

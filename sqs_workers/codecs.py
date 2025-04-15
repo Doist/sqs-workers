@@ -2,7 +2,7 @@ import base64
 import json
 import pickle
 import zlib
-from typing import Any, ClassVar, Dict, Protocol, Type
+from typing import Any, ClassVar, Protocol
 
 DEFAULT_CONTENT_TYPE = "pickle_compat"
 
@@ -12,12 +12,10 @@ PICKLE_PY2_COMPAT_PROTO = 2
 
 class Codec(Protocol):
     @classmethod
-    def serialize(cls, message: Any) -> str:
-        ...
+    def serialize(cls, message: Any) -> str: ...
 
     @classmethod
-    def deserialize(cls, serialized: str) -> Any:
-        ...
+    def deserialize(cls, serialized: str) -> Any: ...
 
 
 class JSONCodec:
@@ -50,11 +48,11 @@ class PickleCompatCodec(PickleCodec):
     protocol = PICKLE_PY2_COMPAT_PROTO
 
 
-def get_codec(content_type: str) -> Type[Codec]:
+def get_codec(content_type: str) -> type[Codec]:
     return CONTENT_TYPES_CODECS[content_type]
 
 
-CONTENT_TYPES_CODECS: Dict[str, Type[Codec]] = {
+CONTENT_TYPES_CODECS: dict[str, type[Codec]] = {
     "json": JSONCodec,
     "pickle": PickleCodec,
     "pickle_compat": PickleCompatCodec,

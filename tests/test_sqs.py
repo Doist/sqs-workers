@@ -1,5 +1,6 @@
+import contextlib
 import time
-from typing import Dict, List, Optional
+from typing import Optional
 
 import botocore
 import pytest
@@ -18,9 +19,9 @@ from sqs_workers.memory_sqs import MemorySession
 from sqs_workers.processors import Processor
 from sqs_workers.queue import RawQueue
 
-worker_results: Dict[str, Optional[str]] = {"say_hello": None}
+worker_results: dict[str, Optional[str]] = {"say_hello": None}
 
-batch_results: List[str] = []
+batch_results: list[str] = []
 
 
 def raise_exception(username="Anonymous"):
@@ -143,7 +144,7 @@ def test_batch_should_keep_messages_until_overflow(sqs, queue_name):
     with say_hello_task.batch():
         # no messages after 9 tasks
         for n in range(9):
-            say_hello_task.delay(username="Homer %d" % n)
+            say_hello_task.delay(username=f"Homer {n}")
         assert len(queue.get_raw_messages(0)) == 0
 
         # 2 more: overflow, the first 10 messages are added to the queue

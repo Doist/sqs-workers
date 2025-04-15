@@ -28,11 +28,7 @@ class BatchProcessingResult:
         return self.succeeded_count() + self.failed_count()
 
     def __repr__(self) -> str:
-        return "<BatchProcessingResult/{}/{}/{}>".format(
-            self.queue_name,
-            self.succeeded_count(),
-            self.failed_count(),
-        )
+        return f"<BatchProcessingResult/{self.queue_name}/{self.succeeded_count()}/{self.failed_count()}>"
 
 
 class RedrivePolicy:
