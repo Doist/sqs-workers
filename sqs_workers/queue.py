@@ -51,7 +51,7 @@ class SQSBatchError(SQSError):
 @dataclass
 class GenericQueue:
     env: SQSEnv = field(repr=False)
-    name: str = field()
+    name: str
     backoff_policy: BackoffPolicy = DEFAULT_BACKOFF
     batching_policy: BatchingConfiguration = field(default_factory=lambda: NoBatching())
     _queue: Any = field(repr=False, default=None)

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass, field, replace
+from dataclasses import dataclass, replace
 from functools import partial
 from typing import TYPE_CHECKING, Callable
 
@@ -26,7 +26,7 @@ class Processor:
     SQS message
     """
 
-    queue: GenericQueue = field()
+    queue: GenericQueue
     fn: Callable | None = None
     job_name: str = ""
     pass_context: bool = False

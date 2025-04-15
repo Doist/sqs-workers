@@ -89,8 +89,8 @@ class MemoryQueue:
     """
 
     aws: MemoryAWS = field(repr=False)
-    name: str = field()
-    attributes: dict[str, dict[str, str]] = field()
+    name: str
+    attributes: dict[str, dict[str, str]]
     messages: list["MemoryMessage"] = field(default_factory=list)
     in_flight: dict[str, "MemoryMessage"] = field(default_factory=dict)
 
@@ -217,7 +217,7 @@ class MemoryMessage:
     queue_impl: MemoryQueue = field(repr=False)
 
     # The message's contents (not URL-encoded).
-    body: bytes = field()
+    body: bytes
 
     # Each message attribute consists of a Name, Type, and Value.
     message_attributes: dict[str, dict[str, str]] = field(default_factory=dict)
