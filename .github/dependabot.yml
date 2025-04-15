@@ -7,7 +7,8 @@ updates:
       interval: weekly
       day: "monday"
       time: "00:00"
-
+    reviewers:
+      - 'Doist/backend'
     commit-message:
       prefix: "chore(deps):"
 
@@ -17,6 +18,7 @@ updates:
       interval: weekly
       day: "monday"
       time: "00:00"
-
+    reviewers:
+      - 'Doist/backend'
     commit-message:
       prefix: "chore(deps):"
