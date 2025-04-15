@@ -331,14 +331,10 @@ def test_message_retention_period(sqs_session, sqs, random_string):
         create_standard_queue(sqs, random_string, message_retention_period=600)
         create_fifo_queue(sqs, random_string + ".fifo", message_retention_period=600)
     finally:
-        try:
+        with contextlib.suppress(Exception):
             delete_queue(sqs, random_string)
-        except Exception:
-            pass
-        try:
+        with contextlib.suppress(Exception):
             delete_queue(sqs, random_string + ".fifo")
-        except Exception:
-            pass
 
 
 def test_deduplication_id(sqs_session, sqs, fifo_queue_name):
@@ -382,14 +378,10 @@ def test_visibility_timeout(sqs, random_string):
         create_standard_queue(sqs, random_string, visibility_timeout=1)
         create_fifo_queue(sqs, random_string + ".fifo", visibility_timeout=1)
     finally:
-        try:
+        with contextlib.suppress(Exception):
             delete_queue(sqs, random_string)
-        except Exception:
-            pass
-        try:
+        with contextlib.suppress(Exception):
             delete_queue(sqs, random_string + ".fifo")
-        except Exception:
-            pass
 
 
 def test_custom_processor(sqs, queue_name):

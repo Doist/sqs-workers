@@ -34,40 +34,40 @@ class SQSContext(local):
 
     @classmethod
     def from_dict(cls, kwargs):
-        """Create context from the dict"""
+        """Create context from the dict."""
         return cls(**kwargs)
 
     def __init__(self, **kwargs):
-        """Create a new context and populate it with keys and values from kwargs"""
+        """Create a new context and populate it with keys and values from kwargs."""
         self._context = {}
         self.set(**kwargs)
 
     def set(self, **kwargs):
-        """Clean up current context and replace it with values from kwargs"""
+        """Clean up current context and replace it with values from kwargs."""
         self._context = kwargs.copy()
 
     def update(self, **kwargs):
-        """Extend current context with values from kwargs"""
+        """Extend current context with values from kwargs."""
         self._context.update(kwargs)
 
     def clear(self):
-        """Remove all values from the context"""
+        """Remove all values from the context."""
         self._context.clear()
 
     def to_dict(self):
-        """Convert context to dictionary"""
+        """Convert context to dictionary."""
         return self._context.copy()
 
     def get(self, key, default=None):
-        """Get value by key from the context"""
+        """Get value by key from the context."""
         return self._context.get(key, default)
 
     def __getitem__(self, item):
-        """Dict API emulation. Get value by key from the context"""
+        """Dict API emulation. Get value by key from the context."""
         return self._context[item]
 
     def __setitem__(self, key, value):
-        """Dict API emulation. Set value by key"""
+        """Dict API emulation. Set value by key."""
         self._context[key] = value
 
     @contextmanager

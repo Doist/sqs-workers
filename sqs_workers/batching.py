@@ -12,19 +12,19 @@ class BatchingConfiguration(ABC):
     def batching_enabled(self) -> bool:
         """
         If false, messages are sent 1 by 1 to the call handler
-        If true, messages are sent as a list to the call handler
+        If true, messages are sent as a list to the call handler.
         """
         ...
 
     @property
     @abstractmethod
     def batch_size(self) -> int:
-        """Number of messages to process at once if batching_enabled"""
+        """Number of messages to process at once if batching_enabled."""
         ...
 
 
 class NoBatching(BatchingConfiguration):
-    """Configures the processor to send messages 1 by 1 to the call handler"""
+    """Configures the processor to send messages 1 by 1 to the call handler."""
 
     @property
     def batching_enabled(self) -> bool:
@@ -36,7 +36,7 @@ class NoBatching(BatchingConfiguration):
 
 
 class BatchMessages(BatchingConfiguration):
-    """Configures the processor to send a list of messages to the call handler"""
+    """Configures the processor to send a list of messages to the call handler."""
 
     def __init__(self, batch_size: int):
         self.number_of_messages = batch_size

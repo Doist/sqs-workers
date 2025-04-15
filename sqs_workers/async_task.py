@@ -8,7 +8,6 @@ from typing import (
     Callable,
     Generic,
     NoReturn,
-    Optional,
     TypedDict,
 )
 
@@ -74,7 +73,7 @@ class AsyncTask(Generic[P]):
         with self.queue.add_batch():
             yield
 
-    def delay(self, *args: P.args, **kwargs: P.kwargs) -> Optional[str]:
+    def delay(self, *args: P.args, **kwargs: P.kwargs) -> str | None:
         """Run the task asynchronously."""
         _content_type = kwargs.pop("_content_type", self.queue.env.codec)  # type: ignore
         _delay_seconds = kwargs.pop("_delay_seconds", None)  # type: ignore

@@ -33,7 +33,7 @@ class BatchProcessingResult:
 
 class RedrivePolicy:
     """
-    Redrive Policy for SQS queues
+    Redrive Policy for SQS queues.
 
     See for more details:
     https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/sqs-dead-letter-queues.html

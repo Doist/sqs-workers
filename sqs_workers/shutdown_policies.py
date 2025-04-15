@@ -9,7 +9,7 @@ class ShutdownPolicy(Protocol):
 
 
 class NeverShutdown:
-    """Never shutdown the worker"""
+    """Never shutdown the worker."""
 
     def update_state(self, batch_processing_result) -> None:
         pass
@@ -22,7 +22,7 @@ class NeverShutdown:
 
 
 class IdleShutdown:
-    """Shutdown worker if it's idle for certain time (set in seconds)"""
+    """Shutdown worker if it's idle for certain time (set in seconds)."""
 
     def __init__(self, idle_seconds: int) -> None:
         self.idle_seconds = idle_seconds
@@ -31,7 +31,7 @@ class IdleShutdown:
         self._last_seen = datetime.now(tz=timezone.utc)
 
     def update_state(self, batch_processing_result) -> None:
-        """Update internal state of the shutdown policy"""
+        """Update internal state of the shutdown policy."""
         if batch_processing_result.total_count() == 0:
             self._is_idle = True
         else:
@@ -50,7 +50,7 @@ class IdleShutdown:
 class MaxTasksShutdown:
     """
     Shutdown worker if it executed more than max_tasks in total (both
-    successfully or with error)
+    successfully or with error).
     """
 
     def __init__(self, max_tasks: int) -> None:
@@ -68,7 +68,7 @@ class MaxTasksShutdown:
 
 
 class OrShutdown:
-    """Return True if any of conditions of policies is met"""
+    """Return True if any of conditions of policies is met."""
 
     def __init__(self, *policies) -> None:
         self.policies = policies
@@ -86,7 +86,7 @@ class OrShutdown:
 
 
 class AndShutdown:
-    """Return True if all of conditions of policies are met"""
+    """Return True if all of conditions of policies are met."""
 
     def __init__(self, *policies) -> None:
         self.policies = policies

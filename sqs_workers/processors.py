@@ -108,7 +108,7 @@ class Processor:
     def copy(self, **kwargs):
         """
         Create a new instance of the processor, optionally updating
-        arguments of the constructor from update_kwargs
+        arguments of the constructor from update_kwargs.
         """
         return replace(self, **kwargs)
 

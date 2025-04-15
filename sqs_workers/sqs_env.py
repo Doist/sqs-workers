@@ -159,7 +159,7 @@ class SQSEnv:
     ):
         """
         Use multiprocessing to process multiple queues at once. If queue names
-        are not set, process all known queues
+        are not set, process all known queues.
 
         shutdown_policy_maker is an optional callable which doesn't accept any
         arguments and create a new shutdown policy for each queue.
@@ -198,7 +198,7 @@ class SQSEnv:
         """
         Take "high-level" (user-visible) queue name and return SQS
         ("low level") name by simply prefixing it. Used to create namespaces
-        for different environments (development, staging, production, etc)
+        for different environments (development, staging, production, etc).
         """
         return f"{self.queue_prefix}{queue_name}"
 

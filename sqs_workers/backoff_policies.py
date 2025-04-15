@@ -9,7 +9,7 @@ class BackoffPolicy:
 class ConstantBackoff(BackoffPolicy):
     """
     Backoff policy which always returns the message back to the queue
-    immediately on failure
+    immediately on failure.
     """
 
     def __init__(self, backoff_value: float = 0):
@@ -22,7 +22,7 @@ class ConstantBackoff(BackoffPolicy):
 class ExponentialBackoff(BackoffPolicy):
     """
     Backoff policy which keeps the message hidden from the queue
-    with an exponential backoff
+    with an exponential backoff.
     """
 
     def __init__(

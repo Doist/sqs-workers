@@ -115,7 +115,7 @@ class MemoryQueue:
     def receive_messages(self, WaitTimeSeconds="0", MaxNumberOfMessages="10", **kwargs):
         """
         Helper function which returns at most max_messages from the
-        queue. Used in an infinite loop inside `get_raw_messages`
+        queue. Used in an infinite loop inside `get_raw_messages`.
         """
         wait_seconds = int(WaitTimeSeconds)
         max_messages = int(MaxNumberOfMessages)
@@ -174,7 +174,7 @@ class MemoryQueue:
     def change_message_visibility_batch(self, Entries):
         """
         Changes message visibility by looking at in-flight messages, setting
-        a new visible_at, when it will return to the pool of messages
+        a new visible_at, when it will return to the pool of messages.
         """
         found_entries = []
         not_found_entries = []
@@ -210,7 +210,7 @@ class MemoryQueue:
 @dataclass(frozen=True)
 class MemoryMessage:
     """
-    A mock class to mimic the AWS message
+    A mock class to mimic the AWS message.
 
     Ref: https://boto3.amazonaws.com/v1/documentation/api/latest/reference/
          services/sqs.html#SQS.Message

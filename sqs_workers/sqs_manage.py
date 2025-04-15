@@ -10,7 +10,7 @@ def create_standard_queue(
     visibility_timeout=None,
     redrive_policy=None,
 ):
-    """Create a new standard queue"""
+    """Create a new standard queue."""
     attrs: dict[str, Any] = {}
     kwargs = {"QueueName": env.get_sqs_queue_name(queue_name), "Attributes": attrs}
     if message_retention_period is not None:
@@ -32,7 +32,7 @@ def create_fifo_queue(
     redrive_policy=None,
 ):
     """
-    Create a new FIFO queue. Note that queue name has to end with ".fifo"
+    Create a new FIFO queue. Note that queue name has to end with ".fifo".
 
     - "content_based_deduplication" turns on automatic content-based
       deduplication of messages in the queue
@@ -56,7 +56,7 @@ def create_fifo_queue(
 
 
 def delete_queue(env, queue_name: str) -> None:
-    """Delete the queue"""
+    """Delete the queue."""
     env.sqs_resource.get_queue_by_name(
         QueueName=env.get_sqs_queue_name(queue_name)
     ).delete()

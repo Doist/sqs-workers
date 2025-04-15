@@ -61,7 +61,7 @@ class GenericQueue:
     def process_queue(
         self, shutdown_policy: ShutdownPolicy = NEVER_SHUTDOWN, wait_second=10
     ):
-        """Run worker to process one queue in the infinite loop"""
+        """Run worker to process one queue in the infinite loop."""
         logger.debug(
             "Start processing queue %s",
             self.name,
@@ -89,7 +89,7 @@ class GenericQueue:
     def process_batch(self, wait_seconds: int = 0) -> BatchProcessingResult:
         """
         Process a batch of messages from the queue (10 messages at most), return
-        the number of successfully processed messages, and exit
+        the number of successfully processed messages, and exit.
         """
         if self.batching_policy.batching_enabled:
             messages = self.get_raw_messages(
@@ -188,7 +188,7 @@ class GenericQueue:
         raise NotImplementedError()
 
     def get_raw_messages(self, wait_seconds: int, max_messages: int = 10) -> list[Any]:
-        """Return raw messages from the queue, addressed by its name"""
+        """Return raw messages from the queue, addressed by its name."""
         queue = self.get_queue()
 
         kwargs = {
@@ -247,7 +247,7 @@ class GenericQueue:
         """
         Take "high-level" (user-visible) queue name and return SQS
         ("low level") name by simply prefixing it. Used to create namespaces
-        for different environments (development, staging, production, etc)
+        for different environments (development, staging, production, etc).
         """
         return self.env.get_sqs_queue_name(self.name)
 
@@ -266,7 +266,7 @@ class RawQueue(GenericQueue):
 
     def raw_processor(self):
         """
-        Decorator to assign processor to handle jobs from the raw queue
+        Decorator to assign processor to handle jobs from the raw queue.
 
         Usage example:
 
@@ -303,8 +303,7 @@ class RawQueue(GenericQueue):
         deduplication_id: Optional[str] = None,
         group_id: str = DEFAULT_MESSAGE_GROUP_ID,
     ):
-        """Add raw message to the queue"""
-
+        """Add raw message to the queue."""
         kwargs = {
             "MessageBody": message_body,
             "DelaySeconds": delay_seconds,
@@ -354,7 +353,7 @@ class RawQueue(GenericQueue):
 
     def process_messages(self, messages: list[Any]) -> bool:
         """
-        Sends a list of messages to the call handler
+        Sends a list of messages to the call handler.
 
         Return True if processing went successful for all messages in the batch.
         """
@@ -401,7 +400,7 @@ class JobQueue(GenericQueue):
     ) -> Callable[[Callable[P, Any]], AsyncTask[P]]:
         """
         Decorator to assign processor to handle jobs with the name job_name
-        from the queue queue_name
+        from the queue queue_name.
 
         Usage example:
 
@@ -440,7 +439,7 @@ class JobQueue(GenericQueue):
     ) -> AsyncTask[P]:
         """
         Assign processor (a function) to handle jobs with the name job_name
-        from the queue queue_name
+        from the queue queue_name.
         """
         extra = {
             "queue_name": self.name,
@@ -464,7 +463,7 @@ class JobQueue(GenericQueue):
         return AsyncTask(self, job_name, processor)
 
     def get_processor(self, job_name: str) -> Optional[Processor]:
-        """Helper function to return a processor for the queue"""
+        """Helper function to return a processor for the queue."""
         return self.processors.get(job_name)
 
     def open_add_batch(self) -> None:
@@ -582,7 +581,7 @@ class JobQueue(GenericQueue):
     ) -> Optional[str]:
         """
         Add job to the queue. The body of the job will be converted to the text
-        with one of the codecs (by default it's "pickle_compat")
+        with one of the codecs (by default it's "pickle_compat").
         """
         if not _content_type:
             _content_type = self.env.codec
@@ -609,7 +608,7 @@ class JobQueue(GenericQueue):
         deduplication_id,
         group_id: Optional[str],
     ) -> Optional[str]:
-        """Low-level function to put message to the queue"""
+        """Low-level function to put message to the queue."""
         # if queue name ends with .fifo, then according to the AWS specs,
         # it's a FIFO queue, and requires group_id.
         # Otherwise group_id can be set to None
@@ -655,7 +654,7 @@ class JobQueue(GenericQueue):
 
     def process_messages(self, messages: list[Any]) -> bool:
         """
-        Sends a list of messages to the call handler
+        Sends a list of messages to the call handler.
 
         Return True if processing went successful for all messages in the batch.
         """
