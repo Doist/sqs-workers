@@ -3,6 +3,7 @@
 - Updates all dependenices
 - Adds support for Python 3.13
 - Removes support for Python 3.8
+- Moved to uv for package and project management
 
 ## [0.5.22] - 2025-02-28
 

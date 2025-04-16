@@ -1,3 +1,0 @@
--e .
-pytest
-localstack-client>=1.7

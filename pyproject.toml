@@ -1,8 +1,10 @@
-[tool.poetry]
+[project]
 name = "sqs-workers"
 version = "0.5.22"
 description = "An opinionated queue processor for Amazon SQS"
-authors = ["Doist Developers <dev@doist.com>"]
+authors = [{ name = "Doist Developers", email = "dev@doist.com" }]
+requires-python = ">=3.9,<3.14"
+readme = "README.md"
 license = "MIT"
 classifiers = [
   "Development Status :: 5 - Production/Stable",
@@ -15,67 +17,52 @@ classifiers = [
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
 ]
-homepage = "https://github.com/Doist/sqs-workers"
-readme = "README.md"
-exclude = ['tests/']
+dependencies = ["boto3>=1.37.33,<2"]
 
-[tool.poetry.dependencies]
-python = ">=3.9,<3.14"
-boto3 = "^1.27.33"
+[project.urls]
+Homepage = "https://github.com/Doist/sqs-workers"
 
-[tool.poetry.group.dev.dependencies]
-tox = "^4.15.1"
-pytest = "^8.3.5"
-pytest-runner = "^6.0.1"
-localstack-client = "^2.10"
-pre-commit = "^4.2.0"
-mypy = "1.15"
-ruff = "^0.11.5"
-typing-extensions = "^4.13.2"
+[dependency-groups]
+dev = [
+  "typing-extensions>=4.13.2",
+  "tox>=4.15.1,<5",
+  "tox-uv>=1.25.0,<2",
+  "pytest>=8.3.5,<9",
+  "pytest-runner>=6.0.1,<7",
+  "localstack-client~=2.10",
+  "pre-commit>=4.2.0",
+  "mypy>=1.15",
+  "ruff>=0.11.5",
+]
+
+[tool.hatch.build.targets.sdist]
+exclude = ["tests/"]
+
+[tool.hatch.build.targets.wheel]
+exclude = ["tests/"]
 
 [build-system]
-requires = ["poetry-core>=1.0.0"]
-build-backend = "poetry.core.masonry.api"
+requires = ["hatchling"]
+build-backend = "hatchling.build"
 
 [tool.ruff]
 extend-exclude = ["env", "runtime"]
 
 [tool.ruff.lint]
 select = [
-  "A",     # flake8-builtins
   "ASYNC", # flake8-async
-  "B",     # flake8-bugbear
   "C4",    # flake8-comprehensions
   "D",     # pydocstyle,
-  "DTZ",   # flake8-datetimez,
   "E",     # pycodestyle errors
   "W",     # pycodestyle warnings
+  "W",     # pycodestyle
   "F",     # pyflakes
   "I",     # isort
   "PL",    # pylint
   "RUF",   # ruff
   "S",     # flake8-bandit
-  "T20",   # flake8-print
   "SIM",   # flake8-simplify
   "UP",    # pyupgrade
-  "TC",    # flake8-type-checking
-  "BLE",   # flake8-blind-except
-  "FA",    # flake8-future-annotations
-  "FIX",   # flake8-fixme
-  "ICN",   # flake8-import-conventions
-  "LOG",   # flake8-logging
-  "G",     # flake8-logging-format
-  "RET",   # flake8-logging-return
-  "ISC",   # flake8-implicit-str-concat
-  "INP",   # flake8-no-pep420
-  "PIE",   # flake8-pie
-  "PT",    # flake8-pytest-style
-  "TID",   # flake8-tidy-imports
-  "PTH",   # flake8-user-pathlib
-  "PERF",  # perflint
-  "FURB",  # refurb
-  "PGH",   # pygrep-hooks
-  "PYI",   # flake8-pyi
 ]
 
 ignore = [

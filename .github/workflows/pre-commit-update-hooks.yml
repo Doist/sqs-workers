@@ -14,21 +14,19 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
-      - name: Set up Python 3.12
-        uses: actions/setup-python@v5
         with:
-          python-version: 3.12
+          fetch-depth: 1
 
-      - name: Install pre-commit
-        run: |
-          pip install pre-commit
-          echo "PATH=${HOME}/.local/bin:${PATH}" >> "${GITHUB_ENV}"
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          version: "0.6.14"
 
-      - name: Check for outdated hooks
-        run: |
-          pre-commit autoupdate
-          git diff -- .pre-commit-config.yaml
+      - name: Install project
+        run: uv sync
+
+      - name: Update hooks
+        run: uv run pre-commit autoupdate
 
       - name: Create pull request from changes (if any)
         id: create-pull-request
