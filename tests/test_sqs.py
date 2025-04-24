@@ -14,6 +14,7 @@ from sqs_workers import (
     create_standard_queue,
     delete_queue,
 )
+from sqs_workers.async_task import AsyncTask
 from sqs_workers.codecs import JSONCodec, PickleCodec, PickleCompatCodec
 from sqs_workers.deadletter_queue import DeadLetterQueue
 from sqs_workers.memory_sqs import MemorySession
@@ -38,10 +39,17 @@ def batch_say_hello(messages: list):
     batch_results.extend(names)
 
 
+# Custom AsyncTask subclass for testing
+class CustomAsyncTask(AsyncTask):
+    def delay(self, *args, **kwargs):
+        worker_results["custom_task_used"] = True
+        return super().delay(*args, **kwargs)
+
+
 @pytest.fixture(autouse=True)
 def _reset_worker_results():
     global worker_results
-    worker_results = {"say_hello": None}
+    worker_results = {"say_hello": None, "custom_task_used": False}
 
 
 @pytest.fixture(autouse=True)
@@ -476,3 +484,49 @@ def test_batch_processor_calls_queue_multiple_times_if_max_messages_over_10(
     assert len(batch_results) == 0
     queue.process_batch(wait_seconds=0)
     assert len(batch_results) == 42
+
+
+def test_custom_task_class_queue_level(sqs, queue_name):
+    queue = sqs.queue(queue_name)
+    # Set the task_class at the queue level after creation
+    queue.task_class = CustomAsyncTask
+    say_hello_task = queue.connect_processor("say_hello", say_hello)
+
+    # Verify that the returned task is of our custom type
+    assert isinstance(say_hello_task, CustomAsyncTask)
+
+    say_hello_task.delay(username="Homer")
+    assert worker_results["custom_task_used"] is True
+    queue.process_batch(wait_seconds=0)
+    assert worker_results["say_hello"] == "Homer"
+
+
+def test_custom_task_class_processor_level(sqs, queue_name):
+    queue = sqs.queue(queue_name)
+    say_hello_task = queue.connect_processor(
+        "say_hello", say_hello, task_class=CustomAsyncTask
+    )
+
+    # Verify that the returned task is of our custom type
+    assert isinstance(say_hello_task, CustomAsyncTask)
+
+    say_hello_task.delay(username="Homer")
+    assert worker_results["custom_task_used"] is True
+    queue.process_batch(wait_seconds=0)
+    assert worker_results["say_hello"] == "Homer"
+
+
+def test_custom_task_class_decorator(sqs, queue_name):
+    queue = sqs.queue(queue_name)
+
+    @queue.processor("say_hello_decorator", task_class=CustomAsyncTask)
+    def say_hello_decorator(username="Anonymous"):
+        worker_results["say_hello"] = username
+
+    # Verify that the returned task is of our custom type
+    assert isinstance(say_hello_decorator, CustomAsyncTask)
+
+    say_hello_decorator.delay(username="Homer")
+    assert worker_results["custom_task_used"] is True
+    queue.process_batch(wait_seconds=0)
+    assert worker_results["say_hello"] == "Homer"

@@ -393,12 +393,17 @@ class RawQueue(GenericQueue):
 @dataclass
 class JobQueue(GenericQueue):
     processors: dict[str, Processor] = field(default_factory=dict)
+    task_class: type[AsyncTask] = field(default=AsyncTask)
 
     _batch_level: int = field(repr=False, default=0)
     _batched_messages: list[dict] = field(default_factory=list, repr=False)
 
     def processor(
-        self, job_name: str, pass_context: bool = False, context_var=DEFAULT_CONTEXT_VAR
+        self,
+        job_name: str,
+        pass_context: bool = False,
+        context_var=DEFAULT_CONTEXT_VAR,
+        task_class: type[AsyncTask] | None = None,
     ) -> Callable[[Callable[P, Any]], AsyncTask[P]]:
         """
         Decorator to assign processor to handle jobs with the name job_name
@@ -423,11 +428,17 @@ class JobQueue(GenericQueue):
         If you still want to call function locally, you can call
 
             say_hello(name='John')
+
+        You can optionally specify a custom AsyncTask subclass:
+
+            @queue.processor('say_hello', task_class=MyCustomAsyncTask)
+            def say_hello(name):
+                print("Hello, " + name)
         """
 
         def fn(processor: Callable[P, Any]) -> AsyncTask[P]:
             return self.connect_processor(
-                job_name, processor, pass_context, context_var
+                job_name, processor, pass_context, context_var, task_class
             )
 
         return fn
@@ -438,6 +449,7 @@ class JobQueue(GenericQueue):
         processor: Callable[P, Any],
         pass_context: bool = False,
         context_var=DEFAULT_CONTEXT_VAR,
+        task_class=None,
     ) -> AsyncTask[P]:
         """
         Assign processor (a function) to handle jobs with the name job_name
@@ -462,7 +474,8 @@ class JobQueue(GenericQueue):
             context_var=context_var,
             job_name=job_name,
         )
-        return AsyncTask(self, job_name, processor)
+        task_cls = task_class or self.task_class
+        return task_cls(self, job_name, processor)
 
     def get_processor(self, job_name: str) -> Processor | None:
         """Helper function to return a processor for the queue."""
