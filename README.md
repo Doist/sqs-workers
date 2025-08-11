@@ -507,7 +507,7 @@ Localstack tests should perform faster than testing against AWS, and besides, th
 Run [ElasticMQ](https://github.com/softwaremill/elasticmq) and make sure that the SQS endpoint is available by the address localhost:4566:
 
 ```bash
-uv run -p 4566:9324 --rm -it softwaremill/elasticmq-native
+docker run -p 4566:9324 --rm -it softwaremill/elasticmq-native
 ```
 
 Then run
