@@ -4,6 +4,7 @@
 - Adds support for Python 3.13
 - Removes support for Python 3.8
 - Moved to uv for package and project management
+- Updates the maximum SQS message size, following AWS changes
 
 ## [0.5.22] - 2025-02-28
 
