@@ -1,6 +1,6 @@
 [project]
 name = "sqs-workers"
-version = "0.5.22"
+version = "0.6.0"
 description = "An opinionated queue processor for Amazon SQS"
 authors = [{ name = "Doist Developers", email = "dev@doist.com" }]
 requires-python = ">=3.9,<3.14"

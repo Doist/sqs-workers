@@ -5,13 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## Unreleased
+## [Unreleased]
 
-- Updates all dependenices
-- Adds support for Python 3.13
-- Removes support for Python 3.8
-- Moved to uv for package and project management
-- Updates the maximum SQS message size, following AWS changes
+## [0.6.0] - 2025-08-12
+
+### Changed
+
+- Update all dependenices.
+- Move to uv for package and project management.
+- Update the maximum SQS message size, following AWS changes.
+
+### Removed
+
+- Python 3.8 is no longer supported.
+
+### Added
+
+- Support Python 3.13.
 
 ## [0.5.22] - 2025-02-28
 
