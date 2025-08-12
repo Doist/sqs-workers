@@ -108,7 +108,7 @@ When batching is enabled:
 
 - tasks are added to SQS by batches of 10, reducing the number of AWS operations
 - it is not possible to get the task `MessageId`, as it is not known until the batch is sent
-- care has to be taken about message size, as SQS limits both the individual message size and the maximum total payload size to 256 kB.
+- care has to be taken about message size, as SQS limits both the individual message size and the maximum total payload size to 1 MB.
 
 ## Batch Reads
 
@@ -507,7 +507,7 @@ Localstack tests should perform faster than testing against AWS, and besides, th
 Run [ElasticMQ](https://github.com/softwaremill/elasticmq) and make sure that the SQS endpoint is available by the address localhost:4566:
 
 ```bash
-uv run -p 4566:9324 --rm -it softwaremill/elasticmq-native
+docker run -p 4566:9324 --rm -it softwaremill/elasticmq-native
 ```
 
 Then run

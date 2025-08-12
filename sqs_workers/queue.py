@@ -28,7 +28,7 @@ from sqs_workers.utils import batcher
 
 DEFAULT_MESSAGE_GROUP_ID = "default"
 SEND_BATCH_SIZE = 10
-MAX_MESSAGE_LENGTH = 262144  # 256 KiB
+MAX_MESSAGE_LENGTH = 1048576  # 1 MiB (since Aug 4, 2025)
 
 if TYPE_CHECKING:
     from collections.abc import Generator, Iterable
