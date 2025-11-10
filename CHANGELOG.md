@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Support Python 3.14.
+- Support free-threaded Python builds.
 - Added new `RetryJob` exception to explicitly request job retries with optional custom backoff policies.
 
 ## [0.6.0] - 2025-08-12
