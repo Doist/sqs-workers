@@ -21,7 +21,7 @@ jobs:
         run: docker run -d -p 4566:9324 --rm softwaremill/elasticmq-native
 
       - name: Checkout Repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 1
 
