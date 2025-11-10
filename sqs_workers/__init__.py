@@ -6,6 +6,7 @@ from sqs_workers.backoff_policies import (
 )
 from sqs_workers.exceptions import SQSError
 from sqs_workers.memory_sqs import MemorySession
+from sqs_workers.processors import ProcessingResult, RetryJob
 from sqs_workers.queue import JobQueue, RawQueue
 from sqs_workers.sqs_env import SQSEnv
 from sqs_workers.sqs_manage import (
@@ -21,7 +22,9 @@ __all__ = [
     "ExponentialBackoff",
     "JobQueue",
     "MemorySession",
+    "ProcessingResult",
     "RawQueue",
+    "RetryJob",
     "SQSEnv",
     "SQSError",
     "create_fifo_queue",

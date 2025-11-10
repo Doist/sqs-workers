@@ -22,7 +22,12 @@ from sqs_workers.async_task import AsyncTask
 from sqs_workers.batching import BatchingConfiguration, NoBatching
 from sqs_workers.core import BatchProcessingResult, get_job_name
 from sqs_workers.exceptions import SQSError
-from sqs_workers.processors import DEFAULT_CONTEXT_VAR, Processor
+from sqs_workers.processors import (
+    DEFAULT_CONTEXT_VAR,
+    ProcessingResult,
+    Processor,
+    RetryJob,
+)
 from sqs_workers.shutdown_policies import NEVER_SHUTDOWN, ShutdownPolicy
 from sqs_workers.utils import batcher
 
@@ -93,14 +98,13 @@ class GenericQueue:
         Process a batch of messages from the queue (10 messages at most), return
         the number of successfully processed messages, and exit.
         """
+        messages_with_success: Iterable[tuple[Any, bool | ProcessingResult]]
         if self.batching_policy.batching_enabled:
             messages = self.get_raw_messages(
                 wait_seconds, self.batching_policy.batch_size
             )
             success = self.process_messages(messages)
-            messages_with_success: Iterable[tuple[Any, bool]] = (
-                (m, success) for m in messages
-            )
+            messages_with_success = ((m, success) for m in messages)
         else:
             messages = self.get_raw_messages(wait_seconds)
             successes = [self.process_message(message) for message in messages]
@@ -108,7 +112,9 @@ class GenericQueue:
 
         return self._handle_processed(messages_with_success)
 
-    def _handle_processed(self, messages_with_success: Iterable[tuple[Any, bool]]):
+    def _handle_processed(
+        self, messages_with_success: Iterable[tuple[Any, bool | ProcessingResult]]
+    ):
         """
         Handles the results of processing messages.
 
@@ -130,7 +136,15 @@ class GenericQueue:
             entries_to_ack = []
             entries_to_change_viz = []
 
-            for m, success in subgroup:
+            for m, processing_result in subgroup:
+                # Normalize result to (success, backoff_policy)
+                if isinstance(processing_result, ProcessingResult):
+                    success = processing_result.success
+                    backoff = processing_result.backoff_policy or self.backoff_policy
+                else:  # legacy bool
+                    success = processing_result
+                    backoff = self.backoff_policy
+
                 result.update_with_message(m, success)
                 if success:
                     entries_to_ack.append(
@@ -144,9 +158,7 @@ class GenericQueue:
                         {
                             "Id": m.message_id,
                             "ReceiptHandle": m.receipt_handle,
-                            "VisibilityTimeout": self.backoff_policy.get_visibility_timeout(
-                                m
-                            ),
+                            "VisibilityTimeout": backoff.get_visibility_timeout(m),
                         }
                     )
 
@@ -172,20 +184,24 @@ class GenericQueue:
 
         return result
 
-    def process_message(self, message: Any) -> bool:
+    def process_message(self, message: Any) -> bool | ProcessingResult:
         """
         Process single message.
 
-        Return True if processing went successful
+        Returns:
+            True on success, False on failure with queue default backoff,
+            or ProcessingResult with custom backoff policy.
         """
         raise NotImplementedError()
 
-    def process_messages(self, messages: list[Any]) -> bool:
+    def process_messages(self, messages: list[Any]) -> bool | ProcessingResult:
         """
         Process a batch of messages.
 
-        Return True if processing went successful
-        for every message in the batch
+        Returns:
+            True if processing succeeded for every message in the batch,
+            False on failure with queue default backoff,
+            or ProcessingResult with custom backoff policy for the entire batch.
         """
         raise NotImplementedError()
 
@@ -325,11 +341,13 @@ class RawQueue(GenericQueue):
         ret = self.get_queue().send_message(**kwargs)
         return ret["MessageId"]
 
-    def process_message(self, message: Any) -> bool:
+    def process_message(self, message: Any) -> bool | ProcessingResult:
         """
         Sends a single message to the call handler.
 
-        Return True if processing went successful
+        Returns:
+            True on success, False on failure with queue default backoff,
+            or ProcessingResult with custom backoff policy.
         """
         extra = {"message_id": message.message_id, "queue_name": self.name}
         if not self.processor:
@@ -342,6 +360,18 @@ class RawQueue(GenericQueue):
 
         try:
             self.processor(message)
+        except RetryJob as e:
+            # Intentional retry - log at info level, not error
+            retry_extra = (
+                {"backoff_policy": e.backoff_policy} if e.backoff_policy else {}
+            )
+            logger.info(
+                "Retrying %s.%s",
+                extra["queue_name"],
+                extra["message_id"],
+                extra=extra | retry_extra,
+            )
+            return ProcessingResult(success=False, backoff_policy=e.backoff_policy)
         except Exception:
             logger.exception(
                 "Error while processing %s.%s",
@@ -628,11 +658,13 @@ class JobQueue(GenericQueue):
         ret = queue.send_message(**kwargs)
         return ret["MessageId"]
 
-    def process_message(self, message: Any) -> bool:
+    def process_message(self, message: Any) -> bool | ProcessingResult:
         """
         Sends a single message to the call handler.
 
-        Return True if processing went successful
+        Returns:
+            True on success, False on failure with queue default backoff,
+            or ProcessingResult with custom backoff policy.
         """
         job_name = get_job_name(message)
         processor = self.get_processor(job_name)  # type: ignore[arg-type]
@@ -640,11 +672,14 @@ class JobQueue(GenericQueue):
             return processor.process_message(message)
         return self.process_message_fallback(job_name)  # type: ignore[arg-type]
 
-    def process_messages(self, messages: list[Any]) -> bool:
+    def process_messages(self, messages: list[Any]) -> bool | ProcessingResult:
         """
         Sends a list of messages to the call handler.
 
-        Return True if processing went successful for all messages in the batch.
+        Returns:
+            True if processing succeeded for all messages in the batch,
+            False on failure with queue default backoff,
+            or ProcessingResult with custom backoff policy for the entire batch.
         """
         messages_by_job_name = defaultdict(list)
         for message in messages:
