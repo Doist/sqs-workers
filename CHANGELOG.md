@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Support Python 3.14.
+- Support free-threaded Python builds.
+
 ## [0.6.0] - 2025-08-12
 
 ### Changed
