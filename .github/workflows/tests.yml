@@ -13,7 +13,15 @@ jobs:
     name: "Python ${{ matrix.python-version }} with ${{ matrix.session }}"
     strategy:
       matrix:
-        python-version: ["3.9", "3.10", "3.11", "3.12", "3.13"]
+        python-version:
+          - "3.9"
+          - "3.10"
+          - "3.11"
+          - "3.12"
+          - "3.13"
+          - "3.13t"
+          - "3.14"
+          - "3.14t"
         session: ["memory", "localstack"] # TODO: we don't test against production AWS
     steps:
       - name: Start Docker container with localstack
@@ -28,7 +36,7 @@ jobs:
       - name: Set up uv
         uses: astral-sh/setup-uv@v7
         with:
-          version: "0.6.14"
+          version: "0.9.8"
           python-version: ${{ matrix.python-version }}
 
       - name: Install project

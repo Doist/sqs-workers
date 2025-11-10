@@ -3,7 +3,7 @@ name = "sqs-workers"
 version = "0.6.0"
 description = "An opinionated queue processor for Amazon SQS"
 authors = [{ name = "Doist Developers", email = "dev@doist.com" }]
-requires-python = ">=3.9,<3.14"
+requires-python = ">=3.9,<3.15"
 readme = "README.md"
 license = "MIT"
 classifiers = [
