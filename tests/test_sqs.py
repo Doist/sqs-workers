@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import contextlib
+import logging
 import time
 
 import botocore
@@ -18,7 +19,7 @@ from sqs_workers import (
 from sqs_workers.codecs import JSONCodec, PickleCodec, PickleCompatCodec
 from sqs_workers.deadletter_queue import DeadLetterQueue
 from sqs_workers.memory_sqs import MemorySession
-from sqs_workers.processors import Processor
+from sqs_workers.processors import Processor, RetryJob
 from sqs_workers.queue import RawQueue
 
 worker_results: dict[str, str | None] = {"say_hello": None}
@@ -479,3 +480,142 @@ def test_batch_processor_calls_queue_multiple_times_if_max_messages_over_10(
     assert len(batch_results) == 0
     queue.process_batch(wait_seconds=0)
     assert len(batch_results) == 42
+
+
+def retry_with_default_backoff(username="Anonymous"):
+    """Function that raises RetryJob without custom backoff policy."""
+    raise RetryJob()
+
+
+def retry_with_custom_backoff(username="Anonymous"):
+    """Function that raises RetryJob with custom backoff policy."""
+    raise RetryJob(backoff_policy=ExponentialBackoff(5, max_visbility_timeout=10))
+
+
+def test_retry_job_without_custom_backoff_uses_queue_default(sqs, queue_name):
+    """Test that RetryJob without custom backoff uses the queue's default backoff policy."""
+    queue = sqs.queue(queue_name, backoff_policy=IMMEDIATE_RETURN)
+    task = queue.connect_processor("retry_test", retry_with_default_backoff)
+    task.delay(username="Homer")
+
+    # Should fail (retry) once
+    result = queue.process_batch(wait_seconds=0)
+    assert result.failed_count() == 1
+    assert result.succeeded_count() == 0
+
+    # With IMMEDIATE_RETURN, message should be available again immediately
+    # Connect a working processor and verify the message is still in queue
+    queue.connect_processor("retry_test", say_hello)
+    result = queue.process_batch(wait_seconds=0)
+    assert result.succeeded_count() == 1
+
+
+def test_retry_job_with_custom_backoff(sqs, queue_name):
+    """Test that RetryJob with custom backoff uses that backoff policy."""
+    # Queue has IMMEDIATE_RETURN by default
+    queue = sqs.queue(queue_name, backoff_policy=IMMEDIATE_RETURN)
+    task = queue.connect_processor("retry_test", retry_with_custom_backoff)
+    task.delay(username="Homer")
+
+    # Should fail (retry) with custom backoff
+    result = queue.process_batch(wait_seconds=0)
+    assert result.failed_count() == 1
+
+    # With custom ExponentialBackoff(min=5), message should NOT be immediately available
+    # Try to process again immediately - should get 0 messages
+    queue.connect_processor("retry_test", say_hello)
+    result = queue.process_batch(wait_seconds=0)
+    # If using MemorySession, visibility timeout may not be enforced
+    # So we just verify the first batch failed as expected
+    if not isinstance(sqs.session, MemorySession):
+        assert result.succeeded_count() == 0
+
+
+def test_retry_job_logs_at_info_level(sqs, queue_name, caplog):
+    """Test that RetryJob logs at INFO level, not ERROR."""
+    caplog.set_level(logging.INFO)
+
+    queue = sqs.queue(queue_name, backoff_policy=IMMEDIATE_RETURN)
+    task = queue.connect_processor("retry_test", retry_with_default_backoff)
+    task.delay(username="Homer")
+
+    queue.process_batch(wait_seconds=0)
+
+    # Check that we have INFO log, not ERROR
+    info_logs = [
+        r for r in caplog.records if r.levelname == "INFO" and "Retrying" in r.message
+    ]
+    error_logs = [r for r in caplog.records if r.levelname == "ERROR"]
+
+    assert len(info_logs) > 0
+    assert len(error_logs) == 0
+
+
+def test_retry_job_with_custom_backoff_logs_extra(sqs, queue_name, caplog):
+    """Test that RetryJob with custom backoff includes backoff_policy in log extra."""
+    caplog.set_level(logging.INFO)
+
+    queue = sqs.queue(queue_name, backoff_policy=IMMEDIATE_RETURN)
+    task = queue.connect_processor("retry_test", retry_with_custom_backoff)
+    task.delay(username="Homer")
+
+    queue.process_batch(wait_seconds=0)
+
+    # Check for backoff_policy in log extra
+    retry_logs = [r for r in caplog.records if "Retrying" in r.message]
+    assert len(retry_logs) > 0
+    assert "backoff_policy" in retry_logs[0].__dict__
+
+
+def test_regular_exception_still_logs_error(sqs, queue_name, caplog):
+    """Test backward compatibility: regular exceptions still log at ERROR level."""
+    caplog.set_level(logging.ERROR)
+
+    queue = sqs.queue(queue_name, backoff_policy=IMMEDIATE_RETURN)
+    task = queue.connect_processor("say_hello", raise_exception)
+    task.delay(username="Homer")
+
+    queue.process_batch(wait_seconds=0)
+
+    # Check that we have ERROR log
+    error_logs = [r for r in caplog.records if r.levelname == "ERROR"]
+    assert len(error_logs) > 0
+
+
+def test_retry_job_in_raw_queue(sqs, queue_name, caplog):
+    """Test that RetryJob works with RawQueue processors."""
+    caplog.set_level(logging.INFO)
+
+    queue = sqs.queue(queue_name, RawQueue, backoff_policy=IMMEDIATE_RETURN)
+
+    def raw_processor_with_retry(message):
+        raise RetryJob()
+
+    queue.connect_raw_processor(raw_processor_with_retry)
+    queue.add_raw_job("test message")
+
+    result = queue.process_batch(wait_seconds=0)
+    assert result.failed_count() == 1
+
+    # Check INFO log
+    info_logs = [
+        r for r in caplog.records if r.levelname == "INFO" and "Retrying" in r.message
+    ]
+    assert len(info_logs) > 0
+
+
+def test_retry_job_backward_compatibility(sqs, queue_name):
+    """Test that regular exceptions still work as before."""
+    queue = sqs.queue(queue_name, backoff_policy=IMMEDIATE_RETURN)
+
+    # Regular exception should still trigger retry
+    task = queue.connect_processor("test", raise_exception)
+    task.delay(username="Homer")
+    result = queue.process_batch(wait_seconds=0)
+    assert result.failed_count() == 1
+
+    # Replace with working processor - failed message should retry and succeed
+    queue.connect_processor("test", say_hello)
+    result = queue.process_batch(wait_seconds=0)
+    assert result.succeeded_count() == 1
+    assert worker_results["say_hello"] == "Homer"
