@@ -11,12 +11,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Support Python 3.14.
 - Support free-threaded Python builds.
+- Added new `RetryJob` exception to explicitly request job retries with optional custom backoff policies.
 
 ## [0.6.0] - 2025-08-12
 
 ### Changed
 
-- Update all dependenices.
+- Update all dependencies.
 - Move to uv for package and project management.
 - Update the maximum SQS message size, following AWS changes.
 

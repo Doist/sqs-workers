@@ -368,6 +368,35 @@ def send_email(to, subject, body):
     print(f"Sending email {subject} to {to}")
 ```
 
+### Explicit retry control with RetryJob
+
+You can explicitly request job retries from within your processor functions using the `RetryJob` exception. This is useful for handling expected transient failures like rate limiting or temporary resource unavailability.
+
+```python
+from sqs_workers import RetryJob, ExponentialBackoff
+
+@queue.processor('api_call')
+def api_call(url):
+    response = requests.get(url)
+    if response.status_code == 429:  # Rate limited
+        # Retry with custom backoff policy
+        raise RetryJob(backoff_policy=ExponentialBackoff(min_visibility_timeout=60))
+    elif response.status_code >= 500:
+        # Retry with queue's default backoff
+        raise RetryJob()
+
+    # Process successful response
+    process_api_result(response)
+```
+
+When `RetryJob` is raised:
+- The job is logged at INFO level (not ERROR) since it's an intentional retry
+- If a custom `backoff_policy` is provided, it's used for that specific retry
+- If no `backoff_policy` is provided, the queue's default backoff policy is used
+- The message becomes invisible for the backoff duration, then reappears for retry
+
+This differs from regular exceptions, which are logged at ERROR level and always use the queue's default backoff policy.
+
 ## Shutdown policies
 
 When launching the queue processor with process_queue(), it's possible to optionally set when it has to be stopped.

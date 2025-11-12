@@ -3,9 +3,10 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass, replace
 from functools import partial
-from typing import TYPE_CHECKING, Callable
+from typing import TYPE_CHECKING, Any, Callable
 
 from sqs_workers import codecs
+from sqs_workers.backoff_policies import BackoffPolicy
 from sqs_workers.context import SQSContext
 from sqs_workers.utils import validate_arguments
 
@@ -15,6 +16,38 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 DEFAULT_CONTEXT_VAR = "context"
+
+
+class RetryJob(Exception):
+    """
+    Exception to explicitly request job retry with optional custom backoff policy.
+
+    Unlike other exceptions which indicate errors, RetryJob signals intentional
+    retry (e.g., rate limiting, resource unavailable, etc.).
+
+    Args:
+        backoff_policy: Optional custom backoff policy instance. If None, uses
+                       the queue's default backoff policy.
+    """
+
+    def __init__(self, backoff_policy: BackoffPolicy | None = None):
+        self.backoff_policy = backoff_policy
+        super().__init__()
+
+
+@dataclass(frozen=True)
+class ProcessingResult:
+    """
+    Result of processing a single message or batch of messages.
+
+    Attributes:
+        success: True if processing succeeded, False if it failed and should retry
+        backoff_policy: Optional custom backoff policy to use for retry.
+                       If None, uses the queue's default backoff policy.
+    """
+
+    success: bool
+    backoff_policy: BackoffPolicy | None = None
 
 
 @dataclass
@@ -36,8 +69,14 @@ class Processor:
     def maker(cls, **kwargs):
         return partial(cls, **kwargs)
 
-    def process_message(self, message):
-        """Takes an individual message and sends it to the decorated call handler function."""
+    def process_message(self, message) -> bool | ProcessingResult:
+        """
+        Takes an individual message and sends it to the decorated call handler function.
+
+        Returns:
+            True on success, False on failure with queue default backoff,
+            or ProcessingResult with custom backoff policy.
+        """
         extra = {
             "message_id": message.message_id,
             "queue_name": self.queue.name,
@@ -49,6 +88,18 @@ class Processor:
             content_type, job_kwargs, job_context = self.deserialize_message(message)
             extra["job_content_type"] = content_type
             self.process(job_kwargs, job_context)
+        except RetryJob as e:
+            # Intentional retry - log at info level, not error
+            retry_extra = (
+                {"backoff_policy": e.backoff_policy} if e.backoff_policy else {}
+            )
+            logger.info(
+                "Retrying %s.%s",
+                self.queue.name,
+                self.job_name,
+                extra=extra | retry_extra,
+            )
+            return ProcessingResult(success=False, backoff_policy=e.backoff_policy)
         except Exception:
             logger.exception(
                 "Error while processing %s.%s",
@@ -60,13 +111,17 @@ class Processor:
         else:
             return True
 
-    def process_messages(self, messages):
+    def process_messages(self, messages) -> bool | ProcessingResult:
         """
         Take a list of messages and send them in a batch
         to the decorated call handler function.
+
+        Returns:
+            True on success, False on failure with queue default backoff,
+            or ProcessingResult with custom backoff policy for the entire batch.
         """
         message_ids = [m.message_id for m in messages]
-        extra = {
+        extra: dict[str, Any] = {
             "message_ids": message_ids,
             "queue_name": self.queue.name,
             "job_name": self.job_name,
@@ -80,6 +135,18 @@ class Processor:
 
         try:
             self.process_batch(messages)
+        except RetryJob as e:
+            # Intentional retry for entire batch
+            retry_extra = (
+                {"backoff_policy": e.backoff_policy} if e.backoff_policy else {}
+            )
+            logger.info(
+                "Retrying batch %s.%s",
+                self.queue.name,
+                self.job_name,
+                extra=extra | retry_extra,
+            )
+            return ProcessingResult(success=False, backoff_policy=e.backoff_policy)
         except Exception:
             logger.exception(
                 "Error while processing batch for %s.%s",
