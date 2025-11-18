@@ -103,3 +103,39 @@ def test_bind_arguments_raises_on_extra():
                 "d": 4,
             },
         )
+
+
+def test_bind_arguments_with_var_keyword():
+    """Test that bind_arguments correctly handles **kwargs.
+
+    This test verifies the fix for issue #10, where the old werkzeug-based
+    implementation would lose arguments when a function accepted **kwargs.
+    """
+
+    # Function with only **kwargs
+    def func_kwargs_only(**kwargs):
+        pass
+
+    result = bind_arguments(func_kwargs_only, [], {"a": 1, "b": 2})
+    assert result == {"kwargs": {"a": 1, "b": 2}}
+
+    # Function with specific parameter and **kwargs
+    def func_with_kwargs(a, **kwargs):
+        pass
+
+    result = bind_arguments(func_with_kwargs, [], {"a": 1, "b": 2})
+    assert result == {"a": 1, "kwargs": {"b": 2}}
+
+    # Decorator pattern mentioned in issue #10
+    def decorator(*args, **kwargs):
+        pass
+
+    result = bind_arguments(decorator, [], {"a": 1})
+    assert result == {"kwargs": {"a": 1}}
+
+    # Function with *args and **kwargs
+    def func_with_both(*args, **kwargs):
+        pass
+
+    result = bind_arguments(func_with_both, [1, 2], {"a": 3, "b": 4})
+    assert result == {"args": (1, 2), "kwargs": {"a": 3, "b": 4}}
