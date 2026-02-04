@@ -358,6 +358,18 @@ def send_email(to, subject, body):
 
 The default policy is the exponential backoff. We recommend setting both the backoff policy and the dead-letter queue to limit the maximum number of execution attempts.
 
+The `ExponentialBackoff` policy calculates the visibility timeout using the formula:
+
+```
+min_visibility_timeout + multiplier * (base ** attempts)
+```
+
+Parameters:
+- `base` (default: 2): Exponential base in seconds
+- `min_visibility_timeout` (default: 0): Minimum delay in seconds
+- `max_visibility_timeout` (default: 1800): Maximum delay cap in seconds
+- `multiplier` (default: 1): Scaling factor for the exponential term
+
 Alternatively, you can set the backoff to IMMEDIATE_RETURN to re-execute the failed task immediately.
 
 ```python
