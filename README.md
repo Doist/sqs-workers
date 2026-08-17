@@ -67,6 +67,27 @@ In production, we usually don't handle multiple queues in the same process, but 
 sqs.process_queues()
 ```
 
+## Addressing a queue by URL
+
+If a queue already exists, you can provide its URL directly and avoid the
+additional `GetQueueUrl` request required to resolve a queue name:
+
+```python
+queue = sqs.queue(
+    "emails",
+    queue_url="https://sqs.us-east-1.amazonaws.com/123456789012/prod_emails",
+)
+```
+
+The first argument remains the logical queue name used for processors, logging,
+and the environment's queue registry. The URL is only the SQS transport address,
+so `queue_prefix` is not applied to it. Register the URL the first time a logical
+queue is requested; registering the same name later with a different URL raises
+`ValueError`.
+
+For FIFO queues, the logical name must still end in `.fifo` so sqs-workers adds
+the required FIFO message attributes.
+
 ## Serialization
 
 There are two serializers: JSON and pickle.

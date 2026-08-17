@@ -69,6 +69,13 @@ class MemoryClient:
 class ServiceResource:
     aws: MemoryAWS = field(repr=False)
 
+    def Queue(self, url: str) -> Optional["MemoryQueue"]:
+        """Return a queue addressed by its URL."""
+        for queue in self.aws.queues:
+            if queue.url == url:
+                return queue
+        return None
+
     def create_queue(self, QueueName: str, Attributes):
         return self.aws.create_queue(QueueName, Attributes)
 
