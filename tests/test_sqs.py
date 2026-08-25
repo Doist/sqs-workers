@@ -3,6 +3,8 @@ from __future__ import annotations
 import contextlib
 import logging
 import time
+from typing import Any
+from unittest.mock import Mock
 
 import botocore
 import localstack_client.session
@@ -11,6 +13,7 @@ import pytest
 from sqs_workers import (
     IMMEDIATE_RETURN,
     ExponentialBackoff,
+    SQSEnv,
     batching,
     create_fifo_queue,
     create_standard_queue,
@@ -20,7 +23,7 @@ from sqs_workers.codecs import JSONCodec, PickleCodec, PickleCompatCodec
 from sqs_workers.deadletter_queue import DeadLetterQueue
 from sqs_workers.memory_sqs import MemorySession
 from sqs_workers.processors import Processor, RetryJob
-from sqs_workers.queue import RawQueue
+from sqs_workers.queue import JobQueue, RawQueue
 
 worker_results: dict[str, str | None] = {"say_hello": None}
 
@@ -67,6 +70,131 @@ def codec(request):
 def sqs_codec(sqs, codec):
     sqs.codec = codec[0]
     return codec
+
+
+def test_queue_url_is_resolved_lazily_without_name_lookup() -> None:
+    sqs_resource = Mock()
+    sqs = SQSEnv(sqs_client=Mock(), sqs_resource=sqs_resource)
+    queue_url = "https://sqs.example.com/123456789012/physical-emails"
+
+    queue = sqs.queue("emails", queue_url=queue_url)
+
+    assert queue.name == "emails"
+    assert queue.queue_url == queue_url
+    assert sqs.queues["emails"] is queue
+    sqs_resource.Queue.assert_not_called()
+    sqs_resource.get_queue_by_name.assert_not_called()
+
+    assert queue.get_queue() is sqs_resource.Queue.return_value
+    assert queue.get_queue() is sqs_resource.Queue.return_value
+    sqs_resource.Queue.assert_called_once_with(queue_url)
+    sqs_resource.get_queue_by_name.assert_not_called()
+
+
+def test_queue_name_resolution_is_unchanged() -> None:
+    sqs_resource = Mock()
+    sqs = SQSEnv(
+        queue_prefix="test_",
+        sqs_client=Mock(),
+        sqs_resource=sqs_resource,
+    )
+
+    queue = sqs.queue("emails")
+
+    assert queue.queue_url is None
+    assert queue.get_queue() is sqs_resource.get_queue_by_name.return_value
+    sqs_resource.get_queue_by_name.assert_called_once_with(QueueName="test_emails")
+    sqs_resource.Queue.assert_not_called()
+
+
+def test_queue_url_registration_is_idempotent() -> None:
+    sqs = SQSEnv(sqs_client=Mock(), sqs_resource=Mock())
+    queue_url = "https://sqs.example.com/123456789012/emails"
+
+    queue = sqs.queue("emails", queue_url=queue_url)
+
+    assert sqs.queue("emails") is queue
+    assert sqs.queue("emails", queue_url=queue_url) is queue
+
+
+@pytest.mark.parametrize(
+    "initial_url",
+    [None, "https://sqs.example.com/123456789012/emails"],
+)
+def test_queue_rejects_conflicting_url_registration(initial_url: str | None) -> None:
+    sqs_resource = Mock()
+    sqs = SQSEnv(sqs_client=Mock(), sqs_resource=sqs_resource)
+    if initial_url is None:
+        sqs.queue("emails")
+    else:
+        sqs.queue("emails", queue_url=initial_url)
+
+    with pytest.raises(ValueError, match="already registered with a different URL"):
+        sqs.queue(
+            "emails",
+            queue_url="https://sqs.example.com/123456789012/other-emails",
+        )
+
+    sqs_resource.Queue.assert_not_called()
+    sqs_resource.get_queue_by_name.assert_not_called()
+
+
+def test_queue_url_preserves_custom_queue_maker_signature() -> None:
+    def queue_maker(
+        *,
+        env: SQSEnv,
+        name: str,
+        batching_policy: batching.BatchingConfiguration,
+        backoff_policy: Any,
+    ) -> JobQueue:
+        return JobQueue(
+            env=env,
+            name=name,
+            batching_policy=batching_policy,
+            backoff_policy=backoff_policy,
+        )
+
+    sqs = SQSEnv(sqs_client=Mock(), sqs_resource=Mock())
+    queue_url = "https://sqs.example.com/123456789012/emails"
+
+    queue = sqs.queue("emails", queue_maker=queue_maker, queue_url=queue_url)
+
+    assert queue.name == "emails"
+    assert queue.queue_url == queue_url
+
+
+def test_queue_url_round_trip(sqs: SQSEnv, random_string: str) -> None:
+    queue_url = create_standard_queue(sqs, random_string)
+    try:
+        queue = sqs.queue(
+            f"logical-{random_string}",
+            RawQueue,
+            queue_url=queue_url,
+        )
+        queue.add_raw_job("hello")
+
+        messages = queue.get_raw_messages(0)
+        assert [message.body for message in messages] == ["hello"]
+    finally:
+        delete_queue(sqs, random_string)
+
+
+def test_fifo_queue_url_uses_logical_name_for_message_attributes() -> None:
+    sqs_resource = Mock()
+    sqs_resource.Queue.return_value.send_message.return_value = {
+        "MessageId": "message-id"
+    }
+    sqs = SQSEnv(sqs_client=Mock(), sqs_resource=sqs_resource)
+    queue_url = "https://sqs.example.com/123456789012/physical-emails.fifo"
+    queue = sqs.queue("emails.fifo", RawQueue, queue_url=queue_url)
+
+    assert queue.add_raw_job("hello") == "message-id"
+    sqs_resource.Queue.return_value.send_message.assert_called_once_with(
+        MessageBody="hello",
+        DelaySeconds=0,
+        MessageAttributes={},
+        MessageGroupId="default",
+    )
 
 
 def test_add_job_with_codec(sqs, queue_name, codec):

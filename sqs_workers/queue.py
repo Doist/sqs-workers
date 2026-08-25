@@ -58,8 +58,9 @@ class GenericQueue:
     env: SQSEnv = field(repr=False)
     name: str
     backoff_policy: BackoffPolicy = DEFAULT_BACKOFF
-    batching_policy: BatchingConfiguration = field(default_factory=lambda: NoBatching())
+    batching_policy: BatchingConfiguration = field(default_factory=NoBatching)
     _queue: Any = field(repr=False, default=None)
+    queue_url: str | None = field(repr=False, default=None, init=False)
 
     @classmethod
     def maker(cls, **kwargs):
@@ -206,7 +207,7 @@ class GenericQueue:
         raise NotImplementedError()
 
     def get_raw_messages(self, wait_seconds: int, max_messages: int = 10) -> list[Any]:
-        """Return raw messages from the queue, addressed by its name."""
+        """Return raw messages from the configured queue."""
         queue = self.get_queue()
 
         kwargs = {
@@ -269,12 +270,15 @@ class GenericQueue:
         """
         return self.env.get_sqs_queue_name(self.name)
 
-    def get_queue(self):
-        """Helper function to return queue object."""
+    def get_queue(self) -> Any:
+        """Return the cached SQS queue resource, resolving it if necessary."""
         if self._queue is None:
-            self._queue = self.env.sqs_resource.get_queue_by_name(
-                QueueName=self.get_sqs_queue_name()
-            )
+            if self.queue_url is not None:
+                self._queue = self.env.sqs_resource.Queue(self.queue_url)
+            else:
+                self._queue = self.env.sqs_resource.get_queue_by_name(
+                    QueueName=self.get_sqs_queue_name()
+                )
         return self._queue
 
 

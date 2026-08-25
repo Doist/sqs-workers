@@ -81,6 +81,8 @@ class SQSEnv:
         queue_maker: type[JobQueue] | Callable[..., JobQueue] = JobQueue,
         batching_policy: BatchingConfiguration = POLICY_NO_BATCHING,
         backoff_policy: BackoffPolicy | None = None,
+        *,
+        queue_url: str | None = None,
     ) -> JobQueue: ...
 
     @overload
@@ -90,6 +92,8 @@ class SQSEnv:
         queue_maker: type[AnyQueueT] | Callable[..., AnyQueueT],
         batching_policy: BatchingConfiguration = POLICY_NO_BATCHING,
         backoff_policy: BackoffPolicy | None = None,
+        *,
+        queue_url: str | None = None,
     ) -> AnyQueueT: ...
 
     def queue(
@@ -98,17 +102,28 @@ class SQSEnv:
         queue_maker: type[AnyQueue] | Callable[..., AnyQueue] = JobQueue,
         batching_policy: BatchingConfiguration = POLICY_NO_BATCHING,
         backoff_policy: BackoffPolicy | None = None,
+        *,
+        queue_url: str | None = None,
     ) -> AnyQueue:
-        """Get a queue object, initializing it with queue_maker if necessary."""
-        if queue_name not in self.queues:
-            backoff_policy = backoff_policy or self.backoff_policy
-            self.queues[queue_name] = queue_maker(
-                env=self,
-                name=queue_name,
-                batching_policy=batching_policy,
-                backoff_policy=backoff_policy,
-            )
-        return self.queues[queue_name]
+        """Get a logical queue, optionally addressing it by its existing URL."""
+        queue = self.queues.get(queue_name)
+        if queue is not None:
+            if queue_url is not None and queue.queue_url != queue_url:
+                raise ValueError(
+                    f"Queue {queue_name!r} is already registered with a different URL"
+                )
+            return queue
+
+        backoff_policy = backoff_policy or self.backoff_policy
+        queue = queue_maker(
+            env=self,
+            name=queue_name,
+            batching_policy=batching_policy,
+            backoff_policy=backoff_policy,
+        )
+        queue.queue_url = queue_url
+        self.queues[queue_name] = queue
+        return queue
 
     def processor(
         self,

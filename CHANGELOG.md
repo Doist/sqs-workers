@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Support addressing pre-existing queues by URL without resolving their names. (#33)
+
 ## [0.7.1] - 2026-02-04
 
 ### Added
