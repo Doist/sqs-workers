@@ -67,6 +67,16 @@ class MemoryClient:
 
 @dataclass
 class ServiceResource:
+    """
+    In-memory stand-in for the SQS service resource, mimicking a subset of it.
+
+    Method names follow boto3 rather than PEP 8 because sqs-workers calls them
+    on the real service resource too.
+
+    Ref: https://boto3.amazonaws.com/v1/documentation/api/latest/reference/
+         services/sqs.html#service-resource
+    """
+
     aws: MemoryAWS = field(repr=False)
 
     def Queue(self, url: str) -> Optional["MemoryQueue"]:

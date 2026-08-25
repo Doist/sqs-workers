@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Added support for addressing pre-existing queues by URL without resolving their names. (#33)
+- Support addressing pre-existing queues by URL without resolving their names. (#33)
 
 ## [0.7.1] - 2026-02-04
 

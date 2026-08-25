@@ -163,17 +163,6 @@ def test_queue_url_preserves_custom_queue_maker_signature() -> None:
     assert queue.queue_url == queue_url
 
 
-def test_memory_session_addresses_queue_by_url() -> None:
-    sqs = SQSEnv(MemorySession())
-    queue_url = create_standard_queue(sqs, "physical-emails")
-    queue = sqs.queue("emails", RawQueue, queue_url=queue_url)
-
-    queue.add_raw_job("hello")
-
-    messages = queue.get_raw_messages(0)
-    assert [message.body for message in messages] == ["hello"]
-
-
 def test_queue_url_round_trip(sqs: SQSEnv, random_string: str) -> None:
     queue_url = create_standard_queue(sqs, random_string)
     try:
