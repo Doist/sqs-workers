@@ -4,7 +4,7 @@ import contextlib
 import logging
 import time
 from typing import Any
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
 import botocore
 import localstack_client.session
@@ -266,6 +266,16 @@ def test_batch_should_flush_on_exit(sqs, queue_name):
 
     # but once the batch is closed, all tasks are added
     assert len(queue.get_raw_messages(0)) == 2
+
+
+def test_empty_batch_should_not_look_up_the_queue(sqs, random_string):
+    # the queue is never created, so looking it up would fail on real SQS
+    queue = sqs.queue(random_string)
+
+    with patch.object(queue, "get_queue") as get_queue, queue.add_batch():
+        pass
+
+    get_queue.assert_not_called()
 
 
 def test_batch_should_keep_messages_until_overflow(sqs, queue_name):
