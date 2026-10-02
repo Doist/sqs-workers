@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Closing an add batch with no pending messages no longer looks the queue up in SQS, so it no longer fails for a queue that doesn't exist.
+
 ## [0.7.2] - 2026-08-25
 
 ### Added
