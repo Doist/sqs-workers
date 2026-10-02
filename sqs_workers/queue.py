@@ -558,8 +558,6 @@ class JobQueue(GenericQueue):
         return len(json.dumps(messages).encode("utf-8")) + 1024
 
     def _flush_batch_if_needed(self) -> None:
-        queue = self.get_queue()
-
         # There should be at most 1 batch to send. But just in case, prepare to
         # send more than that.
         while self._should_flush_batch():
@@ -585,7 +583,9 @@ class JobQueue(GenericQueue):
                 msg["Id"] = id_
                 msg_by_id[id_] = msg
 
-            res = queue.send_messages(Entries=msgs)
+            # Resolve the queue only now, so that closing a batch with nothing
+            # to send doesn't look up a queue that may not even exist.
+            res = self.get_queue().send_messages(Entries=msgs)
 
             # Handle errors
             if res.get("Failed", []):
