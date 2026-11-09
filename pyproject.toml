@@ -22,7 +22,7 @@ classifiers = [
 dependencies = ["boto3>=1.37.33,<2"]
 
 [project.urls]
-Homepage = "https://github.com/Doist/sqs-workers"
+Homepage = "https://github.com/todoist/sqs-workers"
 
 [dependency-groups]
 dev = [

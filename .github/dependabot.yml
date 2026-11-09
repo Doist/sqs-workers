@@ -10,7 +10,7 @@ updates:
     cooldown:
       default-days: 5
     reviewers:
-      - 'Doist/backend'
+      - 'todoist/backend'
     commit-message:
       prefix: "chore(deps):"
 
@@ -23,6 +23,6 @@ updates:
     cooldown:
       default-days: 5
     reviewers:
-      - 'Doist/backend'
+      - 'todoist/backend'
     commit-message:
       prefix: "chore(deps):"
